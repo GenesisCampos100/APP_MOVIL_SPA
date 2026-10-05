@@ -8,6 +8,7 @@ class UsuarioSesion {
   final String nombre; //             clientes.nombre       VARCHAR(100)
   final String apellido; //           clientes.apellido_p   VARCHAR(100)
   final String? apellidoMaterno; //   clientes.apellido_m   VARCHAR(100)
+  final String? telefono; //          clientes.telefono     VARCHAR(15)
 
   const UsuarioSesion({
     this.id = 0,
@@ -17,6 +18,7 @@ class UsuarioSesion {
     this.apellidoMaterno,
     this.foto,
     this.rol = 'cliente',
+    this.telefono,
   });
 
   factory UsuarioSesion.fromJson(Map<String, dynamic> j) => UsuarioSesion(
@@ -27,6 +29,18 @@ class UsuarioSesion {
         apellidoMaterno: j['apellido_m'] as String?,
         foto: j['foto'] as String?,
         rol: (j['rol'] ?? 'cliente') as String,
+        telefono: j['telefono'] as String?,
+      );
+
+  UsuarioSesion copyWith({String? telefono}) => UsuarioSesion(
+        id: id,
+        correo: correo,
+        nombre: nombre,
+        apellido: apellido,
+        apellidoMaterno: apellidoMaterno,
+        foto: foto,
+        rol: rol,
+        telefono: telefono ?? this.telefono,
       );
 
   String get nombreCompleto => [nombre, apellido, apellidoMaterno]

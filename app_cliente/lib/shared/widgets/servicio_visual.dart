@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
-/// Imagen provisional del servicio (degradado + ícono) hasta tener fotos reales.
+/// Imagen del servicio. Si [imagen] es una ruta de assets (assets/images/...)
+/// o una URL (http...), muestra la foto. Si no hay imagen o no se puede
+/// cargar, muestra un degradado con ícono según la categoría.
 class ServicioThumb extends StatelessWidget {
   final String categoria;
+  final String? imagen;
   final double? width;
   final double? height;
   final double radius;
@@ -12,6 +15,7 @@ class ServicioThumb extends StatelessWidget {
   const ServicioThumb({
     super.key,
     required this.categoria,
+    this.imagen,
     this.width,
     this.height,
     this.radius = 8,
@@ -48,8 +52,7 @@ class ServicioThumb extends StatelessWidget {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _degradado() {
     return Container(
       width: width,
       height: height,
@@ -65,6 +68,30 @@ class ServicioThumb extends StatelessWidget {
         child: Icon(iconoDe(categoria), color: Colors.white, size: iconSize),
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ruta = imagen;
+    if (ruta == null || ruta.isEmpty) return _degradado();
+
+    final foto = ruta.startsWith('http')
+        ? Image.network(
+            ruta,
+            width: width,
+            height: height,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _degradado(),
+          )
+        : Image.asset(
+            ruta,
+            width: width,
+            height: height,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.high,
+            errorBuilder: (_, __, ___) => _degradado(),
+          );
+    return ClipRRect(borderRadius: BorderRadius.circular(radius), child: foto);
   }
 }
 

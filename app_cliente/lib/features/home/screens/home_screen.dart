@@ -243,7 +243,8 @@ class _DestacadoTile extends StatelessWidget {
       onTap: onTap,
       child: Row(
         children: [
-          ServicioThumb(categoria: s.categoria, width: 120, height: 84),
+          //El inicio use la imagen del servicio
+          ServicioThumb(categoria: s.categoria, imagen: s.imagen, width: 120, height: 84),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -263,9 +264,11 @@ class _DestacadoTile extends StatelessWidget {
                 Row(
                   children: [
                     Text(s.duracionTexto, style: const TextStyle(fontSize: 12, color: AppColors.gris)),
-                    const SizedBox(width: 10),
-                    const Icon(Icons.star, size: 14, color: Colors.amber),
-                    Text(' ${s.rating}', style: const TextStyle(fontSize: 12, color: AppColors.gris)),
+                    if (s.rating > 0) ...[
+                      const SizedBox(width: 10),
+                      const Icon(Icons.star, size: 14, color: Colors.amber),
+                      Text(' ${s.rating}', style: const TextStyle(fontSize: 12, color: AppColors.gris)),
+                    ],
                     const Spacer(),
                     FilledButton(
                       onPressed: onTap,

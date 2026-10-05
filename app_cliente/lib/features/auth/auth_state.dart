@@ -17,6 +17,13 @@ class AuthState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void actualizarTelefono(String telefono) {
+    final actual = _usuario;
+    if (actual == null) return;
+    _usuario = actual.copyWith(telefono: telefono);
+    notifyListeners();
+  }
+
   void cerrarSesion() {
     _usuario = null;
     notifyListeners();

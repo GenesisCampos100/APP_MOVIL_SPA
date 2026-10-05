@@ -3,17 +3,22 @@ import '../models/usuario_sesion.dart';
 class _Cuenta {
   final String nombre, apellido, password;
   final String? apellidoMaterno;
-  const _Cuenta(this.nombre, this.apellido, this.password, [this.apellidoMaterno]);
+  final String? telefono;
+  const _Cuenta(this.nombre, this.apellido, this.password, [this.apellidoMaterno, this.telefono]);
+
+  _Cuenta conTelefono(String t) =>
+      _Cuenta(nombre, apellido, password, apellidoMaterno, t);
 }
 
 /// DATOS DE PRUEBA (mock). Cuando Vanessa tenga la API, solo se cambia el
-/// contenido de estos 4 métodos por llamadas HTTP; las pantallas no cambian.
+/// contenido de estos métodos por llamadas HTTP; las pantallas no cambian.
 ///
 ///   existeCorreo      -> POST /auth/verificar-correo
 ///   iniciarSesion     -> POST /auth/login
 ///   registrar         -> POST /auth/registro
 ///                        (nombre, apellido_p, apellido_m, correo, password)
 ///   verificarCodigo   -> POST /auth/verificar-codigo
+///   guardarTelefono   -> PUT  /clientes/telefono
 ///
 /// Cuenta de prueba ya registrada:  cliente@aura.com  /  Aura1234
 /// Código de verificación de prueba: 123456
@@ -44,6 +49,7 @@ class AuthRepository {
       nombre: c.nombre,
       apellido: c.apellido,
       apellidoMaterno: c.apellidoMaterno,
+      telefono: c.telefono,
     );
   }
 
@@ -73,5 +79,13 @@ class AuthRepository {
       apellido: pendiente.apellido,
       apellidoMaterno: pendiente.apellidoMaterno,
     );
+  }
+
+  /// Guarda el teléfono del cliente (formato "+52XXXXXXXXXX", máx. 15).
+  Future<void> guardarTelefono(String correo, String telefono) async {
+    await _espera();
+    final key = _norm(correo);
+    final c = _cuentas[key];
+    if (c != null) _cuentas[key] = c.conTelefono(telefono);
   }
 }

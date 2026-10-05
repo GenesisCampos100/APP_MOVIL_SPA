@@ -28,7 +28,12 @@ class ServicioCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  ServicioThumb(categoria: s.categoria, radius: 0, iconSize: 40),
+                  ServicioThumb(
+                    categoria: s.categoria,
+                    imagen: s.imagen,
+                    radius: 0,
+                    iconSize: 40,
+                  ),
                   Positioned(right: 6, bottom: 6, child: CategoriaBadge(s.categoria)),
                 ],
               ),
@@ -47,8 +52,11 @@ class ServicioCard extends StatelessWidget {
                     children: [
                       Text(s.duracionTexto, style: const TextStyle(fontSize: 11, color: AppColors.gris)),
                       const Spacer(),
-                      const Icon(Icons.star, size: 12, color: Colors.amber),
-                      Text(' ${s.rating}', style: const TextStyle(fontSize: 11, color: AppColors.gris)),
+                      // La estrella solo aparece si el servicio ya tiene reseñas.
+                      if (s.rating > 0) ...[
+                        const Icon(Icons.star, size: 12, color: Colors.amber),
+                        Text(' ${s.rating}', style: const TextStyle(fontSize: 11, color: AppColors.gris)),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 4),
