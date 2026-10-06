@@ -1,26 +1,13 @@
 const express = require('express');
 const pool = require('./db');
 
-const app = express();
 
+const app = express();
 app.use(express.json());
 
-app.get('/api/servicios', async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT *
-            FROM servicios
-        `);
 
-        res.json(result.rows);
+const authRoutes = require('./routes/auth.routes'); // Rutas de autenticación
+app.use('/api/auth', authRoutes);
 
-    } catch (error) {
-        console.error('Error al obtener servicios:', error.message);
-
-        res.status(500).json({
-            error: 'Error al obtener los servicios'
-        });
-    }
-});
 
 module.exports = app;
