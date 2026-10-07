@@ -5,6 +5,7 @@ import '../../../core/routes/app_routes.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../auth_state.dart';
 import '../widgets/auth_widgets.dart';
+import '../../../data/services/sesion_service.dart';
 
 /// "Verifica tu cuenta": código de 6 dígitos enviado al correo.
 /// Un solo campo invisible recibe el teclado y se dibujan 6 casillas.
@@ -50,7 +51,12 @@ class _AuthVerifyScreenState extends State<AuthVerifyScreen> {
         return;
       }
       AuthState.instance.iniciarSesion(usuario);
-      Navigator.pushReplacementNamed(context, AppRoutes.authExito);
+      SesionService.instance.iniciarSesion(usuario);
+
+      Navigator.pushReplacementNamed(
+        context,
+        AppRoutes.authExito,
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() {

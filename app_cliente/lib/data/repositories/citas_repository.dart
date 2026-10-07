@@ -1,75 +1,88 @@
 import 'package:flutter/foundation.dart';
+
 import '../models/cita.dart';
 import '../models/empleado.dart';
 import '../models/servicio.dart';
-import 'empleados_repository.dart';
+import '../services/api_service.dart';
+import '../services/sesion_service.dart';
 
-/// Pon en false para ocultar la cita completada de ejemplo en "Mis citas".
-const bool kMostrarCitasDemo = true;
-
-/// DATOS DE PRUEBA (mock) guardados en memoria. Con la API:
-///   citasDe -> GET  /citas        (las del cliente con sesión)
-///   crear   -> POST /citas        (ver Cita.nueva)
 class CitasRepository extends ChangeNotifier {
   CitasRepository._();
+
   static final CitasRepository instance = CitasRepository._();
 
-  final Map<String, List<Cita>> _porCorreo = {};
-  int _siguienteId = 100;
+  /// Obtiene las citas del cliente actualmente iniciado.
+  /// Obtiene las citas del cliente actualmente iniciado.
+Future<List<Cita>> obtenerMisCitas() async {
+  final sesion = SesionService.instance;
 
-  /// Cita completada de ejemplo, para ver el botón "Escribir reseña".
-  static final Cita _demo = Cita(
-    id: 1,
-    idCliente: 0,
-    idEmpleado: 2,
-    idServicio: 1,
-    fecha: DateTime(2026, 9, 11),
-    horaInicio: '11:30',
-    duracionAplicada: 45,
-    precioAplicado: 500,
-    estado: Cita.completada,
-    servicioNombre: 'Masaje relajante',
-    servicioCategoria: 'Corporal',
-    empleadoNombre: 'Vanessa',
-  );
+  if (!sesion.estaIniciada) {
+    throw Exception('Debes iniciar sesión para consultar tus citas');
+  }
 
-  List<Cita> citasDe(String correo) => [
-        if (kMostrarCitasDemo) _demo,
-        ...?_porCorreo[correo],
-      ];
+  final idCliente = sesion.idCliente;
 
+  if (idCliente == null) {
+    throw Exception('La sesión no tiene un cliente asociado');
+  }
+
+  try {
+    final data = await ApiService.get(
+      '/citas/cliente/$idCliente',
+    );
+
+    final lista = data['citas'] as List<dynamic>;
+
+    return lista
+        .map(
+          (json) => Cita.fromJson(
+            json as Map<String, dynamic>,
+          ),
+        )
+        .toList();
+  } catch (e) {
+    throw Exception('No se pudieron cargar tus citas: $e');
+  }
+}
+
+  /// Registra una nueva cita en el backend.
   Future<Cita> crear({
-    required String correo,
     required Servicio servicio,
     required Empleado empleado,
     required DateTime fecha,
     required String hora,
+    String? observaciones,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 600));
+    final sesion = SesionService.instance;
 
-    // "Cualquier disponible": se asigna al primero de la lista.
-    var asignado = empleado;
-    if (empleado.esCualquiera) {
-      final lista = await EmpleadosRepository().obtenerParaServicio(servicio.id);
-      asignado = lista.first;
+    if (!sesion.estaIniciada) {
+      throw Exception('Debes iniciar sesión para registrar una cita');
     }
 
-    final cita = Cita(
-      id: _siguienteId++,
-      idCliente: 0,
-      idEmpleado: asignado.id,
-      idServicio: servicio.id,
-      fecha: fecha,
-      horaInicio: hora,
-      duracionAplicada: servicio.minutos,
-      precioAplicado: servicio.precio,
-      estado: Cita.confirmada,
-      servicioNombre: servicio.nombre,
-      servicioCategoria: servicio.categoria,
-      empleadoNombre: asignado.nombre,
+    final idCliente = sesion.idCliente;
+
+    if (idCliente == null) {
+      throw Exception('La sesión no tiene un cliente asociado');
+    }
+
+    final data = await ApiService.post(
+      '/citas',
+      {
+        'id_cliente': idCliente,
+        'id_servicio': servicio.id,
+        'id_empleado': empleado.id,
+        'fecha': fecha.toIso8601String().split('T').first,
+        'hora_inicio': hora,
+        if (observaciones != null) 'observaciones': observaciones,
+      },
     );
-    (_porCorreo[correo] ??= []).add(cita);
+
+    final citaJson = data['cita'] as Map<String, dynamic>;
+
+    final cita = Cita.fromJson(citaJson);
+
     notifyListeners();
+
     return cita;
   }
 }

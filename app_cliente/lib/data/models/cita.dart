@@ -49,17 +49,21 @@ class Cita {
         precioAplicado: aDouble(j['precio_aplicado']),
         estado: j['estado'] as String,
         observaciones: j['observaciones'] as String?,
-        servicioNombre: (j['servicio_nombre'] ?? '') as String,
+        servicioNombre: (j['servicio'] ?? '') as String,
         servicioCategoria: (j['servicio_categoria'] ?? '') as String,
-        empleadoNombre: (j['empleado_nombre'] ?? '') as String,
+        empleadoNombre: (j['empleado'] ?? '') as String,
       );
 
   /// Cita confirmada cuya fecha es hoy o después.
-  bool get esProxima {
-    final n = DateTime.now();
-    final hoy = DateTime(n.year, n.month, n.day);
-    return estado == confirmada && !fecha.isBefore(hoy);
-  }
+  static const pendiente = 'Pendiente';
+
+bool get esProxima {
+  final n = DateTime.now();
+  final hoy = DateTime(n.year, n.month, n.day);
+
+  return (estado == pendiente || estado == confirmada) &&
+      !fecha.isBefore(hoy);
+}
 
   /// Datos que la app envía al crear una cita. El cliente sale de la sesión
   /// (token); duración, precio y estado los calcula el servidor.

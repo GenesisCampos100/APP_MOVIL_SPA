@@ -5,7 +5,6 @@ import '../../../core/utils/formato.dart';
 import '../../../data/repositories/citas_repository.dart';
 import '../../../shared/widgets/pantalla_exito.dart';
 import '../../../shared/widgets/servicio_visual.dart';
-import '../../auth/auth_state.dart';
 import '../../auth/widgets/auth_widgets.dart';
 import '../../shell/shell_controller.dart';
 import '../reserva_borrador.dart';
@@ -23,19 +22,20 @@ class _ConfirmarCitaScreenState extends State<ConfirmarCitaScreen> {
   bool _cargando = false;
 
   Future<void> _confirmar() async {
-    final usuario = AuthState.instance.usuario;
-    if (usuario == null) return;
     final b = widget.borrador;
+
     setState(() => _cargando = true);
+
     try {
       await CitasRepository.instance.crear(
-        correo: usuario.correo,
         servicio: b.servicio,
         empleado: b.empleado,
         fecha: b.fecha,
         hora: b.hora,
       );
+
       if (!mounted) return;
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -44,17 +44,26 @@ class _ConfirmarCitaScreenState extends State<ConfirmarCitaScreen> {
             mensaje: 'Tu cita quedó registrada.\nTe esperamos en Aura Spa.',
             textoBoton: 'Ver mis citas',
             onContinuar: (ctx) {
-              ShellController.irA(2); // pestaña "Citas"
-              Navigator.popUntil(ctx, ModalRoute.withName(AppRoutes.shell));
+              ShellController.irA(2);
+              Navigator.popUntil(
+                ctx,
+                ModalRoute.withName(AppRoutes.shell),
+              );
             },
           ),
         ),
       );
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
+
       setState(() => _cargando = false);
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo confirmar la cita. Intenta de nuevo.')),
+        SnackBar(
+          content: Text(
+            e.toString().replaceFirst('Exception: ', ''),
+          ),
+        ),
       );
     }
   }

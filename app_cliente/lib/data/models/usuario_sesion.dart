@@ -2,6 +2,7 @@
 /// "usuarios" y "clientes" de PostgreSQL.
 class UsuarioSesion {
   final int id; //                    usuarios.id_usuario   INT
+  final int? idCliente; //            clientes.id_cliente   INT
   final String correo; //             usuarios.correo       VARCHAR(100)
   final String? foto; //              usuarios.foto         TEXT (URL)
   final String rol; //                usuarios.rol          VARCHAR(20)
@@ -12,6 +13,7 @@ class UsuarioSesion {
 
   const UsuarioSesion({
     this.id = 0,
+    this.idCliente,
     required this.correo,
     required this.nombre,
     required this.apellido,
@@ -23,6 +25,7 @@ class UsuarioSesion {
 
   factory UsuarioSesion.fromJson(Map<String, dynamic> j) => UsuarioSesion(
         id: (j['id_usuario'] as num?)?.toInt() ?? 0,
+        idCliente: (j['id_cliente'] as num?)?.toInt(),
         correo: j['correo'] as String,
         nombre: (j['nombre'] ?? '') as String,
         apellido: (j['apellido_p'] ?? '') as String,
@@ -34,6 +37,7 @@ class UsuarioSesion {
 
   UsuarioSesion copyWith({String? telefono}) => UsuarioSesion(
         id: id,
+        idCliente: idCliente,
         correo: correo,
         nombre: nombre,
         apellido: apellido,
