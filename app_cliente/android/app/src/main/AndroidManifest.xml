@@ -1,8 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET"/>
+    
     <application
         android:label="aura_spa"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true"> //Cambiar a true para permitir tráfico HTTP en Android 9 y versiones posteriores
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

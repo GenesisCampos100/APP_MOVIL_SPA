@@ -48,4 +48,6 @@ class Servicio {
 
   String get duracionTexto => minutos == 60 ? '1 hora' : '$minutos min';
   String get precioTexto => '\$${precio.toStringAsFixed(0)}';
+
+  
 }

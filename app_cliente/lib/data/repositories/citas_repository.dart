@@ -28,7 +28,7 @@ Future<List<Cita>> obtenerMisCitas() async {
 
   try {
     final data = await ApiService.get(
-      '/citas/cliente/$idCliente',
+      '/api/citas/cliente/$idCliente', //cambiar a /citas/cliente/{idCliente}
     );
 
     final lista = data['citas'] as List<dynamic>;
@@ -66,7 +66,7 @@ Future<List<Cita>> obtenerMisCitas() async {
     }
 
     final data = await ApiService.post(
-      '/citas',
+      '/api/citas',
       {
         'id_cliente': idCliente,
         'id_servicio': servicio.id,

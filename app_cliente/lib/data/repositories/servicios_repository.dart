@@ -4,7 +4,7 @@ import '../services/api_service.dart';
 
 class ServiciosRepository {
   Future<List<Servicio>> obtenerServicios() async {
-    final data = await ApiService.get('/servicios');
+    final data = await ApiService.get('/api/servicios'); //cambiar a /servicios
 
     final lista = data as List;
 
@@ -17,3 +17,4 @@ class ServiciosRepository {
         .toList();
   }
 }
+

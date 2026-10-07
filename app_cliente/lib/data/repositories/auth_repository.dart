@@ -11,7 +11,7 @@ class AuthRepository {
   Future<bool> existeCorreo(String correo) async {
     try {
       final data = await ApiService.post(
-        '/auth/verificar-correo',
+        '/api/auth/verificar-correo', //cambiar a /auth/verificar-correo
         {
           'correo': correo.trim().toLowerCase(),
         },
@@ -30,7 +30,7 @@ class AuthRepository {
   ) async {
     try {
       final data = await ApiService.post(
-        '/auth/login',
+        '/api/auth/login', //cambiar a /auth/login
         {
           'correo': correo.trim().toLowerCase(),
           'contrasenia': password,
@@ -71,7 +71,7 @@ class AuthRepository {
   }) async {
     try {
       final data = await ApiService.post(
-        '/auth/registro',
+        '/api/auth/registro',
         {
           'correo': correo.trim().toLowerCase(),
           'contrasenia': password,

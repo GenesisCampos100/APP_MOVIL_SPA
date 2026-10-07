@@ -4,7 +4,7 @@ import '../services/api_service.dart';
 class EmpleadosRepository {
   Future<List<Empleado>> obtenerParaServicio(int idServicio) async {
     final data = await ApiService.get(
-      '/servicios/$idServicio/empleados',
+      '/api/servicios/$idServicio/empleados', //cambiar a /servicios/{idServicio}/empleados
     );
 
     final empleadosJson = data['empleados'] as List;
