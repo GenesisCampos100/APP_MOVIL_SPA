@@ -301,7 +301,79 @@ const obtenerCitas = async (req, res) => {
     }
 };
 
+const obtenerCitasCliente = async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+        const { id_cliente } = req.params;
+
+
+        if (!id_cliente || isNaN(id_cliente)) {
+            return res.status(400).json({
+                error: 'El ID del cliente debe ser numérico'
+            });
+        }
+
+        const resultado = await client.query(`
+            SELECT
+                c.id_cita,
+                c.fecha,
+                c.hora_inicio,
+                c.duracion_aplicada,
+                c.precio_aplicado,
+                c.estado,
+                c.observaciones,
+
+                cl.id_cliente,
+
+                s.id_servicio,
+                s.nombre AS servicio,
+
+                e.id_empleado,
+                CONCAT(
+                    e.nombre, ' ',
+                    e.apellido_p, ' ',
+                    COALESCE(e.apellido_m, '')
+                ) AS empleado
+
+            FROM citas c
+
+            INNER JOIN clientes cl
+                ON cl.id_cliente = c.id_cliente
+
+            INNER JOIN servicios s
+                ON s.id_servicio = c.id_servicio
+
+            INNER JOIN empleados e
+                ON e.id_empleado = c.id_empleado
+
+            WHERE c.id_cliente = $1
+
+            ORDER BY c.fecha DESC, c.hora_inicio DESC
+        `, [id_cliente]);
+
+        return res.status(200).json({
+            mensaje: 'Citas del cliente obtenidas correctamente',
+            citas: resultado.rows
+        });
+
+    } catch (error) {
+        console.error(
+            'Error al obtener citas del cliente:',
+            error.message
+        );
+
+        return res.status(500).json({
+            error: 'Error interno al obtener las citas del cliente'
+        });
+
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
     registrarCita,
-    obtenerCitas
+    obtenerCitas,
+    obtenerCitasCliente
 };

@@ -6,7 +6,7 @@ const verificarCorreo = async (req, res) => {
 
         if (!correo) {
             return res.status(400).json({
-                error: 'El correo es obligatorio'
+                error: 'El correo es obligaatorio'
             });
         }
 
