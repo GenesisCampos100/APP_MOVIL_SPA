@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spa_admin_app/core/constants/app_text_styles.dart';
 import 'login_admin_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -27,13 +28,7 @@ class _SplashScreenState extends State<SplashScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(
-            'assets/images/splash_bg.jpg',
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
-              color: const Color(0xFF1A1A1A),
-            ),
-          ),
+          Image.asset('assets/images/splash_bg.jpg', fit: BoxFit.cover),
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -43,15 +38,14 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
           ),
-          const Align(
-            alignment: Alignment(0, 0.75),
+          Align(
+            alignment: const Alignment(0, 0.75),
             child: Text(
               'Aura Spa Admin',
-              style: TextStyle(
-                fontFamily: 'serif',
-                fontStyle: FontStyle.italic,
+              style: AppTextStyles.displayExtraBold.copyWith(
                 fontSize: 44,
                 color: Colors.white,
+                fontStyle: FontStyle.italic,
               ),
             ),
           ),

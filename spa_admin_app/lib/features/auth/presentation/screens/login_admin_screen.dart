@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:spa_admin_app/core/constants/app_colors.dart';
+import 'package:spa_admin_app/core/constants/app_text_styles.dart';
 import 'package:spa_admin_app/core/network/api_service.dart';
 import 'package:spa_admin_app/features/dashboard/presentation/screens/main_navigation_screen.dart';
 
@@ -107,22 +108,19 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
+                  Text(
                     'Aura Spa',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontFamily: 'Georgia',
-                      fontStyle: FontStyle.italic,
+                    style: AppTextStyles.displayBlack.copyWith(
                       color: AppColors.textDark,
+                      fontStyle: FontStyle.italic,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'Panel de Administración',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
+                    style: AppTextStyles.body.copyWith(
                       color: Colors.black54,
                     ),
                   ),

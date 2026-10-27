@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:spa_admin_app/core/constants/app_colors.dart';
+import 'package:spa_admin_app/core/constants/app_text_styles.dart';
 import 'package:spa_admin_app/features/appointments/data/models/appointment_model.dart';
 import 'package:spa_admin_app/features/appointments/presentation/widgets/appointment_edit_dialog.dart';
 import 'package:spa_admin_app/features/appointments/presentation/widgets/appointment_cancel_dialog.dart';
@@ -154,21 +155,17 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
         ),
         title: Column(
           children: [
-            const Text(
+            Text(
               'Gestionar citas',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 26,
-                fontFamily: 'Georgia',
-                fontWeight: FontWeight.w400,
+              style: AppTextStyles.displayExtraBold.copyWith(
+                color: AppColors.textDark,
               ),
             ),
             if (!_showCalendarView)
-              const Text(
-                'Citas del dia',
-                style: TextStyle(
+              Text(
+                'Citas del día',
+                style: AppTextStyles.caption.copyWith(
                   color: Colors.black54,
-                  fontSize: 12,
                   fontStyle: FontStyle.italic,
                 ),
               ),

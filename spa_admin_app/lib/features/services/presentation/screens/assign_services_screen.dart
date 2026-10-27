@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:spa_admin_app/core/constants/app_colors.dart';
+import 'package:spa_admin_app/core/constants/app_text_styles.dart';
 import 'package:spa_admin_app/features/employees/data/models/employee_model.dart';
 import 'package:spa_admin_app/features/services/data/models/service_model.dart';
 import 'package:spa_admin_app/features/services/presentation/widgets/assign_services_panel_dialog.dart';
@@ -118,37 +119,31 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                 onPressed: () => Navigator.pop(context),
               )
             : null,
-        title: const Text(
+        title: Text(
           'Asignar servicios',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 26,
-            fontFamily: 'Georgia',
-            fontWeight: FontWeight.w400,
+          style: AppTextStyles.displayExtraBold.copyWith(
+            color: AppColors.textDark,
           ),
         ),
       ),
       body: Column(
         children: [
           // Subtítulo e instrucciones
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Asignar servicios',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                  style: AppTextStyles.heading2.copyWith(
                     color: Colors.black87,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
                   'Seleccione un empleado para gestionar su catálogo de servicios:',
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppTextStyles.caption.copyWith(
                     color: Colors.black54,
                   ),
                 ),
@@ -189,12 +184,12 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                   margin: const EdgeInsets.only(bottom: 16),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.cardBackground,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.cardBorder),
+                    border: Border.all(color: AppColors.cardBorder, width: 1.5),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.02),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -212,7 +207,7 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                                 Text(
                                   employee.nombreCompleto,
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(
+                                  style: AppTextStyles.body.copyWith(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
                                     color: Colors.black87,
@@ -221,14 +216,14 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                                 const SizedBox(height: 3),
                                 Text(
                                   '${employee.puesto} | Tel: ${employee.telefono}',
-                                  style: const TextStyle(fontSize: 11, color: Colors.black54),
+                                  style: AppTextStyles.caption.copyWith(fontSize: 11, color: Colors.black54),
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
                                   employee.estado
                                       ? 'Servicios asignados: $activeCount activos'
                                       : 'Estado: Inactiva',
-                                  style: const TextStyle(fontSize: 11, color: Colors.black54),
+                                  style: AppTextStyles.caption.copyWith(fontSize: 11, color: Colors.black54),
                                 ),
                               ],
                             ),
@@ -249,7 +244,7 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                           OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               backgroundColor: const Color(0xFFEFEFEF),
-                              side: BorderSide.none,
+                              side: BorderSide(color: AppColors.cardBorder),
                               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
@@ -268,7 +263,7 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                                 ),
                               );
                             },
-                            child: const Text('Asignar', style: TextStyle(color: Colors.black87, fontSize: 12)),
+                            child: Text('Asignar', style: AppTextStyles.caption.copyWith(color: Colors.black87)),
                           ),
                           IconButton(
                             icon: const Icon(Icons.edit_outlined, color: Colors.black87),

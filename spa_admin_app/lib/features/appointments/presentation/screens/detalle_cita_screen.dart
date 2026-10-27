@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:spa_admin_app/core/constants/app_colors.dart';
+import 'package:spa_admin_app/core/constants/app_text_styles.dart';
 import 'package:spa_admin_app/features/appointments/data/models/appointment_model.dart';
 import 'package:spa_admin_app/features/appointments/presentation/widgets/estado_badge.dart';
 import 'package:spa_admin_app/features/appointments/presentation/screens/completar_servicio_screen.dart';
@@ -127,13 +128,10 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Mis citas',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 26,
-            fontFamily: 'Georgia',
-            fontWeight: FontWeight.w400,
+          style: AppTextStyles.displayExtraBold.copyWith(
+            color: AppColors.textDark,
           ),
         ),
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:spa_admin_app/core/constants/app_colors.dart';
+import 'package:spa_admin_app/core/constants/app_text_styles.dart';
 import 'package:spa_admin_app/features/appointments/presentation/screens/mis_citas_screen.dart';
 
 class DashboardHomeTab extends StatelessWidget {
@@ -16,19 +17,16 @@ class DashboardHomeTab extends StatelessWidget {
           const SizedBox(height: 8),
 
           // 1. Título principal estilo elegante
-          const Text(
+          Text(
             'Dashboard admin',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w400,
-              fontFamily: 'Georgia',
+            style: AppTextStyles.displayExtraBold.copyWith(
               color: AppColors.textDark,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Resumen operativo y métricas principales:',
-            style: TextStyle(fontSize: 13, color: Colors.black54),
+            style: AppTextStyles.caption.copyWith(color: Colors.black54),
           ),
           const SizedBox(height: 20),
 
@@ -36,13 +34,9 @@ class DashboardHomeTab extends StatelessWidget {
           _buildCard(
             child: Column(
               children: [
-                const Text(
+                Text(
                   'Hola, Admin',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textDark,
-                  ),
+                  style: AppTextStyles.heading1.copyWith(color: AppColors.textDark),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -72,19 +66,15 @@ class DashboardHomeTab extends StatelessWidget {
           _buildCard(
             child: Column(
               children: [
-                const Text(
+                Text(
                   'Agenda del día',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textDark,
-                  ),
+                  style: AppTextStyles.heading2.copyWith(color: AppColors.textDark),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Consulte e inicie las citas asignadas para hoy.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                  style: AppTextStyles.caption.copyWith(color: Colors.black54),
                 ),
                 const SizedBox(height: 14),
                 SizedBox(
@@ -104,12 +94,11 @@ class DashboardHomeTab extends StatelessWidget {
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Ver mis citas',
-                      style: TextStyle(
+                      style: AppTextStyles.body.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 13,
                       ),
                     ),
                   ),
@@ -122,27 +111,19 @@ class DashboardHomeTab extends StatelessWidget {
           _buildCard(
             child: Column(
               children: [
-                const Text(
+                Text(
                   'Siguiente cita:',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textDark,
-                  ),
+                  style: AppTextStyles.heading2.copyWith(color: AppColors.textDark, fontSize: 15),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Masaje relajante - 4:00 PM',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.black87,
-                    fontWeight: FontWeight.w400,
-                  ),
+                  style: AppTextStyles.body.copyWith(color: Colors.black87),
                 ),
                 const SizedBox(height: 2),
-                const Text(
+                Text(
                   '(Cliente: Maria G.)',
-                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                  style: AppTextStyles.caption.copyWith(color: Colors.black54),
                 ),
                 const SizedBox(height: 14),
                 SizedBox(
@@ -162,12 +143,11 @@ class DashboardHomeTab extends StatelessWidget {
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Iniciar servicio',
-                      style: TextStyle(
+                      style: AppTextStyles.body.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
-                        fontSize: 13,
                       ),
                     ),
                   ),
@@ -242,8 +222,7 @@ class _MetricRow extends StatelessWidget {
         const SizedBox(width: 12),
         Text(
           text,
-          style: const TextStyle(
-            fontSize: 14,
+          style: AppTextStyles.subtitle.copyWith(
             fontWeight: FontWeight.w500,
             color: AppColors.textDark,
           ),

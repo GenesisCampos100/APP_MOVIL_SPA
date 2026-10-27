@@ -170,7 +170,7 @@ class _AssignServicesPanelDialogState extends State<AssignServicesPanelDialog> {
                             ),
                             Switch(
                               value: isAssigned,
-                              activeColor: Colors.white,
+                              activeThumbColor: Colors.white,
                               activeTrackColor: AppColors.primaryPink,
                               inactiveThumbColor: Colors.white,
                               inactiveTrackColor: Colors.grey.shade400,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:spa_admin_app/core/constants/app_colors.dart';
+import 'package:spa_admin_app/core/constants/app_text_styles.dart';
 import 'package:spa_admin_app/features/services/data/models/service_model.dart';
 import 'package:spa_admin_app/features/services/presentation/widgets/service_form_dialog.dart';
 import 'package:spa_admin_app/features/services/presentation/widgets/service_delete_dialog.dart';
@@ -45,9 +46,11 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
                 onPressed: () => Navigator.pop(context),
               )
             : null,
-        title: const Text(
+        title: Text(
           'Gestionar servicios',
-          style: TextStyle(color: Colors.black, fontSize: 26, fontFamily: 'Georgia', fontWeight: FontWeight.w400),
+          style: AppTextStyles.displayExtraBold.copyWith(
+            color: AppColors.textDark,
+          ),
         ),
       ),
       body: Column(
@@ -108,16 +111,16 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.cardBackground,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.cardBorder),
+                    border: Border.all(color: AppColors.cardBorder, width: 1.5),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         '${service.nombre}, ${service.duracion}, \$${service.precio.toStringAsFixed(2)}, ${service.categoria}, ${service.estado ? "Activo" : "Inactivo"}',
-                        style: const TextStyle(fontSize: 13, color: Colors.black87),
+                        style: AppTextStyles.body.copyWith(fontSize: 13, color: Colors.black87),
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -141,7 +144,7 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
                                 ),
                               );
                             },
-                            child: const Text('Eliminar', style: TextStyle(color: Colors.black87, fontSize: 12)),
+                            child: Text('Eliminar', style: AppTextStyles.caption.copyWith(color: Colors.black87)),
                           ),
                           // Ícono Editar
                           IconButton(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:spa_admin_app/core/constants/app_colors.dart';
+import 'package:spa_admin_app/core/constants/app_text_styles.dart';
 import 'package:spa_admin_app/features/employees/data/models/employee_model.dart';
 import 'package:spa_admin_app/features/employees/presentation/widgets/employee_delete_dialog.dart';
 import 'package:spa_admin_app/features/employees/presentation/widgets/employee_form_dialog.dart';
@@ -53,9 +54,11 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
                 onPressed: () => Navigator.pop(context),
               )
             : null,
-        title: const Text(
+        title: Text(
           'Gestionar empleados',
-          style: TextStyle(color: Colors.black, fontSize: 26, fontFamily: 'Georgia', fontWeight: FontWeight.w400),
+          style: AppTextStyles.displayExtraBold.copyWith(
+            color: AppColors.textDark,
+          ),
         ),
       ),
       body: Column(

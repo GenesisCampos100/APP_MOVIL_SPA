@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_text_styles.dart';
 import '../../../services/presentation/screens/manage_services_screen.dart';
 import '../../../services/presentation/screens/assign_services_screen.dart';
 import '../../../employees/presentation/screens/manage_employees_screen.dart';
+import '../../../schedules/presentation/screens/manage_schedules_screen.dart';
 
 class AdminMenuTab extends StatelessWidget {
   const AdminMenuTab({super.key});
@@ -20,12 +22,9 @@ class AdminMenuTab extends StatelessWidget {
               const SizedBox(height: 8),
 
               // Título principal estilizado
-              const Text(
+              Text(
                 'Dashboard admin',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w400,
-                  fontFamily: 'Georgia',
+                style: AppTextStyles.displayExtraBold.copyWith(
                   color: AppColors.textDark,
                 ),
               ),
@@ -49,22 +48,21 @@ class AdminMenuTab extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    const Text(
+                    Text(
                       'Menú administrativo',
-                      style: TextStyle(
+                      style: AppTextStyles.heading1.copyWith(
                         fontSize: 18,
-                        fontWeight: FontWeight.bold,
                         color: AppColors.textDark,
                       ),
                     ),
                     const SizedBox(height: 20),
 
                     // --- SECCIÓN 1 ---
-                    const Align(
+                    Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         'Sección 1: Catálogo y servicios',
-                        style: TextStyle(
+                        style: AppTextStyles.subtitle.copyWith(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: Colors.black87,
@@ -104,11 +102,11 @@ class AdminMenuTab extends StatelessWidget {
                     const SizedBox(height: 20),
 
                     // --- SECCIÓN 2 ---
-                    const Align(
+                    Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         'Sección 2: Personal y Operación',
-                        style: TextStyle(
+                        style: AppTextStyles.subtitle.copyWith(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: Colors.black87,
@@ -137,7 +135,12 @@ class AdminMenuTab extends StatelessWidget {
                       title: 'Gestionar horarios',
                       subtitle: 'Definir turnos de trabajo, días laborales y bloques de descanso para el personal.',
                       onTap: () {
-                        // TODO: Implementar vista de Gestionar horarios
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ManageSchedulesScreen(),
+                          ),
+                        );
                       },
                     ),
                     const SizedBox(height: 12),
@@ -187,7 +190,7 @@ class AdminMenuTab extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
+                        style: AppTextStyles.body.copyWith(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
@@ -196,7 +199,7 @@ class AdminMenuTab extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         subtitle,
-                        style: const TextStyle(
+                        style: AppTextStyles.caption.copyWith(
                           fontSize: 11,
                           color: Colors.black54,
                           height: 1.25,
