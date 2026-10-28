@@ -4,8 +4,33 @@ const registrarCita = async (req, res) => {
     const client = await pool.connect();
 
     try {
+        const { id_usuario, rol } = req.usuario;
+
+        // Solo los clientes pueden registrar citas
+        if (Number(rol) !== 3) {
+            return res.status(403).json({
+                error: 'No tienes permiso para registrar citas'
+            });
+        }
+
+        // Obtener el ID del cliente desde su sesión autenticada
+        const clienteAutenticado = await client.query(
+            `SELECT id_cliente
+             FROM clientes
+             WHERE id_usuario = $1`,
+            [id_usuario]
+        );
+
+        if (clienteAutenticado.rows.length === 0) {
+            return res.status(404).json({
+                error: 'No se encontró el perfil del cliente'
+            });
+        }
+
+        const id_cliente = clienteAutenticado.rows[0].id_cliente;
+
+        // Los demás datos sí se reciben desde Flutter
         const {
-            id_cliente,
             id_servicio,
             id_empleado,
             fecha,
@@ -13,6 +38,7 @@ const registrarCita = async (req, res) => {
             observaciones
         } = req.body;
 
+        // Aquí continúa el resto de tu función actual...
         // 1. Validar campos obligatorios
         if (
             !id_cliente ||
@@ -239,10 +265,20 @@ const registrarCita = async (req, res) => {
 };
 
 
+
 const obtenerCitas = async (req, res) => {
     const client = await pool.connect();
 
     try {
+        const { id_usuario, rol } = req.usuario;
+
+        // Solo se permiten los roles definidos para AuraSpa
+        if (![1, 2, 3].includes(rol)) {
+            return res.status(403).json({
+                error: 'No tienes permiso para consultar las citas'
+            });
+        }
+
         const resultado = await client.query(`
             SELECT
                 c.id_cita,
@@ -281,8 +317,19 @@ const obtenerCitas = async (req, res) => {
             INNER JOIN empleados e
                 ON e.id_empleado = c.id_empleado
 
+            WHERE
+                $1::integer = 1
+                OR (
+                    $1::integer = 2
+                    AND e.id_usuario = $2
+                )
+                OR (
+                    $1::integer = 3
+                    AND cl.id_usuario = $2
+                )
+
             ORDER BY c.fecha ASC, c.hora_inicio ASC
-        `);
+        `, [rol, id_usuario]);
 
         return res.status(200).json({
             mensaje: 'Citas obtenidas correctamente',
@@ -301,21 +348,67 @@ const obtenerCitas = async (req, res) => {
     }
 };
 
+
+
 const obtenerCitasCliente = async (req, res) => {
     const client = await pool.connect();
 
     try {
-        const { id_cliente } = req.params;
+        // Normalizar los datos del token JWT
+        const id_usuario = Number(req.usuario?.id_usuario);
+        const rol = Number(req.usuario?.rol);
+        const id_cliente_solicitado = Number(req.params.id_cliente);
 
-
-        if (!id_cliente || isNaN(id_cliente)) {
-            return res.status(400).json({
-                error: 'El ID del cliente debe ser numérico'
+        // Validar identidad y rol
+        if (
+            !Number.isInteger(id_usuario) ||
+            id_usuario <= 0 ||
+            ![1, 3].includes(rol)
+        ) {
+            return res.status(403).json({
+                error: 'No tienes permiso para consultar estas citas'
             });
         }
 
-        const resultado = await client.query(`
-            SELECT
+        // Validar ID de la URL
+        if (
+            !Number.isInteger(id_cliente_solicitado) ||
+            id_cliente_solicitado <= 0
+        ) {
+            return res.status(400).json({
+                error: 'El ID del cliente no es válido'
+            });
+        }
+
+        let id_cliente_autorizado = id_cliente_solicitado;
+
+        // El cliente solo puede consultar su propio perfil
+        if (rol === 3) {
+            const perfil = await client.query(
+                `SELECT id_cliente
+                 FROM clientes
+                 WHERE id_usuario = $1`,
+                [id_usuario]
+            );
+
+            if (perfil.rows.length === 0) {
+                return res.status(403).json({
+                    error: 'No se encontró un perfil de cliente autorizado'
+                });
+            }
+
+            id_cliente_autorizado = Number(perfil.rows[0].id_cliente);
+
+            if (id_cliente_solicitado !== id_cliente_autorizado) {
+                return res.status(403).json({
+                    error: 'Solo puedes consultar tus propias citas'
+                });
+            }
+        }
+
+        // Consultar únicamente las citas autorizadas
+        const resultado = await client.query(
+            `SELECT
                 c.id_cita,
                 c.fecha,
                 c.hora_inicio,
@@ -323,34 +416,26 @@ const obtenerCitasCliente = async (req, res) => {
                 c.precio_aplicado,
                 c.estado,
                 c.observaciones,
-
                 cl.id_cliente,
-
                 s.id_servicio,
                 s.nombre AS servicio,
-
                 e.id_empleado,
                 CONCAT(
                     e.nombre, ' ',
                     e.apellido_p, ' ',
                     COALESCE(e.apellido_m, '')
                 ) AS empleado
-
-            FROM citas c
-
-            INNER JOIN clientes cl
+             FROM citas c
+             INNER JOIN clientes cl
                 ON cl.id_cliente = c.id_cliente
-
-            INNER JOIN servicios s
+             INNER JOIN servicios s
                 ON s.id_servicio = c.id_servicio
-
-            INNER JOIN empleados e
+             INNER JOIN empleados e
                 ON e.id_empleado = c.id_empleado
-
-            WHERE c.id_cliente = $1
-
-            ORDER BY c.fecha DESC, c.hora_inicio DESC
-        `, [id_cliente]);
+             WHERE c.id_cliente = $1
+             ORDER BY c.fecha DESC, c.hora_inicio DESC`,
+            [id_cliente_autorizado]
+        );
 
         return res.status(200).json({
             mensaje: 'Citas del cliente obtenidas correctamente',
@@ -366,7 +451,6 @@ const obtenerCitasCliente = async (req, res) => {
         return res.status(500).json({
             error: 'Error interno al obtener las citas del cliente'
         });
-
     } finally {
         client.release();
     }
