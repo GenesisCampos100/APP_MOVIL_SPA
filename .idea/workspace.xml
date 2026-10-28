@@ -4,7 +4,9 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="04725383-0d18-45cc-b25f-d0dd56bd5d3f" name="Changes" comment="" />
+    <list default="true" id="04725383-0d18-45cc-b25f-d0dd56bd5d3f" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/app_cliente/lib/data/services/api_service.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/data/services/api_service.dart" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -27,6 +29,7 @@
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
+    "CidrDebugProfileConversion": "true",
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
