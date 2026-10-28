@@ -58,11 +58,18 @@ const verificarCorreo = async (req, res) => {
 
 const login = async (req, res) => {
     try {
+        
         const { correo, contrasenia } = req.body;
 
-        if (!correo || !contrasenia) {
+        if (
+            typeof correo !== 'string' ||
+            typeof contrasenia !== 'string' ||
+            !correo.trim() ||
+            !contrasenia ||
+            Buffer.byteLength(contrasenia, 'utf8') > 72
+        ) {
             return res.status(400).json({
-                error: 'El correo y la contraseña son obligatorios'
+                error: 'Debes proporcionar un correo y una contraseña válidos'
             });
         }
 
