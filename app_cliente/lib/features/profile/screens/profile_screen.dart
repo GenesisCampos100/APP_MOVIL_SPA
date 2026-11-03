@@ -4,6 +4,10 @@ import '../../../data/models/usuario_sesion.dart';
 import '../../appointments/screens/appointments_screen.dart';
 import '../../auth/auth_state.dart';
 import '../../auth/screens/auth_email_screen.dart';
+import '../../notifications/screens/notifications_screen.dart';
+import '../../settings/screens/settings_screen.dart';
+import 'edit_profile_screen.dart';
+import '../../settings/screens/tema_sheet.dart';
 
 // Colores del mockup del perfil
 const Color _bordeTarjeta = Color(0xFFE3E3E3);
@@ -114,7 +118,7 @@ class _PerfilConSesion extends StatelessWidget {
               _FilaMenu(
                 icono: Icons.person_outline,
                 texto: 'Mi perfil',
-                onTap: () => proximamente('Mi perfil'),
+                onTap: () => abrirMiPerfil(context),
               ),
               _FilaMenu(
                 icono: Icons.favorite_border,
@@ -132,7 +136,7 @@ class _PerfilConSesion extends StatelessWidget {
               _FilaMenu(
                 icono: Icons.notifications_none,
                 texto: 'Notificaciones',
-                onTap: () => proximamente('Notificaciones'),
+                onTap: () => abrirNotificaciones(context),
               ),
             ]),
             const SizedBox(height: 14),
@@ -140,12 +144,17 @@ class _PerfilConSesion extends StatelessWidget {
               _FilaMenu(
                 icono: Icons.settings_outlined,
                 texto: 'Configuración',
-                onTap: () => proximamente('Configuración'),
+                onTap: () => abrirConfiguracion(context),
               ),
               _FilaMenu(
                 icono: Icons.language,
                 texto: 'Español',
-                onTap: () => proximamente('Idioma'),
+                onTap: () => abrirIdioma(context),
+              ),
+              _FilaMenu(
+                icono: Icons.brightness_6_outlined,
+                texto: 'Tema',
+                onTap: () => abrirTema(context),
               ),
             ]),
             const SizedBox(height: 14),

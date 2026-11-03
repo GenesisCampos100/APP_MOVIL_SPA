@@ -8,6 +8,9 @@ class _Cuenta {
 
   _Cuenta conTelefono(String t) =>
       _Cuenta(nombre, apellido, password, apellidoMaterno, t);
+
+  _Cuenta conPassword(String p) =>
+      _Cuenta(nombre, apellido, p, apellidoMaterno, telefono);
 }
 
 /// DATOS DE PRUEBA (mock). Cuando Vanessa tenga la API, solo se cambia el
@@ -19,6 +22,8 @@ class _Cuenta {
 ///                        (nombre, apellido_p, apellido_m, correo, password)
 ///   verificarCodigo   -> POST /auth/verificar-codigo
 ///   guardarTelefono   -> PUT  /clientes/telefono
+///   cambiarContrasena -> PUT  /auth/cambiar-contrasena
+///                        (contrasena_actual, contrasena_nueva)
 ///
 /// Cuenta de prueba ya registrada:  cliente@aura.com  /  Aura1234
 /// Código de verificación de prueba: 123456
@@ -87,5 +92,15 @@ class AuthRepository {
     final key = _norm(correo);
     final c = _cuentas[key];
     if (c != null) _cuentas[key] = c.conTelefono(telefono);
+  }
+
+  /// Cambia la contraseña. Devuelve false si la contraseña actual es incorrecta.
+  Future<bool> cambiarContrasena(String correo, String actual, String nueva) async {
+    await _espera();
+    final key = _norm(correo);
+    final c = _cuentas[key];
+    if (c == null || c.password != actual) return false;
+    _cuentas[key] = c.conPassword(nueva);
+    return true;
   }
 }
