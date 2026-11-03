@@ -24,6 +24,13 @@ class AuthState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Reemplaza al usuario con sesión (por ejemplo, tras editar "Mi perfil").
+  void actualizarPerfil(UsuarioSesion nuevo) {
+    if (_usuario == null) return;
+    _usuario = nuevo;
+    notifyListeners();
+  }
+
   void cerrarSesion() {
     _usuario = null;
     notifyListeners();

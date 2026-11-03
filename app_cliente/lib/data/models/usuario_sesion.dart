@@ -1,15 +1,18 @@
+import 'convertidores.dart';
+
 /// Usuario con sesión iniciada. Tipos alineados con las tablas
 /// "usuarios" y "clientes" de PostgreSQL.
 class UsuarioSesion {
-  final int id; //                    usuarios.id_usuario   INT
-  final int? idCliente; //            clientes.id_cliente   INT
-  final String correo; //             usuarios.correo       VARCHAR(100)
-  final String? foto; //              usuarios.foto         TEXT (URL)
-  final String rol; //                usuarios.rol          VARCHAR(20)
-  final String nombre; //             clientes.nombre       VARCHAR(100)
-  final String apellido; //           clientes.apellido_p   VARCHAR(100)
-  final String? apellidoMaterno; //   clientes.apellido_m   VARCHAR(100)
-  final String? telefono; //          clientes.telefono     VARCHAR(15)
+  final int id; //                    usuarios.id_usuario        INT
+  final int? idCliente; //            clientes.id_cliente        INT
+  final String correo; //             usuarios.correo            VARCHAR(100)
+  final String? foto; //              usuarios.foto              TEXT (URL)
+  final String rol; //                usuarios.rol               VARCHAR(20)
+  final String nombre; //             clientes.nombre            VARCHAR(100)
+  final String apellido; //           clientes.apellido_p        VARCHAR(100)
+  final String? apellidoMaterno; //   clientes.apellido_m        VARCHAR(100)
+  final String? telefono; //          clientes.telefono          VARCHAR(15)
+  final DateTime? fechaNacimiento; // clientes.fecha_nacimiento  DATE
 
   const UsuarioSesion({
     this.id = 0,
@@ -21,6 +24,7 @@ class UsuarioSesion {
     this.foto,
     this.rol = 'cliente',
     this.telefono,
+    this.fechaNacimiento,
   });
 
   factory UsuarioSesion.fromJson(Map<String, dynamic> j) => UsuarioSesion(
@@ -33,6 +37,8 @@ class UsuarioSesion {
         foto: j['foto'] as String?,
         rol: (j['rol'] ?? 'cliente') as String,
         telefono: j['telefono'] as String?,
+        fechaNacimiento:
+            j['fecha_nacimiento'] == null ? null : aFecha(j['fecha_nacimiento']),
       );
 
   UsuarioSesion copyWith({String? telefono}) => UsuarioSesion(
@@ -45,6 +51,28 @@ class UsuarioSesion {
         foto: foto,
         rol: rol,
         telefono: telefono ?? this.telefono,
+        fechaNacimiento: fechaNacimiento,
+      );
+
+  /// Reemplaza los datos editables del perfil (permite dejar campos vacíos).
+  UsuarioSesion conPerfil({
+    required String nombre,
+    required String apellido,
+    String? apellidoMaterno,
+    String? telefono,
+    DateTime? fechaNacimiento,
+  }) =>
+      UsuarioSesion(
+        id: id,
+        idCliente: idCliente,
+        correo: correo,
+        foto: foto,
+        rol: rol,
+        nombre: nombre,
+        apellido: apellido,
+        apellidoMaterno: apellidoMaterno,
+        telefono: telefono,
+        fechaNacimiento: fechaNacimiento,
       );
 
   String get nombreCompleto => [nombre, apellido, apellidoMaterno]
