@@ -4,7 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/servicio.dart';
 import '../../../data/repositories/servicios_repository.dart';
 import '../../../shared/widgets/servicio_visual.dart';
-
+import '../../notifications/screens/notifications_screen.dart';
 // se llaman distinto (deben estar en assets/images/).
 const String kBannerImagen = 'assets/images/banner_home.jpg';
 const String kPromo1Imagen = 'assets/images/promo1.jpg';
@@ -138,10 +138,8 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(width: 8),
         IconButton(onPressed: _irCatalogo, icon: const Icon(Icons.search, size: 28)),
         IconButton(
-          onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Notificaciones: próximamente')),
-          ),
-          icon: const Icon(Icons.notifications_none, size: 28),
+        onPressed: () => abrirNotificaciones(context),
+        icon: const Icon(Icons.notifications_none, size: 28),
         ),
       ],
     );

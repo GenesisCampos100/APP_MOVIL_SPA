@@ -128,4 +128,18 @@ class AuthRepository {
   ) async {
     // Temporalmente no hace nada.
   }
+
+  /// TEMPORAL: todavía no existe un endpoint para cambiar la contraseña.
+  /// Por ahora solo comprueba que la contraseña actual sea correcta (con el
+  /// login real) y NO cambia la contraseña en la base de datos.
+  /// Pendiente de Vanessa: PUT /api/auth/cambiar-contrasena
+  /// (contrasena_actual, contrasena_nueva).
+  Future<bool> cambiarContrasena(
+    String correo,
+    String actual,
+    String nueva,
+  ) async {
+    final usuario = await iniciarSesion(correo, actual);
+    return usuario != null;
+  }
 }

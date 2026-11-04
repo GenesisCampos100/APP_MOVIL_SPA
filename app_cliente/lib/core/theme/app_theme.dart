@@ -11,6 +11,7 @@ class AppColors {
 class AppTheme {
   static ThemeData get light => ThemeData(
         useMaterial3: true,
+        fontFamily: 'Poppins',
         colorSchemeSeed: AppColors.rosaFuerte,
         scaffoldBackgroundColor: Colors.white,
         appBarTheme: const AppBarTheme(
