@@ -14,6 +14,19 @@ class UsuarioSesion {
   final String? telefono; //          clientes.telefono          VARCHAR(15)
   final DateTime? fechaNacimiento; // clientes.fecha_nacimiento  DATE
 
+  Map<String, dynamic> toJson() => {
+  'id_usuario': id,
+  'id_cliente': idCliente,
+  'correo': correo,
+  'foto': foto,
+  'rol': rol,
+  'nombre': nombre,
+  'apellido_p': apellido,
+  'apellido_m': apellidoMaterno,
+  'telefono': telefono,
+  'fecha_nacimiento': fechaNacimiento?.toIso8601String(),
+};
+
   const UsuarioSesion({
     this.id = 0,
     this.idCliente,

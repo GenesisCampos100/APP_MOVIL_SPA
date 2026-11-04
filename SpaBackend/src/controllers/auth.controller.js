@@ -422,8 +422,22 @@ const verificarCodigo = async (req, res) => {
         // Eliminar los datos temporales después del registro exitoso
         eliminarRegistro(correoNormalizado);
 
+        // Generar JWT para el cliente recién registrado
+        const token = jwt.sign(
+            {
+                id_usuario: idUsuario,
+                rol: ID_ROL_CLIENTE
+            },
+            process.env.JWT_SECRET,
+            {
+                expiresIn: process.env.JWT_EXPIRES_IN || '1h',
+                algorithm: 'HS256'
+            }
+        );
+
         return res.status(201).json({
             mensaje: 'Correo verificado y cliente registrado correctamente',
+            token,
             usuario: {
                 id_usuario: idUsuario,
                 id_cliente: nuevoCliente.rows[0].id_cliente,

@@ -1,10 +1,13 @@
-import 'package:flutter/foundation.dart';
-import '../../data/models/usuario_sesion.dart';
 
-/// Estado de sesión de toda la app: ¿hay un usuario con sesión iniciada?
-/// Las pantallas lo escuchan con ListenableBuilder y se actualizan solas.
+import 'package:flutter/foundation.dart';
+
+import '../../data/models/usuario_sesion.dart';
+import '../../data/services/sesion_service.dart';
+
+/// Estado de sesión de toda la aplicación.
 class AuthState extends ChangeNotifier {
   AuthState._();
+
   static final AuthState instance = AuthState._();
 
   UsuarioSesion? _usuario;
@@ -12,7 +15,24 @@ class AuthState extends ChangeNotifier {
   UsuarioSesion? get usuario => _usuario;
   bool get isLoggedIn => _usuario != null;
 
-  void iniciarSesion(UsuarioSesion usuario) {
+  /// Inicia sesión y guarda los datos de forma persistente.
+  Future<void> iniciarSesion(
+    UsuarioSesion usuario, {
+    required String token,
+  }) async {
+    await SesionService.instance.iniciarSesion(
+      usuario,
+      token: token,
+    );
+
+    _usuario = usuario;
+    notifyListeners();
+  }
+
+  /// Recupera la sesión guardada en el dispositivo.
+  Future<void> restaurarSesion() async {
+    final usuario = await SesionService.instance.restaurarSesion();
+
     _usuario = usuario;
     notifyListeners();
   }
@@ -20,18 +40,23 @@ class AuthState extends ChangeNotifier {
   void actualizarTelefono(String telefono) {
     final actual = _usuario;
     if (actual == null) return;
+
     _usuario = actual.copyWith(telefono: telefono);
     notifyListeners();
   }
 
-  /// Reemplaza al usuario con sesión (por ejemplo, tras editar "Mi perfil").
+  /// Reemplaza los datos del usuario después de editar su perfil.
   void actualizarPerfil(UsuarioSesion nuevo) {
     if (_usuario == null) return;
+
     _usuario = nuevo;
     notifyListeners();
   }
 
-  void cerrarSesion() {
+  /// Cierra la sesión y elimina los datos almacenados.
+  Future<void> cerrarSesion() async {
+    await SesionService.instance.cerrarSesion();
+
     _usuario = null;
     notifyListeners();
   }

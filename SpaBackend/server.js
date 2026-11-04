@@ -9,14 +9,15 @@ app.get("/", (req, res) => {
 });
 
 
+/*
 app.listen(PORT, () => {
     console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
 });
+*/
 
 
 
-/*
+
 app.listen(PORT, "0.0.0.0", () => {
     console.log(`Servidor ejecutándose en http://0.0.0.0:${PORT}`);
 });
-*/
