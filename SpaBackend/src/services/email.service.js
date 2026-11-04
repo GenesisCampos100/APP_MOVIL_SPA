@@ -14,7 +14,7 @@ const enviarCorreo = async (destinatario, asunto, mensaje) => {
         from: `"AuraSpa" <${process.env.EMAIL_USER}>`,
         to: destinatario,
         subject: asunto,
-        text: mensaje
+        html: mensaje
     });
 };
 

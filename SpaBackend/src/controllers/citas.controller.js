@@ -38,7 +38,6 @@ const registrarCita = async (req, res) => {
             observaciones
         } = req.body;
 
-        // Aquí continúa el resto de tu función actual...
         // 1. Validar campos obligatorios
         if (
             !id_cliente ||
