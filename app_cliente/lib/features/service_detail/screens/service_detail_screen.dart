@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/servicio.dart';
+import '../../../data/repositories/favoritos_repository.dart';
+import '../../../shared/widgets/boton_favorito.dart';
 import '../../../shared/widgets/servicio_visual.dart';
+import '../../auth/auth_state.dart';
+import '../../favorites/screens/favorites_screen.dart';
 import '../widgets/resenas_seccion.dart';
 
 /// Detalle del servicio: imagen grande, "Acerca del servicio" y reseñas.
-/// La barra de abajo (nombre, precio y "Agregar") queda fija al hacer scroll.
+/// La barra de abajo (nombre, precio, corazón y "Agregar") queda fija al
+/// hacer scroll.
 class ServiceDetailScreen extends StatelessWidget {
   final Servicio servicio;
   const ServiceDetailScreen({super.key, required this.servicio});
@@ -46,13 +51,30 @@ class ServiceDetailScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              if (s.rating > 0)
-                Row(
-                  children: [
-                    const Icon(Icons.star, size: 16, color: Colors.amber),
-                    Text(' ${s.rating}', style: const TextStyle(fontSize: 13)),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (s.rating > 0) ...[
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.star, size: 16, color: Colors.amber),
+                        Text(' ${s.rating}', style: const TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
                   ],
-                ),
+                  ListenableBuilder(
+                    listenable: Listenable.merge([FavoritosRepository.instance, AuthState.instance]),
+                    builder: (context, _) => BotonFavorito(
+                      esFavorito: FavoritosRepository.instance.esFavoritoServicio(s.id),
+                      size: 40,
+                      onPressed: () => alternarFavoritoServicio(context, s),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -100,7 +122,7 @@ class ServiceDetailScreen extends StatelessWidget {
                     children: [
                       Text(
                         '${s.nombre} - ${s.categoria}',
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                       ),
