@@ -7,8 +7,10 @@ const {
     obtenerCitasCliente
 } = require('../controllers/citas.controller');
 
-router.post('/', registrarCita);
-router.get('/', obtenerCitas);
-router.get('/cliente/:id_cliente', obtenerCitasCliente);
+const verificarToken = require('../middlewares/verificarToken');
+
+router.post('/', verificarToken, registrarCita);
+router.get('/', verificarToken, obtenerCitas);
+router.get('/cliente/:id_cliente', verificarToken, obtenerCitasCliente);
 
 module.exports = router;

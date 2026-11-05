@@ -4,7 +4,23 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="04725383-0d18-45cc-b25f-d0dd56bd5d3f" name="Changes" comment="" />
+    <list default="true" id="04725383-0d18-45cc-b25f-d0dd56bd5d3f" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/libraries/Dart_Packages.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/libraries/Dart_Packages.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SpaBackend/server.js" beforeDir="false" afterPath="$PROJECT_DIR$/SpaBackend/server.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SpaBackend/src/controllers/auth.controller.js" beforeDir="false" afterPath="$PROJECT_DIR$/SpaBackend/src/controllers/auth.controller.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_cliente/lib/data/models/usuario_sesion.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/data/models/usuario_sesion.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_cliente/lib/data/repositories/auth_repository.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/data/repositories/auth_repository.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_cliente/lib/data/services/api_service.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/data/services/api_service.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_cliente/lib/data/services/sesion_service.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/data/services/sesion_service.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_cliente/lib/features/auth/auth_state.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/features/auth/auth_state.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_cliente/lib/features/auth/screens/auth_password_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/features/auth/screens/auth_password_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_cliente/lib/features/auth/screens/auth_register_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/features/auth/screens/auth_register_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_cliente/lib/features/auth/screens/auth_verify_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/features/auth/screens/auth_verify_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_cliente/pubspec.lock" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/pubspec.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_cliente/pubspec.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/pubspec.yaml" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -25,24 +41,25 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.cidr.known.project.marker": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.readMode.enableVisualFormatting": "true",
-    "cf.first.check.clang-format": "false",
-    "cidr.known.project.marker": "true",
-    "dart.analysis.tool.window.visible": "false",
-    "git-widget-placeholder": "VANESSA",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "C:/Users/Administrador/Desktop/BookinSpa/APP_MOVIL_SPA",
-    "settings.editor.selected.configurable": "dart.settings",
-    "show.migrate.to.gradle.popup": "false"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;CidrDebugProfileConversion&quot;: &quot;true&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
+    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
+    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;dart.analysis.tool.window.visible&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;VANESSA&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/Administrador/Desktop/BookinSpa/APP_MOVIL_SPA&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;dart.settings&quot;,
+    &quot;show.migrate.to.gradle.popup&quot;: &quot;false&quot;
   }
-}]]></component>
+}</component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
       <changelist id="04725383-0d18-45cc-b25f-d0dd56bd5d3f" name="Changes" comment="" />

@@ -1,6 +1,5 @@
 
 const express = require('express');
-
 const router = express.Router();
 
 const {
@@ -12,25 +11,27 @@ const {
     obtenerEmpleadosPorServicio
 } = require('../controllers/servicios.controller');
 
+const verificarToken = require('../middlewares/verificarToken');
 
-// GET /api/servicios
+// Solo el administrador puede modificar servicios
+const verificarAdministrador = (req, res, next) => {
+    if (Number(req.usuario?.rol) !== 1) {
+        return res.status(403).json({
+            error: 'No tienes permiso para realizar esta operación'
+        });
+    }
+
+    next();
+};
+
+// Consultar servicios: público
 router.get('/', obtenerServicios);
-
-// GET /api/servicios/:id
 router.get('/:id', obtenerServicioPorId);
-
-// POST /api/servicios
-router.post('/', crearServicio);
-
-// PUT /api/servicios/:id
-router.put('/:id', actualizarServicio);
-
-// DELETE /api/servicios/:id
-router.delete('/:id', eliminarServicio);
-
-// GET /api/servicios/:id/empleados
 router.get('/:id/empleados', obtenerEmpleadosPorServicio);
 
+// Crear, actualizar y eliminar: solo administrador autenticado
+router.post('/', verificarToken, verificarAdministrador, crearServicio);
+router.put('/:id', verificarToken, verificarAdministrador, actualizarServicio);
+router.delete('/:id', verificarToken, verificarAdministrador, eliminarServicio);
 
 module.exports = router;
-

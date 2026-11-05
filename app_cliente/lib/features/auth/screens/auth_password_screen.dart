@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../auth_flow.dart';
-import '../auth_state.dart';
 import '../widgets/auth_widgets.dart';
 
 /// "Bienvenido de nuevo": el correo ya está verificado (campo bloqueado),
@@ -45,7 +44,6 @@ class _AuthPasswordScreenState extends State<AuthPasswordScreen> {
         });
         return;
       }
-      AuthState.instance.iniciarSesion(usuario);
       AuthFlow.terminar(context);
     } catch (_) {
       if (!mounted) return;

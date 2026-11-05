@@ -93,9 +93,63 @@ const crearServicio = async (req, res) => {
             imagen
         } = req.body;
 
-        if (!id_categoria || !nombre || !duracion || precio === undefined) {
+        // Validar campos obligatorios
+        if (
+            id_categoria === undefined ||
+            !nombre ||
+            duracion === undefined ||
+            precio === undefined
+        ) {
             return res.status(400).json({
                 error: 'Categoría, nombre, duración y precio son obligatorios'
+            });
+        }
+
+        // Validar categoría
+        const categoriaId = Number(id_categoria);
+
+        if (!Number.isInteger(categoriaId) || categoriaId <= 0) {
+            return res.status(400).json({
+                error: 'La categoría debe ser un ID válido'
+            });
+        }
+
+        // Validar nombre
+        if (typeof nombre !== 'string' || !nombre.trim()) {
+            return res.status(400).json({
+                error: 'El nombre del servicio no es válido'
+            });
+        }
+
+        // Validar duración
+        const duracionNumero = Number(duracion);
+
+        if (!Number.isInteger(duracionNumero) || duracionNumero <= 0) {
+            return res.status(400).json({
+                error: 'La duración debe ser un número entero positivo'
+            });
+        }
+
+        // Validar precio
+        const precioNumero = Number(precio);
+
+        if (!Number.isFinite(precioNumero) || precioNumero < 0) {
+            return res.status(400).json({
+                error: 'El precio debe ser un número válido y no negativo'
+            });
+        }
+
+        // Comprobar que la categoría exista
+        const categoriaExiste = await pool.query(
+            `SELECT id_categoria
+            FROM categorias
+            WHERE id_categoria = $1`,
+            [categoriaId]
+        );
+
+        if (categoriaExiste.rows.length === 0) {
+            return res.status(404).json({
+                error: 'La categoría seleccionada no existe'
             });
         }
 
@@ -144,7 +198,6 @@ const crearServicio = async (req, res) => {
 };
 
 
-
 // MODIFICAR SERVICIO
 
 const actualizarServicio = async (req, res) => {
@@ -161,9 +214,79 @@ const actualizarServicio = async (req, res) => {
             estado
         } = req.body;
 
-        if (!id_categoria || !nombre || !duracion || precio === undefined) {
+        // Validar ID del servicio
+        const servicioId = Number(id);
+
+        if (!Number.isInteger(servicioId) || servicioId <= 0) {
+            return res.status(400).json({
+                error: 'El ID del servicio no es válido'
+            });
+        }
+
+        // Validar campos obligatorios
+        if (
+            id_categoria === undefined ||
+            !nombre ||
+            duracion === undefined ||
+            precio === undefined
+        ) {
             return res.status(400).json({
                 error: 'Categoría, nombre, duración y precio son obligatorios'
+            });
+        }
+
+        // Validar categoría
+        const categoriaId = Number(id_categoria);
+
+        if (!Number.isInteger(categoriaId) || categoriaId <= 0) {
+            return res.status(400).json({
+                error: 'La categoría debe ser un ID válido'
+            });
+        }
+
+        // Validar nombre
+        if (typeof nombre !== 'string' || !nombre.trim()) {
+            return res.status(400).json({
+                error: 'El nombre del servicio no es válido'
+            });
+        }
+
+        // Validar duración
+        const duracionNumero = Number(duracion);
+
+        if (!Number.isInteger(duracionNumero) || duracionNumero <= 0) {
+            return res.status(400).json({
+                error: 'La duración debe ser un número entero positivo'
+            });
+        }
+
+        // Validar precio
+        const precioNumero = Number(precio);
+
+        if (!Number.isFinite(precioNumero) || precioNumero < 0) {
+            return res.status(400).json({
+                error: 'El precio debe ser un número válido y no negativo'
+            });
+        }
+
+        // Validar estado
+        if (estado !== undefined && typeof estado !== 'boolean') {
+            return res.status(400).json({
+                error: 'El estado debe ser verdadero o falso'
+            });
+        }
+
+        // Comprobar que la categoría exista
+        const categoriaExiste = await pool.query(
+            `SELECT id_categoria
+            FROM categorias
+            WHERE id_categoria = $1`,
+            [categoriaId]
+        );
+
+        if (categoriaExiste.rows.length === 0) {
+            return res.status(404).json({
+                error: 'La categoría seleccionada no existe'
             });
         }
 
@@ -188,14 +311,14 @@ const actualizarServicio = async (req, res) => {
                 imagen,
                 estado`,
             [
-                id_categoria,
-                nombre,
+                categoriaId,
+                nombre.trim(),
                 descripcion || null,
-                duracion,
-                precio,
+                duracionNumero,
+                precioNumero,
                 imagen || null,
-                estado,
-                id
+                estado === undefined ? null : estado,
+                servicioId
             ]
         );
 
@@ -223,23 +346,49 @@ const actualizarServicio = async (req, res) => {
 
 // DESACTIVAR SERVICIO
 
+
+
 const eliminarServicio = async (req, res) => {
     try {
         const { id } = req.params;
 
+        // Validar ID del servicio
+        const servicioId = Number(id);
+
+        if (!Number.isInteger(servicioId) || servicioId <= 0) {
+            return res.status(400).json({
+                error: 'El ID del servicio no es válido'
+            });
+        }
+
+        // Verificar que el servicio exista y esté activo
+        const servicioExiste = await pool.query(
+            `SELECT id_servicio, nombre, estado
+             FROM servicios
+             WHERE id_servicio = $1`,
+            [servicioId]
+        );
+
+        if (servicioExiste.rows.length === 0) {
+            return res.status(404).json({
+                error: 'Servicio no encontrado'
+            });
+        }
+
+        if (servicioExiste.rows[0].estado === false) {
+            return res.status(409).json({
+                error: 'El servicio ya se encuentra desactivado'
+            });
+        }
+
+        // Desactivar servicio
         const result = await pool.query(
             `UPDATE servicios
              SET estado = false
              WHERE id_servicio = $1
              RETURNING id_servicio, nombre, estado`,
-            [id]
+            [servicioId]
         );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({
-                error: 'Servicio no encontrado'
-            });
-        }
 
         return res.json({
             mensaje: 'Servicio desactivado correctamente',
@@ -255,17 +404,36 @@ const eliminarServicio = async (req, res) => {
     }
 };
 
+
 const obtenerEmpleadosPorServicio = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Validar que el ID sea numérico
-        if (!id || isNaN(id)) {
+        // Validar ID del servicio
+        const servicioId = Number(id);
+
+        if (!Number.isInteger(servicioId) || servicioId <= 0) {
             return res.status(400).json({
                 error: 'El ID del servicio debe ser válido'
             });
         }
 
+        // Verificar que el servicio exista y esté activo
+        const servicioExiste = await pool.query(
+            `SELECT id_servicio
+             FROM servicios
+             WHERE id_servicio = $1
+               AND estado = true`,
+            [servicioId]
+        );
+
+        if (servicioExiste.rows.length === 0) {
+            return res.status(404).json({
+                error: 'Servicio no encontrado o desactivado'
+            });
+        }
+
+        // Obtener empleados activos asignados al servicio
         const result = await pool.query(
             `SELECT
                 e.id_empleado,
@@ -276,21 +444,13 @@ const obtenerEmpleadosPorServicio = async (req, res) => {
              FROM empleados e
              INNER JOIN empleado_servicios es
                 ON es.id_empleado = e.id_empleado
-             INNER JOIN servicios s
-                ON s.id_servicio = es.id_servicio
              INNER JOIN usuarios u
                 ON u.id_usuario = e.id_usuario
              WHERE es.id_servicio = $1
                AND u.estado = true
              ORDER BY e.nombre, e.apellido_p`,
-            [id]
+            [servicioId]
         );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({
-                error: 'No hay empleados disponibles para este servicio'
-            });
-        }
 
         return res.json({
             empleados: result.rows
@@ -307,6 +467,7 @@ const obtenerEmpleadosPorServicio = async (req, res) => {
         });
     }
 };
+
 
 
 module.exports = {
