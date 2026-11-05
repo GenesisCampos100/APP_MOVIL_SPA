@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 
+/// Paleta visual unificada de Aura Spa.
+/// Se mantienen los nombres originales para no modificar las pantallas.
 class AppColors {
-  // Colores que ya tenías
-  static const Color rosa = Color(0xFFF2C4C9);
-  static const Color rosaSuave = Color(0xFFFBE4E6);
-  static const Color rosaFuerte = Color(0xFFD98C97);
-  static const Color texto = Color(0xFF222222);
-  static const Color gris = Color(0xFF8A8A8A);
+  static const Color background = Color(0xFFFFF9FA);
+  static const Color primaryPink = Color(0xFFA9476C);
+  static const Color cardBackground = Colors.white;
+  static const Color cardBorder = Color(0xFFEAD7DE);
+  static const Color textDark = Color(0xFF30252B);
 
-  // Colores originales utilizados en la interfaz de Zinedine
-  static const Color background = Colors.white;
-  static const Color primaryPink = Color(0xFFFF007A);
-  static const Color cardBackground = Color(0xFFFAFAFA);
-  static const Color cardBorder = Color(0xFF505050);
-  static const Color textDark = Color(0xFF2D2D2D);
+  // Colores de apoyo para la interfaz, sin reemplazar los anteriores.
+  static const Color textMuted = Color(0xFF766871);
+  static const Color primaryPinkSoft = Color(0xFFFBE9EE);
+  static const Color fieldBackground = Color(0xFFFFF5F7);
 }

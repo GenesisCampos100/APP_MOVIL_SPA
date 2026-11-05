@@ -23,7 +23,7 @@ class AdminMenuTab extends StatelessWidget {
 
               // Título principal estilizado
               Text(
-                'Dashboard admin',
+                'Más opciones',
                 style: AppTextStyles.displayExtraBold.copyWith(
                   color: AppColors.textDark,
                 ),
@@ -36,8 +36,8 @@ class AdminMenuTab extends StatelessWidget {
                 padding: const EdgeInsets.all(20.0),
                 decoration: BoxDecoration(
                   color: AppColors.cardBackground,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.cardBorder, width: 1.5),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: AppColors.cardBorder),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.08),
@@ -173,7 +173,7 @@ class AdminMenuTab extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: Material(
-        color: const Color(0xFFFDE8EE), // Rosa claro según Figma
+        color: AppColors.primaryPinkSoft, // Superficie suave de las opciones
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           onTap: onTap,
@@ -182,7 +182,15 @@ class AdminMenuTab extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
-                Icon(icon, size: 28, color: Colors.black87),
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, size: 23, color: AppColors.primaryPink),
+                ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -193,7 +201,7 @@ class AdminMenuTab extends StatelessWidget {
                         style: AppTextStyles.body.copyWith(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          color: AppColors.textDark,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -201,8 +209,8 @@ class AdminMenuTab extends StatelessWidget {
                         subtitle,
                         style: AppTextStyles.caption.copyWith(
                           fontSize: 11,
-                          color: Colors.black54,
-                          height: 1.25,
+                          color: AppColors.textMuted,
+                          height: 1.35,
                         ),
                       ),
                     ],

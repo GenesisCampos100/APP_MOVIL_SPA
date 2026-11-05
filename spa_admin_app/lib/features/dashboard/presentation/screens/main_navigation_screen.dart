@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spa_admin_app/core/constants/app_colors.dart';
 import 'package:spa_admin_app/features/appointments/presentation/screens/manage_appointments_screen.dart';
 import 'package:spa_admin_app/features/services/presentation/screens/manage_services_screen.dart';
 import 'package:spa_admin_app/features/dashboard/presentation/tabs/dashboard_home_tab.dart';
@@ -31,11 +32,18 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           children: _tabs,
         ),
       ),
-      // Barra de navegación inferior
+      // Misma navegación de cuatro pestañas, ahora con etiquetas visibles.
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+          border: const Border(top: BorderSide(color: AppColors.cardBorder)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.textDark.withValues(alpha: 0.05),
+              blurRadius: 16,
+              offset: const Offset(0, -3),
+            ),
+          ],
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
@@ -45,17 +53,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             });
           },
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.transparent,
+          backgroundColor: Colors.white,
           elevation: 0,
-          selectedItemColor: Colors.black,
-          unselectedItemColor: Colors.black54,
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
+          selectedItemColor: AppColors.primaryPink,
+          unselectedItemColor: AppColors.textMuted,
+          showSelectedLabels: true,
+          showUnselectedLabels: true,
+          selectedFontSize: 11,
+          unselectedFontSize: 11,
           items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home_outlined, size: 28), label: 'Inicio'),
-            BottomNavigationBarItem(icon: Icon(Icons.badge_outlined, size: 28), label: 'Servicios'),
-            BottomNavigationBarItem(icon: Icon(Icons.calendar_today_outlined, size: 26), label: 'Citas'),
-            BottomNavigationBarItem(icon: Icon(Icons.menu, size: 28), label: 'Menú'),
+            BottomNavigationBarItem(icon: Icon(Icons.home_outlined, size: 24), label: 'Inicio'),
+            BottomNavigationBarItem(icon: Icon(Icons.badge_outlined, size: 24), label: 'Servicios'),
+            BottomNavigationBarItem(icon: Icon(Icons.calendar_today_outlined, size: 23), label: 'Citas'),
+            BottomNavigationBarItem(icon: Icon(Icons.menu, size: 24), label: 'Menú'),
           ],
         ),
       ),

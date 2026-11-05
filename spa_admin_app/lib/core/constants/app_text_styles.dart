@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
 
 class AppTextStyles {
   static const String fontFamily = 'Poppins';
@@ -9,28 +8,28 @@ class AppTextStyles {
   // Para números grandes o impactos visuales máximos (Poppins-Black)
   static const TextStyle displayBlack = TextStyle(
     fontFamily: fontFamily,
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: FontWeight.w900,
   );
 
   // Para títulos principales de pantallas (Poppins-ExtraBold)
   static const TextStyle displayExtraBold = TextStyle(
     fontFamily: fontFamily,
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: FontWeight.w800,
   );
 
   // Títulos de sección o encabezados de tarjetas (Poppins-Bold)
   static const TextStyle heading1 = TextStyle(
     fontFamily: fontFamily,
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: FontWeight.bold, // w700 -> Poppins-Bold.ttf
   );
 
   // Subtítulos destacados (Poppins-SemiBold)
   static const TextStyle heading2 = TextStyle(
     fontFamily: fontFamily,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: FontWeight.w600, // w600 -> Poppins-SemiBold.ttf
   );
 
@@ -39,7 +38,7 @@ class AppTextStyles {
   // Subtítulos o textos secundarios importantes (Poppins-Medium)
   static const TextStyle subtitle = TextStyle(
     fontFamily: fontFamily,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: FontWeight.w500, // w500 -> Poppins-Medium.ttf
   );
 
