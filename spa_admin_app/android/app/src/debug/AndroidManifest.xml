@@ -4,4 +4,6 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Solo para desarrollo con Node.js local por HTTP. -->
+    <application android:usesCleartextTraffic="true"/>
 </manifest>
