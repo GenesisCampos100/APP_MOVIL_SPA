@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:spa_admin_app/data/repositories/citas_repository.dart';
+import 'package:spa_admin_app/data/services/api_exception.dart';
+import 'package:spa_admin_app/data/services/sesion_service.dart';
 import 'package:spa_admin_app/core/theme/app_colors.dart';
 import 'package:spa_admin_app/core/theme/app_text_styles.dart';
 import 'package:spa_admin_app/data/models/appointment_model.dart';
-import 'package:spa_admin_app/features/appointments/widgets/appointment_edit_dialog.dart';
-import 'package:spa_admin_app/features/appointments/widgets/appointment_cancel_dialog.dart';
 import 'package:spa_admin_app/features/shell/screens/main_navigation_screen.dart';
 
 class ManageAppointmentsScreen extends StatefulWidget {
@@ -14,65 +15,82 @@ class ManageAppointmentsScreen extends StatefulWidget {
 }
 
 class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
-  // Lista inicial de citas según la BD y mockups de Figma para Gestionar Citas
-  final List<AppointmentModel> _appointments = [
-    AppointmentModel(
-      idCita: '#Cita-001',
-      idCliente: '#CLI-045',
-      nombreCliente: 'Laura Gómez Rivas',
-      nombreServicio: 'Masaje Relajante Descontracturante (60 min)',
-      precioAplicado: 650.00,
-      nombreEmpleado: 'Carlos Mendoza García',
-      fecha: DateTime(2026, 9, 25),
-      horaInicio: '10:00 AM',
-      duracionAplicada: '60 min',
-      estado: 'Confirmada',
-      observaciones: 'Enfoque principal en zona lumbar y cuello.',
-    ),
-    AppointmentModel(
-      idCita: '#Cita-002',
-      idCliente: '#CLI-082',
-      nombreCliente: 'Roberto Sánchez',
-      nombreServicio: 'Facial Limpieza Profunda (45 min)',
-      precioAplicado: 500.00,
-      nombreEmpleado: 'Ana Sofía Torres',
-      fecha: DateTime(2026, 9, 25),
-      horaInicio: '11:30 AM',
-      duracionAplicada: '45 min',
-      estado: 'Pendiente',
-      observaciones: 'Piel sensible.',
-    ),
-    AppointmentModel(
-      idCita: '#Cita-003',
-      idCliente: '#CLI-019',
-      nombreCliente: 'María Elena Rodríguez',
-      nombreServicio: 'Manicura y Pedicura Spa',
-      precioAplicado: 450.00,
-      nombreEmpleado: 'Zinedine Hiram Miranda Campos',
-      fecha: DateTime(2026, 9, 25),
-      horaInicio: '02:00 PM',
-      duracionAplicada: '60 min',
-      estado: 'Completada',
-      observaciones: 'Esmaltado en gel.',
-    ),
-    AppointmentModel(
-      idCita: '#Cita-004',
-      idCliente: '#CLI-102',
-      nombreCliente: 'Jorge Hernández',
-      nombreServicio: 'Tratamiento Corporal Reductivo',
-      precioAplicado: 800.00,
-      nombreEmpleado: 'Carlos Mendoza García',
-      fecha: DateTime(2026, 9, 26),
-      horaInicio: '04:00 PM',
-      duracionAplicada: '60 min',
-      estado: 'Pendiente',
-      observaciones: 'Tratamiento reductivo.',
-    ),
-  ];
+  // Las citas vienen del backend; ya no se utilizan datos simulados.
+  final CitasRepository _repository = CitasRepository();
+  List<AppointmentModel> _appointments = [];
+  bool _cargando = true;
+  String? _error;
+  bool _primeraCarga = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarCitas();
+  }
+
+  Future<void> _cargarCitas() async {
+    if (!AuthSession.esAdministrador || !AuthSession.activa) {
+      if (!mounted) return;
+      setState(() {
+        _cargando = false;
+        _error = 'Inicia sesión como Administrador para consultar las citas.';
+      });
+      return;
+    }
+
+    setState(() {
+      _cargando = true;
+      _error = null;
+    });
+
+    try {
+      final citas = await _repository.obtenerCitas();
+      if (!mounted) return;
+
+      setState(() {
+        _appointments = citas;
+        _cargando = false;
+
+        // La primera vez, enfocar la próxima cita para facilitar su consulta.
+        // Las actualizaciones manuales no cambian la fecha que seleccionó el usuario.
+        if (_primeraCarga && citas.isNotEmpty) {
+          final ahora = DateTime.now();
+          final hoy = DateTime(ahora.year, ahora.month, ahora.day);
+          final futuras = citas.where((c) => !c.fecha.isBefore(hoy)).toList();
+          final fechaFoco = futuras.isNotEmpty ? futuras.first.fecha : citas.last.fecha;
+          _selectedDate = fechaFoco;
+          _currentMonth = DateTime(fechaFoco.year, fechaFoco.month, 1);
+        }
+        _primeraCarga = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _cargando = false;
+        _error = switch (e.statusCode) {
+          401 => 'La sesión ya no es válida. Cierra sesión y vuelve a ingresar.',
+          403 => 'No tienes permiso para consultar las citas.',
+          _ => 'No fue posible cargar las citas desde el servidor.',
+        };
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _cargando = false;
+        _error = 'No se pudieron consultar las citas. Revisa la conexión al servidor.';
+      });
+    }
+  }
+
+  void _operacionPendiente(String accion) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$accion todavía no está conectado con la API. No se ha modificado la cita.')),
+    );
+  }
 
   String _searchQuery = '';
-  DateTime _selectedDate = DateTime(2026, 9, 25);
-  DateTime _currentMonth = DateTime(2026, 9, 1);
+  DateTime _selectedDate = DateTime.now();
+  DateTime _currentMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
   String _selectedFilter = 'Todas'; // 'Todas', 'Pendientes', 'Confirmadas', 'Completadas'
   bool _showCalendarView = true;
 
@@ -171,6 +189,13 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
               ),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Actualizar citas',
+            icon: const Icon(Icons.refresh, color: AppColors.primaryPink),
+            onPressed: _cargando ? null : _cargarCitas,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -215,9 +240,28 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
 
           // Contenido principal: Calendario o Lista del día
           Expanded(
-            child: _showCalendarView
-                ? _buildCalendarView()
-                : _buildDayAppointmentsView(),
+            child: _cargando
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(_error!, textAlign: TextAlign.center),
+                              const SizedBox(height: 12),
+                              ElevatedButton(
+                                onPressed: _cargarCitas,
+                                child: const Text('Reintentar'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : _showCalendarView
+                        ? _buildCalendarView()
+                        : _buildDayAppointmentsView(),
           ),
         ],
       ),
@@ -564,22 +608,7 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) => AppointmentCancelDialog(
-                      appointment: appointment,
-                      onCancelConfirmed: () {
-                        setState(() {
-                          final index = _appointments.indexWhere((a) => a.idCita == appointment.idCita);
-                          if (index != -1) {
-                            _appointments[index] = appointment.copyWith(estado: 'Cancelada');
-                          }
-                        });
-                      },
-                    ),
-                  );
-                },
+                onPressed: () => _operacionPendiente('Cancelar citas'),
                 child: const Text(
                   'Cancelar cita',
                   style: TextStyle(color: Colors.black87, fontSize: 12),
@@ -587,22 +616,8 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.edit_outlined, color: Colors.black87),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) => AppointmentEditDialog(
-                      appointment: appointment,
-                      onSave: (updated) {
-                        setState(() {
-                          final index = _appointments.indexWhere((a) => a.idCita == updated.idCita);
-                          if (index != -1) {
-                            _appointments[index] = updated;
-                          }
-                        });
-                      },
-                    ),
-                  );
-                },
+                tooltip: 'Edición pendiente de conectar con el backend',
+                onPressed: () => _operacionPendiente('Editar citas'),
               ),
             ],
           ),

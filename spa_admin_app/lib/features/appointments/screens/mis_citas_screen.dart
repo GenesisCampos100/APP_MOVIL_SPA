@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:spa_admin_app/core/theme/app_colors.dart';
 import 'package:spa_admin_app/core/theme/app_text_styles.dart';
 import 'package:spa_admin_app/data/models/appointment_model.dart';
+import 'package:spa_admin_app/data/repositories/citas_repository.dart';
+import 'package:spa_admin_app/data/services/api_exception.dart';
+import 'package:spa_admin_app/data/services/sesion_service.dart';
 import 'package:spa_admin_app/features/appointments/widgets/cita_card_widget.dart';
 import 'package:spa_admin_app/features/appointments/screens/detalle_cita_screen.dart';
 
+/// Agenda administrativa basada exclusivamente en GET /api/citas.
+/// Los resultados dependen del usuario autenticado y de los permisos del backend.
 class MisCitasScreen extends StatefulWidget {
   const MisCitasScreen({super.key});
 
@@ -13,50 +18,65 @@ class MisCitasScreen extends StatefulWidget {
 }
 
 class _MisCitasScreenState extends State<MisCitasScreen> {
-  final List<AppointmentModel> _appointments = [
-    AppointmentModel(
-      idCita: '#Cita-001',
-      idCliente: '#CLI-045',
-      nombreCliente: 'Laura Gómez Rivas',
-      nombreServicio: 'Masaje relajante descontracturante',
-      precioAplicado: 650.00,
-      nombreEmpleado: 'Carlos Mendoza García',
-      fecha: DateTime(2026, 9, 25),
-      horaInicio: '09:00 AM - 10:00 AM',
-      duracionAplicada: '60 min',
-      estado: 'Confirmada',
-      observaciones: 'Enfoque principal en zona lumbar y cuello. Evitar aceites con aroma a lavanda por sensibilidad. Presión media-alta.',
-    ),
-    AppointmentModel(
-      idCita: '#Cita-002',
-      idCliente: '#CLI-082',
-      nombreCliente: 'Roberto Sánchez',
-      nombreServicio: 'Facial Limpieza Profunda',
-      precioAplicado: 500.00,
-      nombreEmpleado: 'Ana Sofía Torres',
-      fecha: DateTime(2026, 9, 25),
-      horaInicio: '11:30 AM - 12:30 PM',
-      duracionAplicada: '45 min',
-      estado: 'En proceso',
-      observaciones: 'Piel sensible. Usar productos hipoalergénicos.',
-    ),
-    AppointmentModel(
-      idCita: '#Cita-003',
-      idCliente: '#CLI-019',
-      nombreCliente: 'María Elena Rodríguez',
-      nombreServicio: 'Manicura y Pedicura Spa',
-      precioAplicado: 450.00,
-      nombreEmpleado: 'Zinedine Hiram Miranda Campos',
-      fecha: DateTime(2026, 9, 25),
-      horaInicio: '02:00 PM - 03:00 PM',
-      duracionAplicada: '60 min',
-      estado: 'Pendiente',
-      observaciones: 'Esmaltado en gel.',
-    ),
-  ];
-
-  DateTime _selectedDate = DateTime(2026, 9, 25);
+  final CitasRepository _repository = CitasRepository();
+  List<AppointmentModel> _appointments = [];
+  DateTime _selectedDate = DateTime.now();
   String _selectedFilter = 'Todas';
+  bool _loading = true;
+  bool _firstLoad = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAppointments();
+  }
+
+  Future<void> _loadAppointments() async {
+    if (!AuthSession.esAdministrador || !AuthSession.activa) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Inicia sesión como Administrador para consultar las citas.';
+      });
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final citas = await _repository.obtenerCitas();
+      if (!mounted) return;
+      setState(() {
+        _appointments = citas;
+        _loading = false;
+        if (_firstLoad && citas.isNotEmpty) {
+          final ahora = DateTime.now();
+          final hoy = DateTime(ahora.year, ahora.month, ahora.day);
+          final proximas = citas.where((c) => !c.fecha.isBefore(hoy)).toList();
+          _selectedDate = proximas.isNotEmpty ? proximas.first.fecha : citas.last.fecha;
+        }
+        _firstLoad = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = switch (e.statusCode) {
+          401 => 'Tu sesión ya no es válida. Cierra sesión y vuelve a ingresar.',
+          403 => 'No tienes permiso para consultar las citas.',
+          _ => 'No fue posible cargar las citas desde el servidor.',
+        };
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'No se pudieron cargar las citas. Revisa la conexión al servidor.';
+      });
+    }
+  }
 
   String _formatDateHeader(DateTime dt) {
     const months = [
@@ -66,30 +86,29 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
     return '${dt.day} de ${months[dt.month - 1]} ${dt.year}';
   }
 
-  bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
   List<AppointmentModel> get _filteredAppointments {
-    return _appointments.where((app) {
-      final matchesDate = _isSameDay(app.fecha, _selectedDate);
-      bool matchesFilter = true;
-      if (_selectedFilter == 'Pendientes') {
-        matchesFilter = app.estado == 'Pendiente';
-      } else if (_selectedFilter == 'Confirmadas') {
-        matchesFilter = app.estado == 'Confirmada';
-      } else if (_selectedFilter == 'Completadas') {
-        matchesFilter = app.estado == 'Completada';
-      } else if (_selectedFilter == 'En proceso') {
-        matchesFilter = app.estado == 'En proceso';
-      }
-      return matchesDate && matchesFilter;
+    final filtro = _selectedFilter.toLowerCase();
+    return _appointments.where((cita) {
+      if (!_isSameDay(cita.fecha, _selectedDate)) return false;
+      if (filtro == 'todas') return true;
+      final estado = cita.estado.trim().toLowerCase();
+      return switch (filtro) {
+        'pendientes' => estado == 'pendiente',
+        'confirmadas' => estado == 'confirmada',
+        'completadas' => estado == 'completada',
+        'en proceso' => estado == 'en proceso',
+        _ => true,
+      };
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final list = _filteredAppointments;
+    final count = _appointments.where((a) => _isSameDay(a.fecha, _selectedDate)).length;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -102,57 +121,55 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Mis citas',
-          style: AppTextStyles.displayExtraBold.copyWith(
-            color: AppColors.textDark,
-          ),
+          'Citas del negocio',
+          style: AppTextStyles.displayExtraBold.copyWith(color: AppColors.textDark),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Actualizar citas',
+            icon: const Icon(Icons.refresh, color: AppColors.primaryPink),
+            onPressed: _loading ? null : _loadAppointments,
+          ),
+        ],
       ),
       body: Column(
         children: [
-          // Selector de fecha estilo < 25 de Septiembre 2026 >
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
                   icon: const Icon(Icons.chevron_left, color: Colors.black87),
-                  onPressed: () {
-                    setState(() {
-                      _selectedDate = _selectedDate.subtract(const Duration(days: 1));
-                    });
-                  },
+                  onPressed: () => setState(() {
+                    _selectedDate = _selectedDate.subtract(const Duration(days: 1));
+                  }),
                 ),
-                Text(
-                  _formatDateHeader(_selectedDate),
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                Flexible(
+                  child: Text(
+                    _formatDateHeader(_selectedDate),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.chevron_right, color: Colors.black87),
-                  onPressed: () {
-                    setState(() {
-                      _selectedDate = _selectedDate.add(const Duration(days: 1));
-                    });
-                  },
+                  onPressed: () => setState(() {
+                    _selectedDate = _selectedDate.add(const Duration(days: 1));
+                  }),
                 ),
               ],
             ),
           ),
-
           Text(
-            '${_appointments.where((a) => _isSameDay(a.fecha, _selectedDate)).length} citas programadas para hoy',
+            _loading || _error != null ? 'Consultando agenda...' :
+                '$count ${count == 1 ? 'cita programada' : 'citas programadas'} para esta fecha',
             style: const TextStyle(fontSize: 12, color: Colors.black54),
           ),
           const SizedBox(height: 12),
-
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
                 _buildFilterChip('Todas'),
@@ -168,42 +185,73 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
             ),
           ),
           const SizedBox(height: 12),
-
           Expanded(
-            child: list.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No hay citas programadas para esta fecha.',
-                      style: TextStyle(color: Colors.black54, fontSize: 13),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: list.length,
-                    itemBuilder: (context, index) {
-                      final appointment = list[index];
-                      return CitaCardWidget(
-                        appointment: appointment,
-                        onVerDetalle: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => DetalleCitaScreen(
-                                appointment: appointment,
-                                onAppointmentUpdated: (updatedApp) {
-                                  setState(() {
-                                    final i = _appointments.indexWhere((a) => a.idCita == updatedApp.idCita);
-                                    if (i != -1) {
-                                      _appointments[i] = updatedApp;
-                                    }
-                                  });
-                                },
-                              ),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              child: _loading
+                  ? const Center(
+                      key: ValueKey('cargando'),
+                      child: CircularProgressIndicator(),
+                    )
+                  : _error != null
+                      ? Center(
+                          key: const ValueKey('error'),
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.wifi_off_outlined, size: 42, color: AppColors.textMuted),
+                                const SizedBox(height: 12),
+                                Text(_error!, textAlign: TextAlign.center),
+                                const SizedBox(height: 12),
+                                OutlinedButton.icon(
+                                  onPressed: _loadAppointments,
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text('Reintentar'),
+                                ),
+                              ],
                             ),
-                          );
-                        },
-                      );
-                    },
-                  ),
+                          ),
+                        )
+                      : RefreshIndicator(
+                          key: const ValueKey('agenda'),
+                          onRefresh: _loadAppointments,
+                          child: list.isEmpty
+                              ? ListView(
+                                  physics: const AlwaysScrollableScrollPhysics(),
+                                  children: const [
+                                    SizedBox(height: 72),
+                                    Icon(Icons.event_busy_outlined, color: AppColors.textMuted, size: 44),
+                                    SizedBox(height: 12),
+                                    Center(child: Text('No hay citas para la fecha o filtro seleccionado.')),
+                                  ],
+                                )
+                              : ListView.builder(
+                                  physics: const AlwaysScrollableScrollPhysics(),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  itemCount: list.length,
+                                  itemBuilder: (context, index) {
+                                    final cita = list[index];
+                                    return CitaCardWidget(
+                                      appointment: cita,
+                                      onVerDetalle: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => DetalleCitaScreen(
+                                            appointment: cita,
+                                            // Al habilitar operaciones reales, siempre recargar desde la API.
+                                            onAppointmentUpdated: (_) {
+                                              _loadAppointments();
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+            ),
           ),
         ],
       ),
@@ -218,13 +266,13 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFF731C6) : const Color(0xFFFDE8EE),
+          color: isSelected ? AppColors.primaryPink : const Color(0xFFFDE8EE),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
-          '[$label]',
+          label,
           style: TextStyle(
-            color: isSelected ? Colors.white : const Color(0xFFF731C6),
+            color: isSelected ? Colors.white : AppColors.primaryPink,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
             fontSize: 12,
           ),

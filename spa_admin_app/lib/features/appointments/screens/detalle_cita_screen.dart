@@ -3,7 +3,6 @@ import 'package:spa_admin_app/core/theme/app_colors.dart';
 import 'package:spa_admin_app/core/theme/app_text_styles.dart';
 import 'package:spa_admin_app/data/models/appointment_model.dart';
 import 'package:spa_admin_app/features/appointments/widgets/estado_badge.dart';
-import 'package:spa_admin_app/features/appointments/screens/completar_servicio_screen.dart';
 
 class DetalleCitaScreen extends StatefulWidget {
   final AppointmentModel appointment;
@@ -28,91 +27,11 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
     _currentAppointment = widget.appointment;
   }
 
-  void _showStartServiceConfirmation(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        contentPadding: const EdgeInsets.all(24),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              '¿Seguro de iniciar el servicio?',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'El servicio iniciará',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.black54,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEAEAEA),
-                      side: BorderSide.none,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text(
-                      'Cancelar',
-                      style: TextStyle(color: Colors.black87, fontSize: 13),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF731C6), // Magenta
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      setState(() {
-                        _currentAppointment = _currentAppointment.copyWith(estado: 'En proceso');
-                      });
-                      widget.onAppointmentUpdated(_currentAppointment);
-
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => CompletarServicioScreen(
-                            appointment: _currentAppointment,
-                            onCompleted: (completedApp) {
-                              setState(() {
-                                _currentAppointment = completedApp;
-                              });
-                              widget.onAppointmentUpdated(_currentAppointment);
-                            },
-                          ),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      'Sí, iniciar',
-                      style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+  // Las operaciones sobre citas todavía no cuentan con un endpoint de escritura.
+  // No modificar el estado en memoria como si se hubiera guardado en PostgreSQL.
+  void _accionNoDisponible(String accion) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$accion estará disponible cuando se conecte con la API. No se modificó la cita.')),
     );
   }
 
@@ -129,7 +48,7 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Mis citas',
+          'Detalle de cita',
           style: AppTextStyles.displayExtraBold.copyWith(
             color: AppColors.textDark,
           ),
@@ -194,7 +113,7 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
                       ),
                       const SizedBox(height: 2),
                       const Text(
-                        'Primera visita',
+                        'Información de la cita',
                         style: TextStyle(fontSize: 11, color: Colors.black54),
                       ),
                     ],
@@ -203,14 +122,16 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Teléfono con icono
-              const Row(
+              // Mostrar el empleado real devuelto por GET /api/citas.
+              Row(
                 children: [
-                  Icon(Icons.phone_outlined, size: 18, color: Colors.black54),
-                  SizedBox(width: 8),
-                  Text(
-                    '314-XXX-XXXX',
-                    style: TextStyle(fontSize: 12, color: Colors.black87),
+                  const Icon(Icons.badge_outlined, size: 18, color: Colors.black54),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Especialista: ${_currentAppointment.nombreEmpleado}',
+                      style: const TextStyle(fontSize: 12, color: Colors.black87),
+                    ),
                   ),
                 ],
               ),
@@ -256,8 +177,9 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
-                  _currentAppointment.observaciones ??
-                      '"Enfoque principal en zona lumbar y cuello. Evitar aceites con aroma a lavanda por sensibilidad. Presión media-alta."',
+                  (_currentAppointment.observaciones?.trim().isNotEmpty ?? false)
+                      ? _currentAppointment.observaciones!
+                      : 'Sin observaciones registradas.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 12,
@@ -282,7 +204,7 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
                       ),
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Inasistencia reportada correctamente')),
+                          const SnackBar(content: Text('Función pendiente de conectar con la API. No se modificó la cita.')),
                         );
                       },
                       child: const Text(
@@ -299,7 +221,7 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
-                      onPressed: () => _showStartServiceConfirmation(context),
+                      onPressed: () => _accionNoDisponible('Iniciar servicio'),
                       child: const Text(
                         'Iniciar servicio',
                         style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
