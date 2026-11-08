@@ -171,6 +171,49 @@ const login = async (req, res) => {
             });
         }
 
+    
+        // LOGIN EMPLEADO - ROL 2
+        if (usuario.id_rol === 2) {
+            const empleadoResult = await pool.query(
+                `SELECT
+                    id_empleado,
+                    id_puesto,
+                    nombre,
+                    apellido_p,
+                    apellido_m,
+                    telefono
+                 FROM empleados
+                 WHERE id_usuario = $1`,
+                [usuario.id_usuario]
+            );
+
+            if (empleadoResult.rows.length === 0) {
+                return res.status(403).json({
+                    error: 'El empleado no tiene un perfil asociado'
+                });
+            }
+
+            const empleado = empleadoResult.rows[0];
+
+            return res.status(200).json({
+                mensaje: 'Inicio de sesión exitoso',
+                token,
+                usuario: {
+                    id_usuario: usuario.id_usuario,
+                    id_empleado: empleado.id_empleado,
+                    id_puesto: empleado.id_puesto,
+                    correo: usuario.correo,
+                    nombre: empleado.nombre,
+                    apellido_p: empleado.apellido_p,
+                    apellido_m: empleado.apellido_m,
+                    telefono: empleado.telefono,
+                    foto: usuario.foto,
+                    rol: usuario.rol
+                }
+            });
+        }
+
+
         // Por seguridad, manejar cualquier rol no contemplado. 
         return res.status(403).json({
             error: 'El rol del usuario no está permitido'
