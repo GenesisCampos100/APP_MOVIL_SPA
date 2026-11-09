@@ -52,3 +52,9 @@ SpaBackend/.env
 
 # Respaldos ZIP en la raiz
 /*.zip
+
+# Dependencias de Node.js
+node_modules/
+
+# Variables de entorno privadas
+.env

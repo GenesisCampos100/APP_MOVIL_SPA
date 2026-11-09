@@ -1,8 +1,11 @@
+
 import 'package:flutter/material.dart';
+
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/empleado.dart';
 import '../../../data/repositories/empleados_repository.dart';
+import '../../../data/repositories/citas_repository.dart';
 import '../../auth/widgets/auth_widgets.dart';
 import '../reserva_borrador.dart';
 
@@ -10,17 +13,86 @@ import '../reserva_borrador.dart';
 /// más la opción "Cualquier disponible".
 class ElegirEspecialistaScreen extends StatefulWidget {
   final ReservaBorrador borrador;
-  const ElegirEspecialistaScreen({super.key, required this.borrador});
+
+  const ElegirEspecialistaScreen({
+    super.key,
+    required this.borrador,
+  });
 
   @override
-  State<ElegirEspecialistaScreen> createState() => _ElegirEspecialistaScreenState();
+  State<ElegirEspecialistaScreen> createState() =>
+      _ElegirEspecialistaScreenState();
 }
 
-class _ElegirEspecialistaScreenState extends State<ElegirEspecialistaScreen> {
+class _ElegirEspecialistaScreenState
+    extends State<ElegirEspecialistaScreen> {
   final _repo = EmpleadosRepository();
+
   late final Future<List<Empleado>> _futuro =
       _repo.obtenerParaServicio(widget.borrador.servicio.id);
+
   Empleado _seleccion = Empleado.cualquiera;
+
+  bool _apartando = false;
+
+  /// Crea el apartado temporal y después abre la confirmación.
+  Future<void> _continuar() async {
+    if (_apartando) return;
+
+    setState(() => _apartando = true);
+
+    try {
+      final respuesta = await CitasRepository.instance.apartarHorario(
+        servicio: widget.borrador.servicio,
+        empleado: _seleccion,
+        fecha: widget.borrador.fecha,
+        hora: widget.borrador.hora,
+      );
+
+      final reservaJson =
+          respuesta['reserva'] as Map<String, dynamic>;
+
+      final empleadoJson =
+          respuesta['empleado'] as Map<String, dynamic>;
+
+      final idReserva = (reservaJson['id_reserva'] as num).toInt();
+
+      final fechaExpiracion =
+          DateTime.parse(reservaJson['fecha_expiracion'].toString());
+
+      // El backend devuelve el empleado real asignado.
+      final empleadoAsignado = Empleado.fromJson(empleadoJson);
+
+      final nuevoBorrador = widget.borrador.conApartado(
+        idReserva: idReserva,
+        fechaExpiracion: fechaExpiracion,
+        empleado: empleadoAsignado,
+      );
+
+      if (!mounted) return;
+
+      Navigator.pushNamed(
+        context,
+        AppRoutes.confirmarCita,
+        arguments: nuevoBorrador,
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().replaceFirst('Exception: ', ''),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _apartando = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,23 +102,42 @@ class _ElegirEspecialistaScreenState extends State<ElegirEspecialistaScreen> {
         future: _futuro,
         builder: (context, snap) {
           if (snap.hasError) {
-            return const Center(child: Text('No se pudo cargar el personal'));
+            return const Center(
+              child: Text('No se pudo cargar el personal'),
+            );
           }
-          if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+
+          if (!snap.hasData) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+
           final lista = [Empleado.cualquiera, ...snap.data!];
+
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             children: [
               const Center(
-                child: Text('Elige a tu especialista',
-                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700)),
+                child: Text(
+                  'Elige a tu especialista',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
+
               for (final e in lista) ...[
                 _TarjetaEmpleado(
                   empleado: e,
                   seleccionado: e.id == _seleccion.id,
-                  onTap: () => setState(() => _seleccion = e),
+                  onTap: () {
+                    if (!_apartando) {
+                      setState(() => _seleccion = e);
+                    }
+                  },
                 ),
                 const SizedBox(height: 12),
               ],
@@ -57,14 +148,17 @@ class _ElegirEspecialistaScreenState extends State<ElegirEspecialistaScreen> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-          child: AuthBoton(
-            texto: 'Continuar',
-            onPressed: () => Navigator.pushNamed(
-              context,
-              AppRoutes.confirmarCita,
-              arguments: widget.borrador.conEmpleado(_seleccion),
-            ),
-          ),
+          child: _apartando
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              : AuthBoton(
+                  texto: 'Continuar',
+                  onPressed: _continuar,
+                ),
         ),
       ),
     );
@@ -75,6 +169,7 @@ class _TarjetaEmpleado extends StatelessWidget {
   final Empleado empleado;
   final bool seleccionado;
   final VoidCallback onTap;
+
   const _TarjetaEmpleado({
     required this.empleado,
     required this.seleccionado,
@@ -85,13 +180,16 @@ class _TarjetaEmpleado extends StatelessWidget {
   Widget build(BuildContext context) {
     final e = empleado;
     final foto = e.foto;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: seleccionado ? AppColors.rosaSuave.withValues(alpha: 0.5) : Colors.white,
+          color: seleccionado
+              ? AppColors.rosaSuave.withValues(alpha: 0.5)
+              : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: seleccionado ? Colors.black : Colors.black12,
@@ -102,13 +200,26 @@ class _TarjetaEmpleado extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 24,
-              backgroundColor: e.esCualquiera ? AppColors.rosaSuave : AppColors.rosa,
-              backgroundImage: (!e.esCualquiera && foto != null) ? NetworkImage(foto) : null,
+              backgroundColor: e.esCualquiera
+                  ? AppColors.rosaSuave
+                  : AppColors.rosa,
+              backgroundImage:
+                  (!e.esCualquiera && foto != null)
+                      ? NetworkImage(foto)
+                      : null,
               child: e.esCualquiera
-                  ? const Icon(Icons.person_search_outlined, color: AppColors.rosaFuerte)
+                  ? const Icon(
+                      Icons.person_search_outlined,
+                      color: AppColors.rosaFuerte,
+                    )
                   : (foto == null
-                      ? Text(e.inicial,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600))
+                      ? Text(
+                          e.inicial,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        )
                       : null),
             ),
             const SizedBox(width: 12),
@@ -117,13 +228,23 @@ class _TarjetaEmpleado extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    e.esCualquiera ? 'Cualquier disponible' : e.nombreCompleto,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    e.esCualquiera
+                        ? 'Cualquier disponible'
+                        : e.nombreCompleto,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    e.esCualquiera ? 'Te asignamos al primero disponible' : e.puesto,
-                    style: const TextStyle(fontSize: 12, color: AppColors.gris),
+                    e.esCualquiera
+                        ? 'Te asignamos al primero disponible'
+                        : e.puesto,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.gris,
+                    ),
                   ),
                 ],
               ),
@@ -131,8 +252,15 @@ class _TarjetaEmpleado extends StatelessWidget {
             if (!e.esCualquiera && e.rating > 0)
               Row(
                 children: [
-                  const Icon(Icons.star, size: 14, color: Colors.amber),
-                  Text(' ${e.rating}', style: const TextStyle(fontSize: 12)),
+                  const Icon(
+                    Icons.star,
+                    size: 14,
+                    color: Colors.amber,
+                  ),
+                  Text(
+                    ' ${e.rating}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 ],
               ),
           ],

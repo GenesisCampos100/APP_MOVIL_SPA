@@ -1,11 +1,10 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../data/repositories/auth_repository.dart';
-import '../auth_state.dart';
 import '../widgets/auth_widgets.dart';
-import '../../../data/services/sesion_service.dart';
+
 
 /// "Verifica tu cuenta": código de 6 dígitos enviado al correo.
 /// Un solo campo invisible recibe el teclado y se dibujan 6 casillas.
@@ -39,30 +38,45 @@ class _AuthVerifyScreenState extends State<AuthVerifyScreen> {
   }
 
   Future<void> _confirmar() async {
-    setState(() => _cargando = true);
+    if (_cargando || _codigo.text.length != 6) return;
+
+    setState(() {
+      _cargando = true;
+      _error = null;
+    });
+
     try {
-      final usuario = await _repo.verificarCodigo(widget.correo, _codigo.text);
+      final usuario = await _repo.verificarCodigo(
+        widget.correo,
+        _codigo.text.trim(),
+      );
+
       if (!mounted) return;
+
       if (usuario == null) {
         setState(() {
-          _cargando = false;
-          _error = 'Código incorrecto';
+          _error = 'Código incorrecto o inválido';
         });
         return;
       }
-      AuthState.instance.iniciarSesion(usuario);
-      SesionService.instance.iniciarSesion(usuario);
 
+      // La sesión ya fue guardada por AuthRepository.
       Navigator.pushReplacementNamed(
         context,
         AppRoutes.authExito,
       );
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
+
       setState(() {
-        _cargando = false;
-        _error = 'No se pudo verificar. Intenta de nuevo.';
+        _error = e.toString().replaceFirst('Exception: ', '');
       });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _cargando = false;
+        });
+      }
     }
   }
 
@@ -144,13 +158,7 @@ class _AuthVerifyScreenState extends State<AuthVerifyScreen> {
             child: const Text('Reenviar código', style: TextStyle(fontSize: 12)),
           ),
         ),
-        if (kDebugMode)
-          const Center(
-            child: Text(
-              'Modo prueba: el código es ${AuthRepository.codigoPrueba}',
-              style: TextStyle(fontSize: 11, color: Colors.black45),
-            ),
-          ),
+
       ],
     );
   }

@@ -58,7 +58,7 @@ const verificarCorreo = async (req, res) => {
 
 const login = async (req, res) => {
     try {
-        
+
         const { correo, contrasenia } = req.body;
 
         if (
@@ -73,7 +73,7 @@ const login = async (req, res) => {
             });
         }
 
-        const usuarioResult = await pool.query( `SELECT 
+        const usuarioResult = await pool.query( `SELECT
             u.id_usuario,
             u.id_rol,
             u.correo,
@@ -81,17 +81,17 @@ const login = async (req, res) => {
             u.foto,
             r.nombre AS rol
             FROM usuarios u
-            INNER JOIN roles r 
+            INNER JOIN roles r
             ON r.id_rol = u.id_rol
             WHERE u.correo = $1
-            AND u.estado = true`, 
+            AND u.estado = true`,
             [correo]
         );
 
-        if (usuarioResult.rows.length === 0) { 
+        if (usuarioResult.rows.length === 0) {
             return res.status(401).json({
                 error: 'Correo o contraseña incorrectos'
-            }); 
+            });
         }
 
         const usuario = usuarioResult.rows[0];
@@ -120,7 +120,7 @@ const login = async (req, res) => {
             }
         );
 
-        if (usuario.id_rol === 3) { 
+        if (usuario.id_rol === 3) {
             const clienteResult = await pool.query(
                 `SELECT c.id_cliente,
                 c.nombre,
@@ -133,8 +133,8 @@ const login = async (req, res) => {
                 [usuario.id_usuario]
             );
 
-            if (clienteResult.rows.length === 0) { 
-                return res.status(500).json({ 
+            if (clienteResult.rows.length === 0) {
+                return res.status(500).json({
                     error: 'El usuario cliente no tiene información asociada'
                 });
             }
@@ -171,7 +171,7 @@ const login = async (req, res) => {
             });
         }
 
-    
+
         // LOGIN EMPLEADO - ROL 2
         if (usuario.id_rol === 2) {
             const empleadoResult = await pool.query(
@@ -214,7 +214,7 @@ const login = async (req, res) => {
         }
 
 
-        // Por seguridad, manejar cualquier rol no contemplado. 
+        // Por seguridad, manejar cualquier rol no contemplado.
         return res.status(403).json({
             error: 'El rol del usuario no está permitido'
         });
@@ -465,8 +465,24 @@ const verificarCodigo = async (req, res) => {
         // Eliminar los datos temporales después del registro exitoso
         eliminarRegistro(correoNormalizado);
 
+
+        // Generar JWT para el cliente recién registrado.
+        const token = jwt.sign(
+            {
+                id_usuario: idUsuario,
+                rol: ID_ROL_CLIENTE
+            },
+            process.env.JWT_SECRET,
+            {
+                expiresIn: process.env.JWT_EXPIRES_IN || '1h',
+                algorithm: 'HS256'
+            }
+        );
+
+
         return res.status(201).json({
             mensaje: 'Correo verificado y cliente registrado correctamente',
+            token,
             usuario: {
                 id_usuario: idUsuario,
                 id_cliente: nuevoCliente.rows[0].id_cliente,

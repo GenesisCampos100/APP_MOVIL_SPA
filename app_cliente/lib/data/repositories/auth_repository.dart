@@ -1,6 +1,6 @@
 import '../models/usuario_sesion.dart';
 import '../services/api_service.dart';
-import '../services/sesion_service.dart';
+import '../../features/auth/auth_state.dart';
 
 class AuthRepository {
   // Se mantiene temporalmente porque la pantalla de
@@ -23,101 +23,116 @@ class AuthRepository {
     }
   }
 
-  /// POST /api/auth/login
-  Future<UsuarioSesion?> iniciarSesion(
-    String correo,
-    String password,
-  ) async {
-    try {
-      final data = await ApiService.post(
-        '/api/auth/login', //cambiar a /auth/login
-        {
-          'correo': correo.trim().toLowerCase(),
-          'contrasenia': password,
-        },
-      );
 
-      final usuario = UsuarioSesion.fromJson(
-        data['usuario'],
-      );
+/// POST /api/auth/login
+Future<UsuarioSesion?> iniciarSesion(
+  String correo,
+  String password,
+) async {
+  try {
+    final data = await ApiService.post(
+      '/api/auth/login',
+      {
+        'correo': correo.trim().toLowerCase(),
+        'contrasenia': password,
+      },
+    );
 
-      // Guardamos el usuario para utilizar su id_cliente
-      // al registrar y consultar citas.
-      SesionService.instance.iniciarSesion(usuario);
+    // Recuperar el token enviado por el backend.
+    final token = data['token'] as String?;
 
-      return usuario;
-    } catch (e) {
-      final mensaje = e.toString();
-
-      if (mensaje.contains('401')) {
-        return null;
-      }
-
-      if (mensaje.contains('403')) {
-        throw Exception('El usuario no tiene un rol permitido');
-      }
-
-      rethrow;
+    if (token == null || token.isEmpty) {
+      throw Exception('El servidor no devolvió un token de acceso');
     }
-  }
 
-  /// POST /api/auth/registro
-  Future<UsuarioSesion?> registrar({
-    required String correo,
-    required String nombre,
-    required String apellido,
-    String? apellidoMaterno,
-    required String password,
-  }) async {
-    try {
-      final data = await ApiService.post(
-        '/api/auth/registro',
-        {
-          'correo': correo.trim().toLowerCase(),
-          'contrasenia': password,
-          'nombre': nombre,
-          'apellido_p': apellido,
-          'apellido_m': apellidoMaterno,
-        },
-      );
+    // Convertir los datos recibidos al modelo de usuario.
+    final usuario = UsuarioSesion.fromJson(
+      data['usuario'],
+    );
 
-      final usuario = UsuarioSesion.fromJson(
-        data['usuario'],
-      );
+    // Guardar usuario y JWT, y actualizar el estado de la aplicación.
+    await AuthState.instance.iniciarSesion(
+      usuario,
+      token: token,
+    );
 
-      return usuario;
-    } catch (e) {
-      final mensaje = e.toString();
+    return usuario;
+  } catch (e) {
+    final mensaje = e.toString();
 
-      if (mensaje.contains('409')) {
-        throw Exception('El correo ya está registrado');
-      }
-
-      rethrow;
-    }
-  }
-
-  // ---------------------------------------------------------
-  // MÉTODOS TEMPORALES
-  // ---------------------------------------------------------
-
-  /// Se mantiene para que auth_verify_screen.dart siga compilando.
-  ///
-  /// Todavía utiliza el código de prueba 123456.
-  Future<UsuarioSesion?> verificarCodigo(
-    String correo,
-    String codigo,
-  ) async {
-    if (codigo != codigoPrueba) {
+    if (mensaje.contains('401')) {
       return null;
     }
 
-    return UsuarioSesion(
-      correo: correo.trim().toLowerCase(),
-      nombre: '',
-      apellido: '',
-    );
+    if (mensaje.contains('403')) {
+      throw Exception('El usuario no tiene un rol permitido');
+    }
+
+    rethrow;
   }
+}
+
+
+  /// POST /api/auth/registro
+ Future<bool> registrar({
+  required String correo,
+  required String nombre,
+  required String apellido,
+  String? apellidoMaterno,
+  required String password,
+}) async {
+  final data = await ApiService.post(
+    '/api/auth/registro',
+    {
+      'correo': correo.trim().toLowerCase(),
+      'nombre': nombre,
+      'apellido_p': apellido,
+      'apellido_m': apellidoMaterno,
+      'contrasenia': password,
+    },
+  );
+
+  return data['requiereVerificacion'] == true;
+}
+
+
+
+  Future<UsuarioSesion?> verificarCodigo(
+  String correo,
+  String codigo,
+) async {
+  try {
+    final data = await ApiService.post(
+      '/api/auth/verificar-codigo',
+      {
+        'correo': correo.trim().toLowerCase(),
+        'codigo': codigo.trim(),
+      },
+    );
+
+    final token = data['token'] as String?;
+    if (token == null || token.isEmpty) {
+      throw Exception('El servidor no devolvió el token');
+    }
+
+    final usuario = UsuarioSesion.fromJson(
+      data['usuario'] as Map<String, dynamic>,
+    );
+
+    await AuthState.instance.iniciarSesion(
+      usuario,
+      token: token,
+    );
+
+    return usuario;
+  } catch (e) {
+    final mensaje = e.toString();
+
+    if (mensaje.contains('400')) return null;
+
+    rethrow;
+  }
+}
 
   /// Se mantiene para que telefono_screen.dart siga compilando.
   ///
@@ -127,5 +142,19 @@ class AuthRepository {
     String telefono,
   ) async {
     // Temporalmente no hace nada.
+  }
+
+  /// TEMPORAL: todavía no existe un endpoint para cambiar la contraseña.
+  /// Por ahora solo comprueba que la contraseña actual sea correcta (con el
+  /// login real) y NO cambia la contraseña en la base de datos.
+  /// PUT /api/auth/cambiar-contrasena
+  /// (contrasena_actual, contrasena_nueva).
+  Future<bool> cambiarContrasena(
+    String correo,
+    String actual,
+    String nueva,
+  ) async {
+    final usuario = await iniciarSesion(correo, actual);
+    return usuario != null;
   }
 }

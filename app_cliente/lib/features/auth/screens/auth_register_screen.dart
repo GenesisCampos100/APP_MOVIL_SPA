@@ -55,28 +55,47 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen> {
   }
 
   Future<void> _crearCuenta() async {
-    if (!_validar()) return;
-    setState(() => _cargando = true);
-    try {
-      final materno = _apellidoM.text.trim();
-      await _repo.registrar(
-        correo: widget.correo,
-        nombre: _nombre.text.trim(),
-        apellido: _apellidoP.text.trim(),
-        apellidoMaterno: materno.isEmpty ? null : materno,
-        password: _password.text,
-      );
-      if (!mounted) return;
-      setState(() => _cargando = false);
-      Navigator.pushNamed(context, AppRoutes.authVerificar, arguments: widget.correo);
-    } catch (_) {
-      if (!mounted) return;
+  if (_cargando || !_validar()) return;
+
+  setState(() => _cargando = true);
+
+  try {
+    final requiereVerificacion = await _repo.registrar(
+      correo: widget.correo,
+      nombre: _nombre.text.trim(),
+      apellido: _apellidoP.text.trim(),
+      apellidoMaterno: _apellidoM.text.trim().isEmpty
+          ? null
+          : _apellidoM.text.trim(),
+      password: _password.text,
+    );
+
+    if (!mounted) return;
+
+    if (!requiereVerificacion) {
       setState(() {
-        _cargando = false;
-        _errGeneral = 'No se pudo crear la cuenta. Intenta de nuevo.';
+        _errGeneral = 'No se pudo enviar el código de verificación.';
       });
+      return;
+    }
+
+    Navigator.pushNamed(
+      context,
+      AppRoutes.authVerificar,
+      arguments: widget.correo,
+    );
+  } catch (e) {
+    if (!mounted) return;
+
+    setState(() {
+      _errGeneral = e.toString().replaceFirst('Exception: ', '');
+    });
+  } finally {
+    if (mounted) {
+      setState(() => _cargando = false);
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
