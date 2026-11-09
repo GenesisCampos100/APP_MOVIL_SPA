@@ -47,12 +47,12 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
       if (usuario is! Map<String, dynamic> ||
           token is! String || token.isEmpty ||
           usuario['id_usuario'] == null) {
-        throw Exception('El servidor no devolvió una sesión válida.');
+        throw Exception('No fue posible iniciar sesión. Intenta nuevamente.');
       }
 
       final rol = usuario['rol'];
       if (rol is! String) {
-        throw Exception('El servidor no devolvió el rol del usuario.');
+        throw Exception('No se pudo verificar tu acceso. Intenta nuevamente.');
       }
       final rolNormalizado = rol.trim().toLowerCase();
       if (rolNormalizado != 'administrador' && rolNormalizado != 'empleado') {

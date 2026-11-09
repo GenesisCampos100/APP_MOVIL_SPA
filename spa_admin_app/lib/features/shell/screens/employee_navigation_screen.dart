@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:spa_admin_app/data/services/sesion_service.dart';
 import 'package:spa_admin_app/features/auth/screens/login_admin_screen.dart';
 import '../../employee/screens/employee_home_screen.dart';
+import 'package:spa_admin_app/shared/widgets/confirm_action_dialog.dart';
 import '../../employee/screens/employee_appointments_screen.dart';
 
 /// Menú separado para el empleado: no expone funciones administrativas.
@@ -15,7 +16,15 @@ class EmployeeNavigationScreen extends StatefulWidget {
 class _EmployeeNavigationScreenState extends State<EmployeeNavigationScreen> {
   int _index = 0;
 
-  void _cerrarSesion() {
+  Future<void> _cerrarSesion() async {
+    final confirmar = await mostrarConfirmacion(
+      context: context,
+      titulo: '¿Deseas cerrar sesión?',
+      mensaje: 'Tendrás que ingresar nuevamente para usar Aura SPA.',
+      textoConfirmar: 'Sí, cerrar sesión',
+      icono: Icons.logout_rounded,
+    );
+    if (!mounted || !confirmar) return;
     AuthSession.cerrar();
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(builder: (_) => const LoginAdminScreen()),

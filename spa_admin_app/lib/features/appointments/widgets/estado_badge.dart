@@ -1,48 +1,68 @@
 import 'package:flutter/material.dart';
 
+/// Muestra el estado devuelto por la API sin modificarlo.
+/// Los colores se adaptan a los distintos estados, sin depender de mayúsculas.
 class EstadoBadge extends StatelessWidget {
-  final String estado; // 'Confirmada', 'En proceso', 'Pendiente', 'Completada', 'Cancelada'
+  final String estado;
 
-  const EstadoBadge({
-    super.key,
-    required this.estado,
-  });
+  const EstadoBadge({super.key, required this.estado});
 
   @override
   Widget build(BuildContext context) {
-    Color bgColor;
-    Color textColor = Colors.white;
-
-    switch (estado) {
-      case 'Confirmada':
-        bgColor = const Color(0xFF4CAF50); // Verde
-        break;
-      case 'En proceso':
-        bgColor = const Color(0xFFFF9800); // Naranja
-        break;
-      case 'Pendiente':
-        bgColor = const Color(0xFF9E9E9E); // Gris
-        break;
-      case 'Completada':
-        bgColor = const Color(0xFF9C27B0); // Púrpura
-        break;
-      default:
-        bgColor = Colors.grey;
-    }
+    final normalizado = estado.trim().toLowerCase();
+    final (Color fondo, Color texto, IconData icono) = switch (normalizado) {
+      'confirmada' => (
+          const Color(0xFFE7F4EC),
+          const Color(0xFF216A45),
+          Icons.check_circle_outline,
+        ),
+      'pendiente' => (
+          const Color(0xFFFFF1DB),
+          const Color(0xFF885817),
+          Icons.schedule_outlined,
+        ),
+      'completada' => (
+          const Color(0xFFEDE7F6),
+          const Color(0xFF62408A),
+          Icons.task_alt_outlined,
+        ),
+      'cancelada' => (
+          const Color(0xFFFFE7E7),
+          const Color(0xFF9F3D45),
+          Icons.cancel_outlined,
+        ),
+      'en proceso' => (
+          const Color(0xFFE6F1FC),
+          const Color(0xFF2F6392),
+          Icons.timelapse_outlined,
+        ),
+      _ => (
+          const Color(0xFFF0EDF0),
+          const Color(0xFF5E5660),
+          Icons.info_outline,
+        ),
+    };
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
+        color: fondo,
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Text(
-        estado,
-        style: TextStyle(
-          color: textColor,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icono, size: 14, color: texto),
+          const SizedBox(width: 5),
+          Text(
+            estado,
+            style: TextStyle(
+              color: texto,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

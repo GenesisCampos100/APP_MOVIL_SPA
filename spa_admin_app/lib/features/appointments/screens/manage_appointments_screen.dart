@@ -5,6 +5,8 @@ import 'package:spa_admin_app/data/services/sesion_service.dart';
 import 'package:spa_admin_app/core/theme/app_colors.dart';
 import 'package:spa_admin_app/core/theme/app_text_styles.dart';
 import 'package:spa_admin_app/data/models/appointment_model.dart';
+import 'package:spa_admin_app/features/appointments/screens/detalle_cita_screen.dart';
+import 'package:spa_admin_app/features/appointments/widgets/cita_card_widget.dart';
 import 'package:spa_admin_app/features/shell/screens/main_navigation_screen.dart';
 
 class ManageAppointmentsScreen extends StatefulWidget {
@@ -70,21 +72,21 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
         _error = switch (e.statusCode) {
           401 => 'La sesión ya no es válida. Cierra sesión y vuelve a ingresar.',
           403 => 'No tienes permiso para consultar las citas.',
-          _ => 'No fue posible cargar las citas desde el servidor.',
+          _ => 'No se pudieron cargar las citas. Intenta nuevamente.',
         };
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _cargando = false;
-        _error = 'No se pudieron consultar las citas. Revisa la conexión al servidor.';
+        _error = 'No se pudieron consultar las citas. Comprueba tu conexión e intenta nuevamente.';
       });
     }
   }
 
   void _operacionPendiente(String accion) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$accion todavía no está conectado con la API. No se ha modificado la cita.')),
+      SnackBar(content: Text('La opción «$accion» aún no está disponible. No se realizaron cambios en la cita.')),
     );
   }
 
@@ -240,7 +242,11 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
 
           // Contenido principal: Calendario o Lista del día
           Expanded(
-            child: _cargando
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 240),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              child: _cargando
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
                     ? Center(
@@ -260,8 +266,15 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
                         ),
                       )
                     : _showCalendarView
-                        ? _buildCalendarView()
-                        : _buildDayAppointmentsView(),
+                        ? KeyedSubtree(
+                            key: const ValueKey('calendario'),
+                            child: _buildCalendarView(),
+                          )
+                        : KeyedSubtree(
+                            key: const ValueKey('lista'),
+                            child: _buildDayAppointmentsView(),
+                          ),
+            ),
           ),
         ],
       ),
@@ -491,7 +504,24 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   itemBuilder: (context, index) {
                     final appointment = list[index];
-                    return _buildAppointmentCard(appointment);
+                    final sinAnimaciones =
+                        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+                    return TweenAnimationBuilder<double>(
+                      key: ValueKey(appointment.idCita),
+                      tween: Tween(begin: 0, end: 1),
+                      duration: sinAnimaciones
+                          ? Duration.zero
+                          : Duration(milliseconds: 200 + (index < 4 ? index * 45 : 180)),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, progreso, child) => Opacity(
+                        opacity: progreso,
+                        child: Transform.translate(
+                          offset: Offset(0, sinAnimaciones ? 0 : 10 * (1 - progreso)),
+                          child: child,
+                        ),
+                      ),
+                      child: _buildAppointmentCard(appointment),
+                    );
                   },
                 ),
         ),
@@ -513,7 +543,7 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
-          '[$label]',
+          label,
           style: TextStyle(
             color: isSelected ? Colors.white : AppColors.primaryPink,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
@@ -525,121 +555,24 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
   }
 
   Widget _buildAppointmentCard(AppointmentModel appointment) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    return CitaCardWidget(
+      appointment: appointment,
+      onVerDetalle: () => Navigator.push<void>(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => DetalleCitaScreen(
+            appointment: appointment,
+            onAppointmentUpdated: (_) => _cargarCitas(),
           ),
-        ],
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                appointment.idCita,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: _getStatusColor(appointment.estado),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          const Text(
-            'Cliente:',
-            style: TextStyle(fontSize: 11, color: Colors.black54),
-          ),
-          const SizedBox(height: 2),
-          _buildInfoField(appointment.nombreCliente),
-          const SizedBox(height: 8),
-
-          const Text(
-            'Servicio:',
-            style: TextStyle(fontSize: 11, color: Colors.black54),
-          ),
-          const SizedBox(height: 2),
-          _buildInfoField(appointment.nombreServicio),
-          const SizedBox(height: 8),
-
-          const Text(
-            'Especialista:',
-            style: TextStyle(fontSize: 11, color: Colors.black54),
-          ),
-          const SizedBox(height: 2),
-          _buildInfoField(appointment.nombreEmpleado),
-          const SizedBox(height: 8),
-
-          const Text(
-            'Hora:',
-            style: TextStyle(fontSize: 11, color: Colors.black54),
-          ),
-          const SizedBox(height: 2),
-          _buildInfoField(appointment.horaInicio),
-          const SizedBox(height: 14),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: const Color(0xFFEFEFEF),
-                  side: BorderSide.none,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: () => _operacionPendiente('Cancelar citas'),
-                child: const Text(
-                  'Cancelar cita',
-                  style: TextStyle(color: Colors.black87, fontSize: 12),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.edit_outlined, color: Colors.black87),
-                tooltip: 'Edición pendiente de conectar con el backend',
-                onPressed: () => _operacionPendiente('Editar citas'),
-              ),
-            ],
-          ),
-        ],
-      ),
+      // Todavía no hay endpoints administrativos para estas escrituras.
+      // Se conservan los accesos, pero no se simulan cambios en PostgreSQL.
+      onEditar: () => _operacionPendiente('Editar citas'),
+      onCancelar: () => _operacionPendiente('Cancelar citas'),
     );
   }
 
-  Widget _buildInfoField(String text) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFEFEF),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 12, color: Colors.black87),
-      ),
-    );
-  }
 }
 
 class _DayHeader extends StatelessWidget {

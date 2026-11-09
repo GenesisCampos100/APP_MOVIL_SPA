@@ -63,9 +63,9 @@ class _EmployeeAppointmentsScreenState extends State<EmployeeAppointmentsScreen>
           .toList();
       if (mounted) setState(() => _citas = lista);
     } on TimeoutException {
-      if (mounted) setState(() => _error = 'El servidor tardó demasiado.');
+      if (mounted) setState(() => _error = 'La carga está tardando más de lo esperado. Intenta nuevamente.');
     } on SocketException {
-      if (mounted) setState(() => _error = 'No hay conexión con el servidor.');
+      if (mounted) setState(() => _error = 'No se pudo cargar la agenda. Comprueba tu conexión.');
     } catch (e) {
       if (mounted) setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {

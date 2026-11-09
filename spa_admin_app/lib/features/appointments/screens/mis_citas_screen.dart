@@ -66,14 +66,14 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
         _error = switch (e.statusCode) {
           401 => 'Tu sesión ya no es válida. Cierra sesión y vuelve a ingresar.',
           403 => 'No tienes permiso para consultar las citas.',
-          _ => 'No fue posible cargar las citas desde el servidor.',
+          _ => 'No se pudieron cargar las citas. Intenta nuevamente.',
         };
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'No se pudieron cargar las citas. Revisa la conexión al servidor.';
+        _error = 'No se pudieron cargar las citas. Comprueba tu conexión e intenta nuevamente.';
       });
     }
   }
@@ -233,17 +233,31 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
                                   itemCount: list.length,
                                   itemBuilder: (context, index) {
                                     final cita = list[index];
-                                    return CitaCardWidget(
-                                      appointment: cita,
-                                      onVerDetalle: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute<void>(
-                                          builder: (_) => DetalleCitaScreen(
-                                            appointment: cita,
-                                            // Al habilitar operaciones reales, siempre recargar desde la API.
-                                            onAppointmentUpdated: (_) {
-                                              _loadAppointments();
-                                            },
+                                    final sinAnimaciones =
+                                        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+                                    return TweenAnimationBuilder<double>(
+                                      key: ValueKey(cita.idCita),
+                                      tween: Tween(begin: 0, end: 1),
+                                      duration: sinAnimaciones
+                                          ? Duration.zero
+                                          : Duration(milliseconds: 200 + (index < 4 ? index * 45 : 180)),
+                                      curve: Curves.easeOutCubic,
+                                      builder: (context, progreso, child) => Opacity(
+                                        opacity: progreso,
+                                        child: Transform.translate(
+                                          offset: Offset(0, sinAnimaciones ? 0 : 10 * (1 - progreso)),
+                                          child: child,
+                                        ),
+                                      ),
+                                      child: CitaCardWidget(
+                                        appointment: cita,
+                                        onVerDetalle: () => Navigator.push<void>(
+                                          context,
+                                          MaterialPageRoute<void>(
+                                            builder: (_) => DetalleCitaScreen(
+                                              appointment: cita,
+                                              onAppointmentUpdated: (_) => _loadAppointments(),
+                                            ),
                                           ),
                                         ),
                                       ),

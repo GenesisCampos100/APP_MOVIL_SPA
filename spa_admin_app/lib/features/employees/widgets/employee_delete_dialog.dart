@@ -92,17 +92,16 @@ class EmployeeDeleteDialog extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Modo de eliminación: Confirme los datos del empleado antes de borrar.',
+              'Revisa los datos antes de continuar.',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
             const SizedBox(height: 12),
 
-            _buildDisabledField('Nombre completo del empleado(Disable):', employee.nombreCompleto),
-            _buildDisabledField('Id(Disable):', employee.idEmpleado),
-            _buildDisabledField('Telefono(Disable):', employee.telefono),
-            _buildDisabledField('Correo(Disable):', employee.correo),
-            _buildDisabledField('Puesto(Disable):', employee.puesto),
-            _buildDisabledField('Estado(Disable):', employee.estado ? 'Activo' : 'Inactivo'),
+            _buildDisabledField('Nombre completo:', employee.nombreCompleto),
+            _buildDisabledField('Teléfono:', employee.telefono),
+            _buildDisabledField('Correo:', employee.correo),
+            _buildDisabledField('Puesto:', employee.puesto),
+            _buildDisabledField('Estado:', employee.estado ? 'Activo' : 'Inactivo'),
 
             const SizedBox(height: 8),
             const Text(

@@ -61,7 +61,7 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'No se pudo conectar con la API de Aura SPA.';
+        _error = 'No se pudo cargar el resumen. Verifica tu conexión e intenta nuevamente.';
       });
     }
   }

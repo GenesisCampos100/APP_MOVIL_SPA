@@ -3,7 +3,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../data/services/sesion_service.dart';
 import '../../auth/screens/login_admin_screen.dart';
-import '../../services/screens/manage_services_screen.dart';
+import 'package:spa_admin_app/shared/widgets/confirm_action_dialog.dart';
+import '../../services/screens/admin_manage_services_screen.dart';
 import '../../services/screens/assign_services_screen.dart';
 import '../../employees/screens/manage_employees_screen.dart';
 import '../../schedules/screens/manage_schedules_screen.dart';
@@ -76,12 +77,12 @@ class AdminMenuTab extends StatelessWidget {
                     _buildMenuOption(
                       icon: Icons.badge_outlined,
                       title: 'Gestionar servicios',
-                      subtitle: 'Crear nuevos servicios, editar descripciones, precios y duración.',
+                      subtitle: 'Administrar servicios activos e inactivos, editar y reactivar.',
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const ManageServicesScreen(),
+                            builder: (_) => const AdminManageServicesScreen(),
                           ),
                         );
                       },
@@ -162,7 +163,15 @@ class AdminMenuTab extends StatelessWidget {
                       icon: Icons.logout_rounded,
                       title: 'Cerrar sesión',
                       subtitle: 'Salir de tu cuenta de manera segura.',
-                      onTap: () {
+                      onTap: () async {
+                        final confirmar = await mostrarConfirmacion(
+                          context: context,
+                          titulo: '¿Deseas cerrar sesión?',
+                          mensaje: 'Tendrás que ingresar nuevamente para usar Aura SPA.',
+                          textoConfirmar: 'Sí, cerrar sesión',
+                          icono: Icons.logout_rounded,
+                        );
+                        if (!context.mounted || !confirmar) return;
                         AuthSession.cerrar();
                         Navigator.of(context).pushAndRemoveUntil(
                           MaterialPageRoute<void>(

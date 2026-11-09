@@ -93,16 +93,16 @@ class ServiceDeleteDialog extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Modo de eliminación: Confirme los datos del servicio antes de borrar.',
+              'Revisa los datos del servicio antes de continuar.',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
             const SizedBox(height: 12),
 
-            _buildDisabledField('Nombre del servicio(Disable):', service.nombre),
-            _buildDisabledField('Descripción(Disable):', service.descripcion),
-            _buildDisabledField('Duración(Disable):', service.duracion),
-            _buildDisabledField('Precio(Disable):', '\$${service.precio.toStringAsFixed(2)} MXN'),
-            _buildDisabledField('Categoría / Estado(Disable):', '${service.categoria} - ${service.estado ? "Activo" : "Inactivo"}'),
+            _buildDisabledField('Nombre del servicio:', service.nombre),
+            _buildDisabledField('Descripción:', service.descripcion),
+            _buildDisabledField('Duración:', service.duracion),
+            _buildDisabledField('Precio:', '\$${service.precio.toStringAsFixed(2)} MXN'),
+            _buildDisabledField('Categoría / Estado:', '${service.categoria} - ${service.estado ? "Activo" : "Inactivo"}'),
 
             const SizedBox(height: 8),
             const Text(
