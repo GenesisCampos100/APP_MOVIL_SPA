@@ -5,21 +5,18 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="04725383-0d18-45cc-b25f-d0dd56bd5d3f" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/libraries/Dart_Packages.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/libraries/Dart_Packages.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpaBackend/server.js" beforeDir="false" afterPath="$PROJECT_DIR$/SpaBackend/server.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpaBackend/src/controllers/auth.controller.js" beforeDir="false" afterPath="$PROJECT_DIR$/SpaBackend/src/controllers/auth.controller.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_cliente/lib/data/models/usuario_sesion.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/data/models/usuario_sesion.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_cliente/lib/data/repositories/auth_repository.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/data/repositories/auth_repository.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SpaBackend/src/controllers/citas.controller.js" beforeDir="false" afterPath="$PROJECT_DIR$/SpaBackend/src/controllers/citas.controller.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SpaBackend/src/routes/citas.routes.js" beforeDir="false" afterPath="$PROJECT_DIR$/SpaBackend/src/routes/citas.routes.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_cliente/lib/data/repositories/citas_repository.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/data/repositories/citas_repository.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app_cliente/lib/data/services/api_service.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/data/services/api_service.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app_cliente/lib/data/services/sesion_service.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/data/services/sesion_service.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app_cliente/lib/features/auth/auth_state.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/features/auth/auth_state.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_cliente/lib/features/auth/screens/auth_password_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/features/auth/screens/auth_password_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_cliente/lib/features/auth/screens/auth_register_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/features/auth/screens/auth_register_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_cliente/lib/features/auth/screens/auth_verify_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/features/auth/screens/auth_verify_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_cliente/pubspec.lock" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/pubspec.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_cliente/pubspec.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/pubspec.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_cliente/lib/features/booking/reserva_borrador.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/features/booking/reserva_borrador.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_cliente/lib/features/booking/screens/agendar_cita_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/features/booking/screens/agendar_cita_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_cliente/lib/features/booking/screens/confirmar_cita_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/features/booking/screens/confirmar_cita_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_cliente/lib/features/booking/screens/elegir_especialista_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/features/booking/screens/elegir_especialista_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_cliente/lib/features/splash/screens/splash_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/app_cliente/lib/features/splash/screens/splash_screen.dart" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

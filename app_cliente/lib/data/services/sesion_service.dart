@@ -5,6 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/usuario_sesion.dart';
 
+import 'api_service.dart';
+
 class SesionService {
   SesionService._();
 
@@ -43,31 +45,50 @@ class SesionService {
         key: _keyToken,
         value: token,
       );
+    } else {
+      await _storage.delete(key: _keyToken);
     }
   }
 
   // Recuperar la sesión almacenada.
   Future<UsuarioSesion?> restaurarSesion() async {
-    try {
-      final usuarioGuardado = await _storage.read(key: _keyUsuario);
-      final tokenGuardado = await _storage.read(key: _keyToken);
+  final usuarioGuardado = await _storage.read(key: _keyUsuario);
+  final tokenGuardado = await _storage.read(key: _keyToken);
 
-      if (usuarioGuardado == null || tokenGuardado == null) {
-        await cerrarSesion();
-        return null;
-      }
+  if (usuarioGuardado == null || tokenGuardado == null) {
+    await cerrarSesion();
+    return null;
+  }
 
-      final datos = jsonDecode(usuarioGuardado) as Map<String, dynamic>;
+  // Recuperar los datos del usuario.
+  try {
+    final datos = jsonDecode(usuarioGuardado) as Map<String, dynamic>;
+    final usuario = UsuarioSesion.fromJson(datos);
 
-      _usuario = UsuarioSesion.fromJson(datos);
-      _token = tokenGuardado;
+    // Comprobar el JWT mediante una ruta protegida del backend.
+    await ApiService.get(
+      '/api/prueba/privada',
+      token: tokenGuardado,
+    );
 
-      return _usuario;
-    } catch (e) {
+    // Solo restaurar la sesión después de validar el token.
+    _usuario = usuario;
+    _token = tokenGuardado;
+
+    return _usuario;
+  } catch (e) {
+    final mensaje = e.toString();
+
+    // Si el backend rechaza el token, cerrar la sesión.
+    if (mensaje.contains('401') || mensaje.contains('403')) {
       await cerrarSesion();
       return null;
     }
+
+    // Si hay un problema de conexión, no borrar el token.
+    rethrow;
   }
+}
 
   // Eliminar la sesión almacenada.
   Future<void> cerrarSesion() async {

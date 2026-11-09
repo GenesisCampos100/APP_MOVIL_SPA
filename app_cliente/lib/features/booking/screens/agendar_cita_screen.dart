@@ -8,6 +8,7 @@ import '../../auth/auth_state.dart';
 import '../../auth/widgets/auth_widgets.dart';
 import '../disponibilidad.dart';
 import '../reserva_borrador.dart';
+import '../../../data/repositories/citas_repository.dart';
 
 /// Agendar cita: calendario + horarios disponibles.
 class AgendarCitaScreen extends StatefulWidget {
@@ -22,6 +23,15 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
   late DateTime _mes; // primer día del mes que se está viendo
   DateTime? _dia;
   String? _hora;
+
+  List<String> _horariosDisponibles = [];
+  bool _cargandoHorarios = false;
+  String? _errorHorarios;
+
+  // Evita que una respuesta anterior sobrescriba la fecha más reciente.
+  int _solicitudDisponibilidad = 0;
+
+  
 
   @override
   void initState() {
@@ -59,9 +69,54 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
     );
   }
 
+  Future<void> _seleccionarDia(DateTime dia) async {
+    final solicitud = ++_solicitudDisponibilidad;
+
+    setState(() {
+      _dia = dia;
+      _hora = null;
+      _horariosDisponibles = [];
+      _cargandoHorarios = true;
+      _errorHorarios = null;
+    });
+
+    try {
+      final horarios =
+          await CitasRepository.instance.obtenerDisponibilidad(
+        idServicio: widget.servicio.id,
+        fecha: dia,
+      );
+
+      if (!mounted || solicitud != _solicitudDisponibilidad) {
+        return;
+      }
+
+      setState(() {
+        _horariosDisponibles = horarios;
+      });
+    } catch (e) {
+      if (!mounted || solicitud != _solicitudDisponibilidad) {
+        return;
+      }
+
+      setState(() {
+        _errorHorarios = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted && solicitud == _solicitudDisponibilidad) {
+        setState(() {
+          _cargandoHorarios = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final listo = _dia != null && _hora != null;
+    final listo = _dia != null &&
+      _hora != null &&
+      !_cargandoHorarios &&
+      _errorHorarios == null;
     return Scaffold(
       appBar: AppBar(),
       body: SingleChildScrollView(
@@ -147,10 +202,7 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
         _dia!.day == d.day;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: habil ? () => setState(() {
-            _dia = d;
-            _hora = null;
-          }) : null,
+      onTap: habil ? () => _seleccionarDia(d) : null,
       child: Center(
         child: Container(
           width: 36,
@@ -176,19 +228,60 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
   Widget _horarios() {
     if (_dia == null) {
       return const Center(
-        child: Text('Selecciona una fecha para ver los horarios.',
-            style: TextStyle(color: AppColors.gris, fontSize: 13)),
+        child: Text(
+          'Selecciona una fecha para ver los horarios.',
+          style: TextStyle(
+            color: AppColors.gris,
+            fontSize: 13,
+          ),
+        ),
       );
     }
-    final disponibles = Disponibilidad.horarios
-        .where((h) => Disponibilidad.horaDisponible(_dia!, h))
-        .toList();
-    if (disponibles.isEmpty) {
+
+    if (_cargandoHorarios) {
       return const Center(
-        child: Text('No hay horarios disponibles para este día.',
-            style: TextStyle(color: AppColors.gris, fontSize: 13)),
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: CircularProgressIndicator(),
+        ),
       );
     }
+
+    if (_errorHorarios != null) {
+      return Center(
+        child: Column(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red),
+            const SizedBox(height: 8),
+            Text(
+              _errorHorarios!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.gris,
+                fontSize: 13,
+              ),
+            ),
+            TextButton(
+              onPressed: () => _seleccionarDia(_dia!),
+              child: const Text('Intentar nuevamente'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_horariosDisponibles.isEmpty) {
+      return const Center(
+        child: Text(
+          'No hay horarios disponibles para este día.',
+          style: TextStyle(
+            color: AppColors.gris,
+            fontSize: 13,
+          ),
+        ),
+      );
+    }
+
     return GridView.count(
       crossAxisCount: 3,
       shrinkWrap: true,
@@ -197,22 +290,30 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
       crossAxisSpacing: 12,
       childAspectRatio: 2.4,
       children: [
-        for (final h in disponibles)
+        for (final h in _horariosDisponibles)
           GestureDetector(
             onTap: () => setState(() => _hora = h),
             child: Container(
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: h == _hora ? AppColors.rosaSuave : Colors.white,
+                color: h == _hora
+                    ? AppColors.rosaSuave
+                    : Colors.white,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: h == _hora ? AppColors.rosaFuerte : Colors.black87),
+                border: Border.all(
+                  color: h == _hora
+                      ? AppColors.rosaFuerte
+                      : Colors.black87,
+                ),
               ),
               child: Text(
                 hora12(h),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: h == _hora ? AppColors.rosaFuerte : Colors.black87,
+                  color: h == _hora
+                      ? AppColors.rosaFuerte
+                      : Colors.black87,
                 ),
               ),
             ),

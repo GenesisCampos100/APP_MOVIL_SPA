@@ -4,7 +4,11 @@ const router = express.Router();
 const {
     registrarCita,
     obtenerCitas,
-    obtenerCitasCliente
+    obtenerCitasCliente,
+    apartarHorario,
+    confirmarApartado,
+    cancelarApartado,
+    obtenerDisponibilidad
 } = require('../controllers/citas.controller');
 
 const verificarToken = require('../middlewares/verificarToken');
@@ -12,5 +16,9 @@ const verificarToken = require('../middlewares/verificarToken');
 router.post('/', verificarToken, registrarCita);
 router.get('/', verificarToken, obtenerCitas);
 router.get('/cliente/:id_cliente', verificarToken, obtenerCitasCliente);
+router.post('/apartar', verificarToken, apartarHorario);
+router.post('/confirmar-apartado', verificarToken, confirmarApartado);
+router.post('/cancelar-apartado', verificarToken, cancelarApartado);
+router.get('/disponibilidad', obtenerDisponibilidad);
 
 module.exports = router;
