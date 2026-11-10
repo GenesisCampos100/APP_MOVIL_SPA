@@ -9,6 +9,22 @@ class CitasRepository {
 
   CitasRepository({ApiClient? client}) : _client = client ?? ApiClient();
 
+  /// Confirma una cita pendiente a través de la API protegida.
+  Future<void> confirmarCita(String idCita) async {
+    final id = int.tryParse(idCita.replaceFirst('#Cita-', '').trim());
+    if (id == null || id <= 0) {
+      throw ApiException(message: 'El identificador de la cita no es válido.');
+    }
+    await _client.patch('/citas/$id/estado', body: {'estado': 'Confirmada'});
+  }
+  /// Cancelar una cita definitiva (no un apartado temporal).
+  Future<void> cancelarCita(String idCita) async {
+    final id = int.tryParse(idCita.replaceFirst('#Cita-', '').trim());
+    if (id == null || id <= 0) {
+      throw ApiException(message: 'El identificador de la cita no es válido.');
+    }
+    await _client.patch('/citas/$id/cancelar', body: {'estado': 'Cancelada'});
+  }
   Future<List<AppointmentModel>> obtenerCitas() async {
     final respuesta = await _client.get('/citas');
 

@@ -5,6 +5,7 @@ import 'package:spa_admin_app/data/services/api_service.dart';
 import 'package:spa_admin_app/data/services/sesion_service.dart';
 import 'package:spa_admin_app/features/shell/screens/employee_navigation_screen.dart';
 import 'package:spa_admin_app/features/shell/screens/main_navigation_screen.dart';
+import 'package:spa_admin_app/features/shell/screens/reception_navigation_screen.dart';
 
 class LoginAdminScreen extends StatefulWidget {
   const LoginAdminScreen({super.key});
@@ -59,14 +60,36 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
         throw Exception('Esta aplicación es exclusiva para el personal del SPA.');
       }
 
+      // El backend ya devuelve id_puesto para empleados. No se modifica
+      // /api/auth/login ni el flujo de autenticación de app_cliente.
+      final Widget pantallaDestino;
+      if (rolNormalizado == 'administrador') {
+        pantallaDestino = const MainNavigationScreen();
+      } else {
+        final puestoRaw = usuario['id_puesto'];
+        final puesto = puestoRaw is num
+            ? puestoRaw.toInt()
+            : int.tryParse(puestoRaw?.toString() ?? '');
+        final idEmpleadoRaw = usuario['id_empleado'];
+        final idEmpleado = idEmpleadoRaw is num
+            ? idEmpleadoRaw.toInt()
+            : int.tryParse(idEmpleadoRaw?.toString() ?? '');
+        if (idEmpleado == null || idEmpleado <= 0) {
+          throw Exception('No se encontró un perfil de empleado válido.');
+        }
+        if (puesto == 5) {
+          pantallaDestino = const ReceptionNavigationScreen();
+        } else if (puesto != null && puesto >= 1 && puesto <= 4) {
+          pantallaDestino = const EmployeeNavigationScreen();
+        } else {
+          throw Exception('Este puesto aún no tiene un panel asignado.');
+        }
+      }
+
       if (!mounted) return;
       AuthSession.iniciar(tokenRespuesta: token, usuario: usuario);
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute<void>(
-          builder: (_) => rolNormalizado == 'administrador'
-              ? const MainNavigationScreen()
-              : const EmployeeNavigationScreen(),
-        ),
+        MaterialPageRoute<void>(builder: (_) => pantallaDestino),
         (route) => false,
       );
     } catch (e) {

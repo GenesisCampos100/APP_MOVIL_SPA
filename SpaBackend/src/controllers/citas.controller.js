@@ -349,6 +349,136 @@ const obtenerCitas = async (req, res) => {
 
 
 
+// Confirmación de citas pendientes por un Administrador activo.
+const confirmarCitaAdmin = async (req, res) => {
+    const idCitaTexto = String(req.params.id ?? '');
+    const idCita = Number(idCitaTexto);
+    const idUsuario = Number(req.usuario?.id_usuario);
+    const rol = Number(req.usuario?.rol);
+
+    if (rol !== 1 || !Number.isSafeInteger(idUsuario) || idUsuario <= 0) {
+        return res.status(403).json({
+            error: 'Acceso exclusivo del Administrador'
+        });
+    }
+
+    if (!/^[1-9]\d*$/.test(idCitaTexto) || !Number.isSafeInteger(idCita)) {
+        return res.status(400).json({ error: 'El ID de la cita no es válido' });
+    }
+
+    try {
+        // Revocar permisos también tiene efecto sobre sesiones JWT aún vigentes.
+        const administrador = await pool.query(
+            `SELECT id_usuario
+             FROM usuarios
+             WHERE id_usuario = $1 AND id_rol = 1 AND estado = true`,
+            [idUsuario]
+        );
+
+        if (administrador.rowCount === 0) {
+            return res.status(403).json({
+                error: 'La cuenta administrativa no está autorizada'
+            });
+        }
+
+        // La condición en el UPDATE evita cambios por solicitudes simultáneas.
+        const resultado = await pool.query(
+            `UPDATE citas
+             SET estado = 'Confirmada'
+             WHERE id_cita = $1 AND estado = 'Pendiente'
+             RETURNING id_cita, estado, fecha, hora_inicio`,
+            [idCita]
+        );
+
+        if (resultado.rowCount === 0) {
+            const existente = await pool.query(
+                'SELECT estado FROM citas WHERE id_cita = $1',
+                [idCita]
+            );
+            if (existente.rowCount === 0) {
+                return res.status(404).json({ error: 'La cita no existe' });
+            }
+            return res.status(409).json({
+                error: 'Solo se pueden confirmar citas pendientes'
+            });
+        }
+
+        return res.status(200).json({
+            mensaje: 'Cita confirmada correctamente',
+            cita: resultado.rows[0]
+        });
+    } catch (error) {
+        console.error('Error al confirmar cita:', error.message);
+        return res.status(500).json({
+            error: 'Error interno al confirmar la cita'
+        });
+    }
+};
+
+
+// Cancela citas definitivas desde la aplicación administrativa.
+// La cancelación de un apartado temporal usa otra ruta y no se modifica aquí.
+const cancelarCitaAdmin = async (req, res) => {
+    const idCitaTexto = String(req.params.id ?? '');
+    const idCita = Number(idCitaTexto);
+    const idUsuario = Number(req.usuario?.id_usuario);
+    const rol = Number(req.usuario?.rol);
+
+    if (rol !== 1 || !Number.isSafeInteger(idUsuario) || idUsuario <= 0) {
+        return res.status(403).json({ error: 'Acceso exclusivo del Administrador' });
+    }
+    if (!/^[1-9]\d*$/.test(idCitaTexto) || !Number.isSafeInteger(idCita)) {
+        return res.status(400).json({ error: 'El ID de la cita no es válido' });
+    }
+
+    try {
+        // Respetar la revocación de permisos incluso con un JWT vigente.
+        const administrador = await pool.query(
+            `SELECT id_usuario FROM usuarios
+             WHERE id_usuario = $1 AND id_rol = 1 AND estado = true`,
+            [idUsuario]
+        );
+        if (administrador.rowCount === 0) {
+            return res.status(403).json({
+                error: 'La cuenta administrativa no está autorizada'
+            });
+        }
+
+        // Una operación atómica impide cancelar citas completadas o ya canceladas.
+        // No borrar la cita conserva el historial para Cliente y Empleado.
+        const resultado = await pool.query(
+            `UPDATE citas
+             SET estado = 'Cancelada'
+             WHERE id_cita = $1 AND estado IN ('Pendiente', 'Confirmada')
+             RETURNING id_cita, estado, fecha, hora_inicio`,
+            [idCita]
+        );
+        if (resultado.rowCount === 0) {
+            const existente = await pool.query(
+                'SELECT estado FROM citas WHERE id_cita = $1',
+                [idCita]
+            );
+            if (existente.rowCount === 0) {
+                return res.status(404).json({ error: 'La cita no existe' });
+            }
+            return res.status(409).json({
+                error: 'Solo se pueden cancelar citas pendientes o confirmadas'
+            });
+        }
+
+        return res.status(200).json({
+            mensaje: 'Cita cancelada correctamente',
+            cita: resultado.rows[0]
+        });
+    } catch (error) {
+        console.error('Error al cancelar cita administrativa:', error.message);
+        return res.status(500).json({
+            error: 'Error interno al cancelar la cita'
+        });
+    }
+};
+
+
 const obtenerCitasCliente = async (req, res) => {
     const client = await pool.connect();
 
@@ -1261,6 +1391,8 @@ const obtenerDisponibilidad = async (req, res) => {
 
 
 module.exports = {
+    cancelarCitaAdmin,
+    confirmarCitaAdmin,
     registrarCita,
     obtenerCitas,
     obtenerCitasCliente,

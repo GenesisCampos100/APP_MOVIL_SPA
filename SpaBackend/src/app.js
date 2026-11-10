@@ -18,6 +18,7 @@ const usuariosRoutes = require('./routes/usuarios.routes');
 const adminServiciosRoutes = require('./routes/admin_servicios.routes');
 const adminEmpleadosRoutes = require('./routes/admin_empleados.routes');
 const adminHorariosRoutes = require('./routes/admin_horarios.routes');
+const personalRoutes = require('./routes/personal.routes');
 
 // Registrar rutas compartidas
 app.use('/api/auth', authRoutes);
@@ -32,5 +33,8 @@ app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/admin/servicios', adminServiciosRoutes);
 app.use('/api/admin/empleados', adminEmpleadosRoutes);
 app.use('/api/admin/horarios', adminHorariosRoutes);
+
+// Nueva ruta de Recepción, independiente del flujo de app_cliente.
+app.use('/api/personal', personalRoutes);
 
 module.exports = app;

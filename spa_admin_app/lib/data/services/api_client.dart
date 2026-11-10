@@ -44,6 +44,13 @@ class ApiClient {
         () => _httpClient.delete(Uri.parse('${ApiConfig.baseUrl}$path'), headers: _headers),
       );
 
+  Future<dynamic> patch(String path, {required Map<String, dynamic> body}) => _request(
+        () => _httpClient.patch(
+          Uri.parse('${ApiConfig.baseUrl}$path'),
+          headers: _headers,
+          body: jsonEncode(body),
+        ),
+      );
   Future<dynamic> _request(Future<http.Response> Function() send) async {
     try {
       final response = await send().timeout(ApiConfig.connectionTimeout);

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:spa_admin_app/data/repositories/citas_repository.dart';
+import 'package:spa_admin_app/data/services/api_exception.dart';
 import 'package:spa_admin_app/core/theme/app_colors.dart';
 import 'package:spa_admin_app/core/theme/app_text_styles.dart';
 import 'package:spa_admin_app/data/models/appointment_model.dart';
@@ -21,7 +23,126 @@ class DetalleCitaScreen extends StatefulWidget {
 }
 
 class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
-  AppointmentModel get _cita => widget.appointment;
+  late AppointmentModel _citaActual;
+  bool _confirmando = false;
+  bool _cancelando = false;
+  final CitasRepository _repository = CitasRepository();
+
+  @override
+  void initState() {
+    super.initState();
+    _citaActual = widget.appointment;
+  }
+
+  AppointmentModel get _cita => _citaActual;
+
+  Future<void> _solicitarCancelacion() async {
+    if (_confirmando || _cancelando ||
+        (_cita.estado != 'Pendiente' && _cita.estado != 'Confirmada')) {
+      return;
+    }
+    final aceptada = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cancelar cita'),
+        content: Text(
+          '¿Deseas cancelar la cita ${_cita.idCita} de ${_cita.nombreCliente}? '
+          'El registro permanecerá en el historial. Esta acción no enviará notificaciones automáticas.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Sí, cancelar'),
+          ),
+        ],
+      ),
+    );
+    if (aceptada == true && mounted) {
+      await _ejecutarCancelacion();
+    }
+  }
+
+  Future<void> _ejecutarCancelacion() async {
+    if (!mounted || _confirmando || _cancelando) return;
+    setState(() => _cancelando = true);
+    try {
+      await _repository.cancelarCita(_cita.idCita);
+      if (!mounted) return;
+      final actualizada = _cita.copyWith(estado: 'Cancelada');
+      setState(() {
+        _citaActual = actualizada;
+        _cancelando = false;
+      });
+      widget.onAppointmentUpdated(actualizada);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cita cancelada correctamente.')),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _cancelando = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _cancelando = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo cancelar la cita. Verifica la conexión.')),
+      );
+    }
+  }
+  Future<void> _confirmarCita() async {
+    if (_confirmando || _cita.estado != 'Pendiente') return;
+    final aceptada = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirmar cita'),
+        content: Text('¿Deseas confirmar la cita ${_cita.idCita} de ${_cita.nombreCliente}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Sí, confirmar'),
+          ),
+        ],
+      ),
+    );
+    if (aceptada != true || !mounted) return;
+
+    setState(() => _confirmando = true);
+    try {
+      await _repository.confirmarCita(_cita.idCita);
+      if (!mounted) return;
+      final citaConfirmada = _cita.copyWith(estado: 'Confirmada');
+      setState(() {
+        _citaActual = citaConfirmada;
+        _confirmando = false;
+      });
+      widget.onAppointmentUpdated(citaConfirmada);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cita confirmada correctamente.')),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _confirmando = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _confirmando = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo confirmar la cita. Verifica la conexión.')),
+      );
+    }
+  }
 
   String _fechaLegible(DateTime fecha) {
     const meses = [
@@ -190,8 +311,41 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
                   ),
                 ),
                 const SizedBox(height: 18),
+                if (_cita.estado == 'Pendiente')
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: (_confirmando || _cancelando) ? null : _confirmarCita,
+                      icon: _confirmando
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.check_circle_outline),
+                      label: Text(_confirmando ? 'Confirmando...' : 'Confirmar cita'),
+                    ),
+                  ),
+                if (_cita.estado == 'Pendiente' || _cita.estado == 'Confirmada')
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: (_confirmando || _cancelando)
+                          ? null
+                          : _solicitarCancelacion,
+                      icon: _cancelando
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.event_busy_outlined),
+                      label: Text(_cancelando ? 'Cancelando...' : 'Cancelar cita'),
+                    ),
+                  ),
+                const SizedBox(height: 14),
                 const Text(
-                  'Próximamente podrás actualizar el estado de la cita desde aquí.',
+                  'Reportar inasistencia e iniciar servicio estarán disponibles próximamente.',
                   style: TextStyle(fontSize: 11, color: AppColors.textMuted),
                 ),
                 const SizedBox(height: 14),

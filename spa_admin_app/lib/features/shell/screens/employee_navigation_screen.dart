@@ -38,9 +38,14 @@ class _EmployeeNavigationScreenState extends State<EmployeeNavigationScreen> {
       EmployeeHomeScreen(onVerCitas: () => setState(() => _index = 1)),
       const EmployeeAppointmentsScreen(),
     ];
+    if (!AuthSession.esEspecialista || !AuthSession.activa) {
+      return const Scaffold(
+        body: Center(child: Text('Acceso exclusivo del personal especialista.')),
+      );
+    }
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Aura SPA · Personal'),
+        title: const Text('Aura SPA · Especialista'),
         actions: [
           IconButton(
             tooltip: 'Cerrar sesión',
