@@ -11,7 +11,8 @@ const {
     crearServicio,
     actualizarServicio,
     eliminarServicio,
-    obtenerEmpleadosPorServicio
+    obtenerEmpleadosPorServicio,
+    obtenerResenasPorServicio
 } = require('../controllers/servicios.controller');
 
 // Verificar que el usuario sea Administrador y su cuenta esté activa.
@@ -53,6 +54,7 @@ const autorizarAdministradorActivo = async (req, res, next) => {
 router.get('/', obtenerServicios);
 router.get('/:id', obtenerServicioPorId);
 router.get('/:id/empleados', obtenerEmpleadosPorServicio);
+router.get('/:id/resenas', obtenerResenasPorServicio);
 
 // Operaciones exclusivas del Administrador.
 router.post(

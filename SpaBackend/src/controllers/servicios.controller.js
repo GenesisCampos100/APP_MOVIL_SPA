@@ -469,6 +469,77 @@ const obtenerEmpleadosPorServicio = async (req, res) => {
 };
 
 
+const obtenerResenasPorServicio = async (req, res) => {
+    try {
+        const servicioId = Number(req.params.id);
+
+        // Validar ID del servicio.
+        if (!Number.isInteger(servicioId) || servicioId <= 0) {
+            return res.status(400).json({
+                error: 'El ID del servicio no es válido'
+            });
+        }
+
+        // Comprobar que el servicio exista.
+        const servicioExiste = await pool.query(
+            `SELECT id_servicio
+             FROM servicios
+             WHERE id_servicio = $1`,
+            [servicioId]
+        );
+
+        if (!servicioExiste.rowCount) {
+            return res.status(404).json({
+                error: 'Servicio no encontrado'
+            });
+        }
+
+        // Obtener reseñas con los datos necesarios para mostrarlas.
+        const result = await pool.query(
+            `SELECT
+                r.id_resena,
+                r.id_cita,
+                r.calificacion_ser,
+                r.calificacion_emp,
+                r.comentario,
+                r.fecha,
+                CONCAT(cl.nombre, ' ', cl.apellido_p) AS autor,
+                CONCAT(e.nombre, ' ', e.apellido_p) AS empleado_nombre,
+                cat.nombre AS servicio_categoria
+             FROM resenas r
+             INNER JOIN citas c
+                ON c.id_cita = r.id_cita
+             INNER JOIN clientes cl
+                ON cl.id_cliente = c.id_cliente
+             INNER JOIN empleados e
+                ON e.id_empleado = c.id_empleado
+             INNER JOIN servicios s
+                ON s.id_servicio = c.id_servicio
+             INNER JOIN categorias cat
+                ON cat.id_categoria = s.id_categoria
+             WHERE c.id_servicio = $1
+             ORDER BY r.fecha DESC, r.id_resena DESC`,
+            [servicioId]
+        );
+
+        return res.json({
+            resenas: result.rows
+        });
+
+    } catch (error) {
+        console.error(
+            'Error al obtener reseñas del servicio:',
+            error.message
+        );
+
+        return res.status(500).json({
+            error: 'Error al obtener las reseñas del servicio'
+        });
+    }
+};
+
+
+
 
 module.exports = {
     obtenerServicios,
@@ -476,6 +547,7 @@ module.exports = {
     crearServicio,
     actualizarServicio,
     eliminarServicio,
-    obtenerEmpleadosPorServicio
+    obtenerEmpleadosPorServicio,
+    obtenerResenasPorServicio
 };
 
