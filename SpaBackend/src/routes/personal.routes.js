@@ -4,7 +4,22 @@ const express = require('express');
 const router = express.Router();
 const verificarToken = require('../middlewares/verificarToken');
 const { obtenerAgendaRecepcion } = require('../controllers/personal.controller');
+const citasManuales = require('../controllers/citas_manuales.controller');
 
 router.get('/agenda', verificarToken, obtenerAgendaRecepcion);
+router.get('/citas-manuales/catalogo', verificarToken, citasManuales.catalogo);
+router.get('/citas-manuales/clientes', verificarToken, citasManuales.buscarClientes);
+router.get('/citas-manuales/disponibilidad', verificarToken, citasManuales.disponibilidad);
+router.post('/citas-manuales', verificarToken, citasManuales.crearCitaManual);
+router.post('/citas-manuales/sin-cuenta', verificarToken, citasManuales.crearCitaManualSinCuenta);
+// Acciones explícitas del personal; no alteran las rutas /api/citas de app_cliente.
+router.patch('/citas-manuales/:id/confirmar', verificarToken, citasManuales.confirmarCitaPersonal);
+router.patch('/citas-manuales/:id/cancelar', verificarToken, citasManuales.cancelarCitaPersonal);
+router.patch('/citas-manuales/:id/completar', verificarToken, citasManuales.completarCitaPersonal);
+
+// Rutas exclusivas de personal: nunca modifican /api/citas de app_cliente.
+router.get('/citas-manuales/:id/reprogramacion', verificarToken, citasManuales.detalleParaReprogramar);
+router.get('/citas-manuales/:id/reprogramacion/disponibilidad', verificarToken, citasManuales.disponibilidadReprogramacion);
+router.patch('/citas-manuales/:id/reprogramar', verificarToken, citasManuales.reprogramarCitaPersonal);
 
 module.exports = router;

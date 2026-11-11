@@ -4,6 +4,7 @@ import 'package:spa_admin_app/features/appointments/screens/manage_appointments_
 import 'package:spa_admin_app/features/services/screens/manage_services_screen.dart';
 import 'package:spa_admin_app/features/dashboard/screens/dashboard_home_tab.dart';
 import 'package:spa_admin_app/features/dashboard/screens/admin_menu_tab.dart';
+import 'package:spa_admin_app/features/appointments/widgets/manual_appointment_dialog.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -14,12 +15,26 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
+  int _citasVersion = 0;
+
+  Future<void> _crearCita() async {
+    final creada = await showDialog<bool>(
+      context: context,
+      builder: (_) => const ManualAppointmentDialog(),
+    );
+    if (!mounted || creada != true) return;
+    setState(() => _citasVersion++);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Cita creada correctamente.')),
+    );
+  }
+
 
   // Lista de las 4 pantallas del menú inferior
-  final List<Widget> _tabs = [
+  List<Widget> get _tabs => [
     const DashboardHomeTab(), // Resumen y métricas
     const ManageServicesScreen(),
-    const ManageAppointmentsScreen(),
+    ManageAppointmentsScreen(key: ValueKey(_citasVersion)),
     const AdminMenuTab(),
   ];
 
@@ -32,6 +47,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           children: _tabs,
         ),
       ),
+      floatingActionButton: _currentIndex == 2
+          ? FloatingActionButton.extended(
+              onPressed: _crearCita,
+              backgroundColor: AppColors.primaryPink,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Nueva cita'),
+            )
+          : null,
       // Misma navegación de cuatro pestañas, ahora con etiquetas visibles.
       bottomNavigationBar: Container(
         decoration: BoxDecoration(

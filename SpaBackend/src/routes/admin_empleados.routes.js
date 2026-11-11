@@ -9,6 +9,8 @@ const {
     cambiarEstadoEmpleadoAdmin,
 } = require('../controllers/admin_empleados.controller');
 
+const { listarAsignacionesAdmin, reemplazarAsignacionesAdmin } = require('../controllers/admin_asignaciones.controller');
+
 const router = express.Router();
 
 // Conserva la autorización activa de la Fase 01 para TODAS las rutas.
@@ -32,6 +34,9 @@ const autorizarAdministradorActivo = async (req, res, next) => {
 };
 
 router.use(verificarToken, autorizarAdministradorActivo);
+// Asignaciones reales. Ruta exclusiva del Administrador, sin tocar APIs Cliente.
+router.get('/asignaciones', listarAsignacionesAdmin);
+router.put('/:id/asignaciones', reemplazarAsignacionesAdmin);
 router.get('/puestos', listarPuestosAdmin);
 router.get('/', listarEmpleadosAdmin);
 router.post('/', crearEmpleadoAdmin);

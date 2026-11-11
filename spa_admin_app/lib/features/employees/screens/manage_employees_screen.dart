@@ -6,6 +6,8 @@ import 'package:spa_admin_app/data/repositories/empleados_repository.dart';
 import 'package:spa_admin_app/data/services/api_exception.dart';
 import 'package:spa_admin_app/features/employees/widgets/employee_card_widget.dart';
 import 'package:spa_admin_app/features/employees/widgets/employee_form_dialog.dart';
+import 'package:spa_admin_app/features/services/screens/assign_services_screen.dart';
+import 'package:spa_admin_app/features/schedules/screens/manage_schedules_screen.dart';
 import 'package:spa_admin_app/shared/widgets/confirm_action_dialog.dart';
 
 /// Pantalla de personal. Las acciones existentes permanecen conectadas a la API.
@@ -76,6 +78,10 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
         );
         return;
       }
+      // Solo un nuevo especialista puede pasar directamente a asignar servicios.
+      // Conservamos correo y puesto del formulario únicamente tras guardar con éxito.
+      String? correoNuevo;
+      int? puestoNuevo;
       final guardado = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
@@ -85,6 +91,10 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
           onSave: (datos) async {
             if (empleado == null) {
               await _repository.crearEmpleado(datos);
+              correoNuevo = (datos['correo'] ?? '').toString().trim();
+              puestoNuevo = datos['id_puesto'] is int
+                  ? datos['id_puesto'] as int
+                  : int.tryParse('${datos['id_puesto']}');
             } else {
               await _repository.editarEmpleado(empleado.idEmpleado, datos);
             }
@@ -94,13 +104,141 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
       if (!mounted || guardado != true) return;
       await _cargarEmpleados();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(empleado == null
-              ? 'Empleado registrado correctamente.'
-              : 'Empleado actualizado correctamente.'),
-        ),
-      );
+
+      final especialistaNuevo = empleado == null &&
+          puestoNuevo != null &&
+          puestoNuevo != 5 &&
+          correoNuevo != null &&
+          correoNuevo!.isNotEmpty;
+      if (especialistaNuevo) {
+        final asignarAhora = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            backgroundColor: AppColors.cardBackground,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+            ),
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle_outline_rounded,
+                    color: Color(0xFF347652)),
+                SizedBox(width: 10),
+                Expanded(child: Text('¡Empleado creado correctamente!')),
+              ],
+            ),
+            content: const Text(
+              'El especialista todavía no tiene servicios asignados. '
+              '¿Deseas elegir los servicios que puede realizar ahora?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Más tarde'),
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primaryPink,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.pop(dialogContext, true),
+                icon: const Icon(Icons.spa_outlined),
+                label: const Text('Asignar ahora'),
+              ),
+            ],
+          ),
+        );
+        if (!mounted) return;
+        if (asignarAhora == true) {
+          await Navigator.of(context).push<void>(
+            MaterialPageRoute<void>(
+              builder: (_) => AssignServicesScreen(
+                correoEmpleadoInicial: correoNuevo,
+              ),
+            ),
+          );
+          if (!mounted) return;
+        }
+
+        // Los horarios son independientes de los servicios. Nunca se asignan
+        // automáticamente: el Administrador decide días y horas de trabajo.
+        final configurarAhora = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            backgroundColor: AppColors.cardBackground,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+            ),
+            title: const Row(
+              children: [
+                Icon(Icons.calendar_month_outlined,
+                    color: AppColors.primaryPink),
+                SizedBox(width: 10),
+                Expanded(child: Text('Configurar horarios de trabajo')),
+              ],
+            ),
+            content: const Text(
+              'Para recibir reservaciones, este especialista necesita '
+              'horarios de trabajo. ¿Deseas elegir ahora sus días y horas? '
+              'Podrás configurarlos también más adelante.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Más tarde'),
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primaryPink,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.pop(dialogContext, true),
+                icon: const Icon(Icons.schedule_outlined),
+                label: const Text('Configurar horarios'),
+              ),
+            ],
+          ),
+        );
+        if (!mounted) return;
+        if (configurarAhora == true) {
+          // Se usa el ID real recién obtenido del backend tras refrescar
+          // empleados. Así no dependemos de nombres que pueden repetirse.
+          int? idEmpleadoCreado;
+          for (final item in _employees) {
+            if (item.correo.trim().toLowerCase() ==
+                correoNuevo!.toLowerCase()) {
+              idEmpleadoCreado = int.tryParse(item.idEmpleado);
+              break;
+            }
+          }
+          if (idEmpleadoCreado == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'No fue posible seleccionar automáticamente al especialista. '
+                  'Puedes elegirlo en la pantalla de horarios.',
+                ),
+              ),
+            );
+          }
+          await Navigator.of(context).push<void>(
+            MaterialPageRoute<void>(
+              builder: (_) => ManageSchedulesScreen(
+                empleadoInicialId: idEmpleadoCreado,
+              ),
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(empleado == null
+                ? 'Empleado registrado correctamente.'
+                : 'Empleado actualizado correctamente.'),
+          ),
+        );
+      }
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

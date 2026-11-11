@@ -4,6 +4,7 @@ import 'package:spa_admin_app/data/services/sesion_service.dart';
 import 'package:spa_admin_app/features/auth/screens/login_admin_screen.dart';
 import 'package:spa_admin_app/features/reception/screens/reception_home_screen.dart';
 import 'package:spa_admin_app/features/reception/screens/reception_appointments_screen.dart';
+import 'package:spa_admin_app/features/appointments/widgets/manual_appointment_dialog.dart';
 import 'package:spa_admin_app/shared/widgets/confirm_action_dialog.dart';
 
 /// Panel propio de Recepción. No muestra controles administrativos sensibles.
@@ -16,6 +17,20 @@ class ReceptionNavigationScreen extends StatefulWidget {
 
 class _ReceptionNavigationScreenState extends State<ReceptionNavigationScreen> {
   int _index = 0;
+  int _agendaVersion = 0;
+
+  Future<void> _crearCita() async {
+    final creada = await showDialog<bool>(
+      context: context,
+      builder: (_) => const ManualAppointmentDialog(),
+    );
+    if (!mounted || creada != true) return;
+    setState(() => _agendaVersion++);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Cita creada correctamente.')),
+    );
+  }
+
 
   Future<void> _cerrarSesion() async {
     final confirmar = await mostrarConfirmacion(
@@ -56,9 +71,18 @@ class _ReceptionNavigationScreenState extends State<ReceptionNavigationScreen> {
         index: _index,
         children: [
           ReceptionHomeScreen(onVerAgenda: () => setState(() => _index = 1)),
-          const ReceptionAppointmentsScreen(),
+          ReceptionAppointmentsScreen(key: ValueKey(_agendaVersion)),
         ],
       ),
+      floatingActionButton: _index == 1
+          ? FloatingActionButton.extended(
+              onPressed: _crearCita,
+              backgroundColor: AppColors.primaryPink,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Nueva cita'),
+            )
+          : null,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         indicatorColor: AppColors.primaryPinkSoft,

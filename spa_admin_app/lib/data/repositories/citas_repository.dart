@@ -25,6 +25,16 @@ class CitasRepository {
     }
     await _client.patch('/citas/$id/cancelar', body: {'estado': 'Cancelada'});
   }
+  /// Cierre de atención: solo una cita Confirmada y después de su horario.
+  /// Autoriza el backend según rol y puesto, no el teléfono.
+  Future<void> completarCita(String idCita) async {
+    final id = int.tryParse(idCita.replaceFirst('#Cita-', '').trim());
+    if (id == null || id <= 0) {
+      throw ApiException(message: 'El identificador de la cita no es válido.');
+    }
+    await _client.patch('/personal/citas-manuales/$id/completar', body: <String, dynamic>{});
+  }
+
   Future<List<AppointmentModel>> obtenerCitas() async {
     final respuesta = await _client.get('/citas');
 

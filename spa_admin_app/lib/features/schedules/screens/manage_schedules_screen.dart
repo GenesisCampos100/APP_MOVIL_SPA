@@ -7,7 +7,11 @@ import 'package:spa_admin_app/features/schedules/widgets/horario_bloque_form_dia
 
 /// Consulta y administración de turnos semanales del personal.
 class ManageSchedulesScreen extends StatefulWidget {
-  const ManageSchedulesScreen({super.key});
+  /// Si se abre tras crear un especialista, lo selecciona y muestra
+  /// automáticamente el formulario para definir sus días y turnos.
+  final int? empleadoInicialId;
+
+  const ManageSchedulesScreen({super.key, this.empleadoInicialId});
 
   @override
   State<ManageSchedulesScreen> createState() => _ManageSchedulesScreenState();
@@ -37,6 +41,7 @@ class _ManageSchedulesScreenState extends State<ManageSchedulesScreen> {
   String? _error;
   String _diaSeleccionado = 'Todos';
   int? _empleadoSeleccionado;
+  bool _intentoAbrirHorarioInicial = false;
 
   @override
   void initState() {
@@ -61,14 +66,42 @@ class _ManageSchedulesScreenState extends State<ManageSchedulesScreen> {
     try {
       final nuevos = await _repository.obtenerHorarios();
       if (!mounted) return;
+      final primeraApertura = !_intentoAbrirHorarioInicial &&
+          widget.empleadoInicialId != null;
+      EmpleadoConHorarios? objetivo;
+      if (primeraApertura) {
+        _intentoAbrirHorarioInicial = true;
+        for (final item in nuevos) {
+          if (item.idEmpleado == widget.empleadoInicialId) {
+            objetivo = item;
+            break;
+          }
+        }
+      }
+      final empleadoObjetivo = objetivo;
       setState(() {
         _empleados = nuevos;
-        if (_empleadoSeleccionado != null &&
+        if (empleadoObjetivo != null) {
+          _empleadoSeleccionado = empleadoObjetivo.idEmpleado;
+        } else if (_empleadoSeleccionado != null &&
             !nuevos.any((e) => e.idEmpleado == _empleadoSeleccionado)) {
           _empleadoSeleccionado = null;
         }
         _cargando = false;
       });
+      if (primeraApertura) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (empleadoObjetivo != null && empleadoObjetivo.activo) {
+            _nuevoHorario(empleadoObjetivo);
+          } else {
+            _mensajeAccion(
+              'No fue posible abrir el horario de este especialista. '
+              'Puedes seleccionarlo desde la lista.',
+            );
+          }
+        });
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {

@@ -5,9 +5,10 @@ import 'package:spa_admin_app/core/theme/app_colors.dart';
 import 'package:spa_admin_app/core/theme/app_text_styles.dart';
 import 'package:spa_admin_app/data/models/appointment_model.dart';
 import 'package:spa_admin_app/features/appointments/widgets/estado_badge.dart';
+import 'package:spa_admin_app/features/appointments/widgets/reprogramar_cita_dialog.dart';
 
 /// Detalle de una cita obtenida de GET /api/citas.
-/// Las acciones de escritura se mantienen informativas hasta tener API real.
+/// Confirmación, cancelación, reprogramación y cierre de atención con API real.
 class DetalleCitaScreen extends StatefulWidget {
   final AppointmentModel appointment;
   final Function(AppointmentModel) onAppointmentUpdated;
@@ -26,6 +27,8 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
   late AppointmentModel _citaActual;
   bool _confirmando = false;
   bool _cancelando = false;
+  bool _reprogramando = false;
+  bool _completando = false;
   final CitasRepository _repository = CitasRepository();
 
   @override
@@ -37,7 +40,7 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
   AppointmentModel get _cita => _citaActual;
 
   Future<void> _solicitarCancelacion() async {
-    if (_confirmando || _cancelando ||
+    if (_confirmando || _cancelando || _completando ||
         (_cita.estado != 'Pendiente' && _cita.estado != 'Confirmada')) {
       return;
     }
@@ -67,7 +70,7 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
   }
 
   Future<void> _ejecutarCancelacion() async {
-    if (!mounted || _confirmando || _cancelando) return;
+    if (!mounted || _confirmando || _cancelando || _completando) return;
     setState(() => _cancelando = true);
     try {
       await _repository.cancelarCita(_cita.idCita);
@@ -96,7 +99,7 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
     }
   }
   Future<void> _confirmarCita() async {
-    if (_confirmando || _cita.estado != 'Pendiente') return;
+    if (_confirmando || _completando || _cita.estado != 'Pendiente') return;
     final aceptada = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -144,6 +147,38 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
     }
   }
 
+  Future<void> _reprogramarCita() async {
+    if (_confirmando || _cancelando || _completando || _reprogramando ||
+        (_cita.estado != 'Pendiente' && _cita.estado != 'Confirmada')) return;
+    final id = int.tryParse(_cita.idCita.replaceFirst('#Cita-', '').trim());
+    if (id == null || id <= 0) return;
+    setState(() => _reprogramando = true);
+    try {
+      final resultado = await showDialog<ReprogramacionResultado>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => ReprogramarCitaDialog(idCita: id),
+      );
+      if (!mounted) return;
+      if (resultado != null) {
+        final nueva = _cita.copyWith(
+          fecha: resultado.fecha,
+          horaInicio: resultado.hora,
+          nombreEmpleado: resultado.especialista,
+          estado: resultado.estado,
+        );
+        setState(() => _citaActual = nueva);
+        widget.onAppointmentUpdated(nueva);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: Color(0xFF93651B),
+          content: Text('Cita reprogramada. Quedó Pendiente de confirmación.'),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _reprogramando = false);
+    }
+  }
+
   String _fechaLegible(DateTime fecha) {
     const meses = [
       'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -152,31 +187,58 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
     return '${fecha.day} de ${meses[fecha.month - 1]} de ${fecha.year}';
   }
 
-  Future<void> _accionPendiente(String accion) async {
-    await showDialog<void>(
+  Future<void> _completarCita() async {
+    if (!mounted || _completando || _confirmando || _cancelando || _reprogramando ||
+        _cita.estado != 'Confirmada') return;
+    final aceptada = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.cardBackground,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: const Row(
-          children: [
-            Icon(Icons.info_outline_rounded, color: AppColors.primaryPink),
-            SizedBox(width: 10),
-            Expanded(child: Text('Función en preparación')),
-          ],
-        ),
+        title: const Text('¿Marcar cita como completada?'),
         content: Text(
-          'Todavía no es posible $accion desde esta pantalla. '
-          'No se realizaron cambios en la cita.',
+          'Confirma que el servicio de ${_cita.nombreCliente} ya se realizó. '
+          'Solo puede completarse una cita Confirmada después de terminar su horario reservado. '
+          'Esta acción no se puede deshacer desde la aplicación.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Entendido'),
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.task_alt),
+            label: const Text('Sí, completar'),
           ),
         ],
       ),
     );
+    if (!mounted || aceptada != true) return;
+    setState(() => _completando = true);
+    try {
+      await _repository.completarCita(_cita.idCita);
+      if (!mounted) return;
+      final actualizada = _cita.copyWith(estado: 'Completada');
+      setState(() => _citaActual = actualizada);
+      widget.onAppointmentUpdated(actualizada);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        backgroundColor: Color(0xFF27804F),
+        content: Text('Cita completada correctamente.'),
+      ));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        backgroundColor: const Color(0xFFC03945),
+        content: Text(e.message),
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        backgroundColor: Color(0xFFC03945),
+        content: Text('No se pudo completar la cita. Revisa la conexión.'),
+      ));
+    } finally {
+      if (mounted) setState(() => _completando = false);
+    }
   }
 
   @override
@@ -315,7 +377,7 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
-                      onPressed: (_confirmando || _cancelando) ? null : _confirmarCita,
+                      onPressed: (_confirmando || _cancelando || _reprogramando || _completando) ? null : _confirmarCita,
                       icon: _confirmando
                           ? const SizedBox(
                               width: 16,
@@ -326,11 +388,23 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
                       label: Text(_confirmando ? 'Confirmando...' : 'Confirmar cita'),
                     ),
                   ),
+                if (_cita.estado == 'Pendiente' || _cita.estado == 'Confirmada') ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: (_confirmando || _cancelando || _reprogramando || _completando)
+                          ? null : _reprogramarCita,
+                      icon: const Icon(Icons.event_repeat_outlined),
+                      label: const Text('Reprogramar cita'),
+                    ),
+                  ),
+                ],
                 if (_cita.estado == 'Pendiente' || _cita.estado == 'Confirmada')
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: (_confirmando || _cancelando)
+                      onPressed: (_confirmando || _cancelando || _reprogramando || _completando)
                           ? null
                           : _solicitarCancelacion,
                       icon: _cancelando
@@ -343,46 +417,27 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
                       label: Text(_cancelando ? 'Cancelando...' : 'Cancelar cita'),
                     ),
                   ),
-                const SizedBox(height: 14),
-                const Text(
-                  'Reportar inasistencia e iniciar servicio estarán disponibles próximamente.',
-                  style: TextStyle(fontSize: 11, color: AppColors.textMuted),
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => _accionPendiente('reportar una inasistencia'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.textDark,
-                          side: const BorderSide(color: AppColors.cardBorder),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        child: const Text(
-                          'Reportar inasistencia',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 11),
-                        ),
-                      ),
+                if (_cita.estado == 'Confirmada') ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: (_confirmando || _cancelando || _reprogramando || _completando)
+                          ? null : _completarCita,
+                      style: FilledButton.styleFrom(backgroundColor: const Color(0xFF27804F)),
+                      icon: _completando
+                          ? const SizedBox(width: 16, height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.task_alt),
+                      label: Text(_completando ? 'Guardando...' : 'Marcar como completada'),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: () => _accionPendiente('iniciar el servicio'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.primaryPink,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        child: const Text(
-                          'Iniciar servicio',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Solo al finalizar el servicio. El servidor validará la hora.',
+                    style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                  ),
+                ],
               ],
             ),
           ),
