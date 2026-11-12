@@ -65,8 +65,16 @@ class AuthState extends ChangeNotifier {
   }
 
   /// Reemplaza los datos del usuario después de editar su perfil.
-  void actualizarPerfil(UsuarioSesion nuevo) {
+  Future<void> actualizarPerfil(UsuarioSesion nuevo) async {
     if (_usuario == null) return;
+
+    final token = SesionService.instance.token;
+
+    // Guardar el usuario actualizado sin perder el JWT.
+    await SesionService.instance.iniciarSesion(
+      nuevo,
+      token: token,
+    );
 
     _usuario = nuevo;
     notifyListeners();
