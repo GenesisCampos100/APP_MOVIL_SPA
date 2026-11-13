@@ -5,6 +5,7 @@ import '../../../data/models/usuario_sesion.dart';
 import '../../../data/repositories/perfil_repository.dart';
 import '../../auth/auth_state.dart';
 import '../../auth/widgets/auth_widgets.dart';
+import '../../auth/screens/auth_verify_screen.dart';
 
 const _meses = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -41,7 +42,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   int? _dia, _mes, _anio;
   bool _cargando = false;
-  String? _errNombre, _errApellido, _errTel, _errFecha;
+  String? _errNombre, _errApellido, _errTel, _errFecha, _errCorreo;
 
   @override
   void initState() {
@@ -52,7 +53,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _mes = f.month;
       _anio = f.year;
     }
-    for (final c in [_nombre, _apellidoP, _apellidoM, _tel]) {
+    for (final c in [_nombre, _apellidoP, _apellidoM, _tel, _correo]) {
       c.addListener(() => setState(() {}));
     }
   }
@@ -71,24 +72,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final o = _orig;
     final telOrig = (o.telefono ?? '').replaceFirst('+52', '');
     final f = o.fechaNacimiento;
+
     return _nombre.text.trim() != o.nombre ||
         _apellidoP.text.trim() != o.apellido ||
         _apellidoM.text.trim() != (o.apellidoMaterno ?? '') ||
         _tel.text.trim() != telOrig ||
+        _correo.text.trim().toLowerCase() != o.correo.toLowerCase() ||
         _dia != f?.day ||
         _mes != f?.month ||
         _anio != f?.year;
   }
 
+  
   bool _validar() {
     final tel = _tel.text.trim();
+    final correo = _correo.text.trim();
+
     String? errFecha;
     final hayAlgo = _dia != null || _mes != null || _anio != null;
+
     if (hayAlgo) {
       if (_dia == null || _mes == null || _anio == null) {
         errFecha = 'Completa la fecha';
       } else {
         final f = DateTime(_anio!, _mes!, _dia!);
+
         if (f.month != _mes || f.day != _dia) {
           errFecha = 'Fecha inválida';
         } else if (f.isAfter(DateTime.now())) {
@@ -96,45 +104,158 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         }
       }
     }
+
+    final errCorreo = correo.isEmpty ||
+            correo.length > 254 ||
+            !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(correo)
+        ? 'Ingresa un correo electrónico válido'
+        : null;
+
     setState(() {
-      _errNombre = _nombre.text.trim().isEmpty ? 'Ingresa tu nombre' : null;
-      _errApellido = _apellidoP.text.trim().isEmpty ? 'Ingresa tu apellido' : null;
-      _errTel = (tel.isNotEmpty && tel.length != 10) ? 'Ingresa un número de 10 dígitos' : null;
+      _errNombre =
+          _nombre.text.trim().isEmpty ? 'Ingresa tu nombre' : null;
+
+      _errApellido =
+          _apellidoP.text.trim().isEmpty ? 'Ingresa tu apellido' : null;
+
+      _errTel = (tel.isNotEmpty && tel.length != 10)
+          ? 'Ingresa un número de 10 dígitos'
+          : null;
+
+      _errCorreo = errCorreo;
       _errFecha = errFecha;
     });
-    return _errNombre == null && _errApellido == null && _errTel == null && _errFecha == null;
+
+    return _errNombre == null &&
+        _errApellido == null &&
+        _errTel == null &&
+        _errFecha == null &&
+        _errCorreo == null;
   }
 
+  
+  Future<bool> _iniciarCambioCorreo(String correo) async {
+    // Solicitar el código al correo nuevo.
+    await _repo.solicitarCambioCorreo(correo);
+
+    if (!mounted) return false;
+
+    final resultado = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AuthVerifyScreen(
+          correo: correo,
+          titulo: 'Verifica tu nuevo correo',
+          subtitulo:
+              'Te enviamos un código de verificación a:\n$correo',
+
+          // Utilizar el endpoint específico para cambiar el correo.
+          onVerificar: (codigo) async {
+            final usuario = await _repo.verificarCambioCorreo(
+              correo: correo,
+              codigo: codigo,
+            );
+
+            await AuthState.instance.actualizarPerfil(usuario);
+
+            return true;
+          },
+
+          // Cerrar únicamente la pantalla de verificación.
+          onVerificacionExitosa: () {
+            Navigator.of(context).pop(true);
+          },
+        ),
+      ),
+    );
+
+    return resultado == true;
+  }
+
+
+
+    
   Future<void> _guardar() async {
     if (!_validar()) return;
+
     setState(() => _cargando = true);
+
     try {
       final materno = _apellidoM.text.trim();
       final tel = _tel.text.trim();
-      final fecha = (_dia != null && _mes != null && _anio != null)
-          ? DateTime(_anio!, _mes!, _dia!)
-          : null;
+      final correoNuevo = _correo.text.trim().toLowerCase();
+
+      final fecha = _dia != null && _mes != null && _anio != null
+    ? DateTime(_anio!, _mes!, _dia!)
+    : null;
+
+      final cambioCorreo =
+          correoNuevo != _orig.correo.trim().toLowerCase();
+
+      // Guardar los demás datos del perfil.
       final nuevo = await _repo.guardar(
-        _orig,
         nombre: _nombre.text.trim(),
         apellido: _apellidoP.text.trim(),
         apellidoMaterno: materno.isEmpty ? null : materno,
         telefono: tel.isEmpty ? null : '+52$tel',
         fechaNacimiento: fecha,
       );
-      AuthState.instance.actualizarPerfil(nuevo);
+      await AuthState.instance.actualizarPerfil(nuevo);
+
       if (!mounted) return;
+
+      // Si el correo cambió, iniciar el proceso de verificación.
+      if (cambioCorreo) {
+        final verificado = await _iniciarCambioCorreo(correoNuevo);
+
+        if (!mounted) return;
+
+        if (!verificado) {
+          setState(() => _cargando = false);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Los demás datos se guardaron, pero el correo sigue sin cambiar.',
+              ),
+            ),
+          );
+
+          return;
+        }
+      }
+
+      if (!mounted) return;
+
       final messenger = ScaffoldMessenger.of(context);
+
       Navigator.pop(context);
-      messenger.showSnackBar(const SnackBar(content: Text('Perfil actualizado')));
-    } catch (_) {
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            cambioCorreo
+                ? 'Perfil y correo actualizados correctamente'
+                : 'Perfil actualizado correctamente',
+          ),
+        ),
+      );
+    } catch (error) {
       if (!mounted) return;
+
       setState(() => _cargando = false);
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo guardar. Intenta de nuevo.')),
+        SnackBar(
+          content: Text(
+            'No se pudo completar la actualización: '
+            '${error.toString().replaceFirst('Exception: ', '')}',
+          ),
+        ),
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -219,11 +340,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ],
             ),
             const SizedBox(height: 14),
-            AuthCampo(label: 'Correo electrónico', controller: _correo, enabled: false),
+            AuthCampo(
+              label: 'Correo electrónico',
+              controller: _correo,
+              errorText: _errCorreo,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+            ),
             const Padding(
               padding: EdgeInsets.only(top: 4, left: 2),
-              child: Text('El correo no se puede cambiar.',
-                  style: TextStyle(fontSize: 11, color: AppColors.gris)),
+              child: Text(
+                'Si cambias tu correo, tendrás que verificarlo con un código.',
+                style: TextStyle(fontSize: 11, color: AppColors.gris),
+              ),
             ),
             const SizedBox(height: 14),
             const Text('Teléfono', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),

@@ -12,8 +12,13 @@ class AuthState extends ChangeNotifier {
 
   UsuarioSesion? _usuario;
 
+  bool _cargandoSesion = false;
+  bool _errorConexion = false;
+
   UsuarioSesion? get usuario => _usuario;
   bool get isLoggedIn => _usuario != null;
+  bool get cargandoSesion => _cargandoSesion;
+  bool get errorConexion => _errorConexion;
 
   /// Inicia sesión y guarda los datos de forma persistente.
   Future<void> iniciarSesion(
@@ -26,15 +31,29 @@ class AuthState extends ChangeNotifier {
     );
 
     _usuario = usuario;
+    _errorConexion = false;
     notifyListeners();
   }
 
-  /// Recupera la sesión guardada en el dispositivo.
+  /// Recupera la sesión guardada y valida el JWT.
   Future<void> restaurarSesion() async {
-    final usuario = await SesionService.instance.restaurarSesion();
-
-    _usuario = usuario;
+    _cargandoSesion = true;
+    _errorConexion = false;
     notifyListeners();
+
+    try {
+      final usuario =
+          await SesionService.instance.restaurarSesion();
+
+      _usuario = usuario;
+    } catch (e) {
+      // Error de conexión: conservar los datos almacenados.
+      _errorConexion = true;
+      _usuario = null;
+    } finally {
+      _cargandoSesion = false;
+      notifyListeners();
+    }
   }
 
   void actualizarTelefono(String telefono) {
@@ -46,8 +65,16 @@ class AuthState extends ChangeNotifier {
   }
 
   /// Reemplaza los datos del usuario después de editar su perfil.
-  void actualizarPerfil(UsuarioSesion nuevo) {
+  Future<void> actualizarPerfil(UsuarioSesion nuevo) async {
     if (_usuario == null) return;
+
+    final token = SesionService.instance.token;
+
+    // Guardar el usuario actualizado sin perder el JWT.
+    await SesionService.instance.iniciarSesion(
+      nuevo,
+      token: token,
+    );
 
     _usuario = nuevo;
     notifyListeners();
@@ -58,6 +85,7 @@ class AuthState extends ChangeNotifier {
     await SesionService.instance.cerrarSesion();
 
     _usuario = null;
+    _errorConexion = false;
     notifyListeners();
   }
 }

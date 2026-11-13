@@ -58,7 +58,7 @@ const verificarCorreo = async (req, res) => {
 
 const login = async (req, res) => {
     try {
-        
+
         const { correo, contrasenia } = req.body;
 
         if (
@@ -73,7 +73,7 @@ const login = async (req, res) => {
             });
         }
 
-        const usuarioResult = await pool.query( `SELECT 
+        const usuarioResult = await pool.query( `SELECT
             u.id_usuario,
             u.id_rol,
             u.correo,
@@ -81,17 +81,17 @@ const login = async (req, res) => {
             u.foto,
             r.nombre AS rol
             FROM usuarios u
-            INNER JOIN roles r 
+            INNER JOIN roles r
             ON r.id_rol = u.id_rol
             WHERE u.correo = $1
-            AND u.estado = true`, 
+            AND u.estado = true`,
             [correo]
         );
 
-        if (usuarioResult.rows.length === 0) { 
+        if (usuarioResult.rows.length === 0) {
             return res.status(401).json({
                 error: 'Correo o contraseña incorrectos'
-            }); 
+            });
         }
 
         const usuario = usuarioResult.rows[0];
@@ -120,7 +120,7 @@ const login = async (req, res) => {
             }
         );
 
-        if (usuario.id_rol === 3) { 
+        if (usuario.id_rol === 3) {
             const clienteResult = await pool.query(
                 `SELECT c.id_cliente,
                 c.nombre,
@@ -133,8 +133,8 @@ const login = async (req, res) => {
                 [usuario.id_usuario]
             );
 
-            if (clienteResult.rows.length === 0) { 
-                return res.status(500).json({ 
+            if (clienteResult.rows.length === 0) {
+                return res.status(500).json({
                     error: 'El usuario cliente no tiene información asociada'
                 });
             }
@@ -171,7 +171,50 @@ const login = async (req, res) => {
             });
         }
 
-        // Por seguridad, manejar cualquier rol no contemplado. 
+
+        // LOGIN EMPLEADO - ROL 2
+        if (usuario.id_rol === 2) {
+            const empleadoResult = await pool.query(
+                `SELECT
+                    id_empleado,
+                    id_puesto,
+                    nombre,
+                    apellido_p,
+                    apellido_m,
+                    telefono
+                 FROM empleados
+                 WHERE id_usuario = $1`,
+                [usuario.id_usuario]
+            );
+
+            if (empleadoResult.rows.length === 0) {
+                return res.status(403).json({
+                    error: 'El empleado no tiene un perfil asociado'
+                });
+            }
+
+            const empleado = empleadoResult.rows[0];
+
+            return res.status(200).json({
+                mensaje: 'Inicio de sesión exitoso',
+                token,
+                usuario: {
+                    id_usuario: usuario.id_usuario,
+                    id_empleado: empleado.id_empleado,
+                    id_puesto: empleado.id_puesto,
+                    correo: usuario.correo,
+                    nombre: empleado.nombre,
+                    apellido_p: empleado.apellido_p,
+                    apellido_m: empleado.apellido_m,
+                    telefono: empleado.telefono,
+                    foto: usuario.foto,
+                    rol: usuario.rol
+                }
+            });
+        }
+
+
+        // Por seguridad, manejar cualquier rol no contemplado.
         return res.status(403).json({
             error: 'El rol del usuario no está permitido'
         });
@@ -422,7 +465,8 @@ const verificarCodigo = async (req, res) => {
         // Eliminar los datos temporales después del registro exitoso
         eliminarRegistro(correoNormalizado);
 
-        // Generar JWT para el cliente recién registrado
+
+        // Generar JWT para el cliente recién registrado.
         const token = jwt.sign(
             {
                 id_usuario: idUsuario,
@@ -434,6 +478,7 @@ const verificarCodigo = async (req, res) => {
                 algorithm: 'HS256'
             }
         );
+
 
         return res.status(201).json({
             mensaje: 'Correo verificado y cliente registrado correctamente',

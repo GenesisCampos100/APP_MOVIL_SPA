@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../shell/shell_controller.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formato.dart';
@@ -48,7 +49,22 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   @override
   void initState() {
     super.initState();
+
     _cargarCitas();
+
+    ShellController.tab.addListener(_alCambiarPestana);
+  }
+
+  void _alCambiarPestana() {
+    if (ShellController.tab.value == 2) {
+      _cargarCitas();
+    }
+  }
+
+  @override
+  void dispose() {
+    ShellController.tab.removeListener(_alCambiarPestana);
+    super.dispose();
   }
 
   Future<void> _cargarCitas() async {
@@ -188,7 +204,13 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               const SizedBox(height: 28),
               AuthBoton(
                 texto: 'Inicio de sesión',
-                onPressed: () => AuthFlow.iniciar(context),
+                onPressed: () async {
+                  await AuthFlow.iniciar(context);
+
+                  if (!mounted) return;
+
+                  await _cargarCitas();
+                },
               ),
             ],
           ],

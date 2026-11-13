@@ -1,0 +1,597 @@
+import 'package:flutter/material.dart';
+import 'package:spa_admin_app/data/repositories/citas_repository.dart';
+import 'package:spa_admin_app/data/services/api_exception.dart';
+import 'package:spa_admin_app/data/services/sesion_service.dart';
+import 'package:spa_admin_app/core/theme/app_colors.dart';
+import 'package:spa_admin_app/core/theme/app_text_styles.dart';
+import 'package:spa_admin_app/data/models/appointment_model.dart';
+import 'package:spa_admin_app/features/appointments/screens/detalle_cita_screen.dart';
+import 'package:spa_admin_app/features/appointments/widgets/cita_card_widget.dart';
+import 'package:spa_admin_app/features/shell/screens/main_navigation_screen.dart';
+
+class ManageAppointmentsScreen extends StatefulWidget {
+  const ManageAppointmentsScreen({super.key});
+
+  @override
+  State<ManageAppointmentsScreen> createState() => _ManageAppointmentsScreenState();
+}
+
+class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
+  // Las citas vienen del backend; ya no se utilizan datos simulados.
+  final CitasRepository _repository = CitasRepository();
+  List<AppointmentModel> _appointments = [];
+  bool _cargando = true;
+  String? _error;
+  bool _primeraCarga = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarCitas();
+  }
+
+  Future<void> _cargarCitas() async {
+    if (!AuthSession.esAdministrador || !AuthSession.activa) {
+      if (!mounted) return;
+      setState(() {
+        _cargando = false;
+        _error = 'Inicia sesión como Administrador para consultar las citas.';
+      });
+      return;
+    }
+
+    setState(() {
+      _cargando = true;
+      _error = null;
+    });
+
+    try {
+      final citas = await _repository.obtenerCitas();
+      if (!mounted) return;
+
+      setState(() {
+        _appointments = citas;
+        _cargando = false;
+
+        // La primera vez, enfocar la próxima cita para facilitar su consulta.
+        // Las actualizaciones manuales no cambian la fecha que seleccionó el usuario.
+        if (_primeraCarga && citas.isNotEmpty) {
+          final ahora = DateTime.now();
+          final hoy = DateTime(ahora.year, ahora.month, ahora.day);
+          final futuras = citas.where((c) => !c.fecha.isBefore(hoy)).toList();
+          final fechaFoco = futuras.isNotEmpty ? futuras.first.fecha : citas.last.fecha;
+          _selectedDate = fechaFoco;
+          _currentMonth = DateTime(fechaFoco.year, fechaFoco.month, 1);
+        }
+        _primeraCarga = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _cargando = false;
+        _error = switch (e.statusCode) {
+          401 => 'La sesión ya no es válida. Cierra sesión y vuelve a ingresar.',
+          403 => 'No tienes permiso para consultar las citas.',
+          _ => 'No se pudieron cargar las citas. Intenta nuevamente.',
+        };
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _cargando = false;
+        _error = 'No se pudieron consultar las citas. Comprueba tu conexión e intenta nuevamente.';
+      });
+    }
+  }
+
+  void _operacionPendiente(String accion) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('La opción «$accion» aún no está disponible. No se realizaron cambios en la cita.')),
+    );
+  }
+
+  String _searchQuery = '';
+  DateTime _selectedDate = DateTime.now();
+  DateTime _currentMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  String _selectedFilter = 'Todas'; // 'Todas', 'Pendientes', 'Confirmadas', 'Completadas'
+  bool _showCalendarView = true;
+
+  Color _getStatusColor(String estado) {
+    switch (estado) {
+      case 'Confirmada':
+        return const Color(0xFF4CAF50); // Verde
+      case 'Pendiente':
+        return const Color(0xFFFFC107); // Amarillo
+      case 'Completada':
+        return const Color(0xFF9C27B0); // Púrpura / Magenta
+      case 'Cancelada':
+        return const Color(0xFFF44336); // Rojo
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _formatMonthYear(DateTime dt) {
+    const months = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+    return '${months[dt.month - 1]} ${dt.year}';
+  }
+
+  String _formatFullDate(DateTime dt) {
+    const months = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+    return '${dt.day} de ${months[dt.month - 1]} ${dt.year}';
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  List<AppointmentModel> get _filteredAppointments {
+    return _appointments.where((app) {
+      final matchesDate = _isSameDay(app.fecha, _selectedDate);
+      final matchesSearch = app.nombreCliente.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          app.idCita.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          app.nombreServicio.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          app.nombreEmpleado.toLowerCase().contains(_searchQuery.toLowerCase());
+
+      bool matchesFilter = true;
+      if (_selectedFilter == 'Pendientes') {
+        matchesFilter = app.estado == 'Pendiente';
+      } else if (_selectedFilter == 'Confirmadas') {
+        matchesFilter = app.estado == 'Confirmada';
+      } else if (_selectedFilter == 'Completadas') {
+        matchesFilter = app.estado == 'Completada';
+      }
+
+      return matchesDate && matchesSearch && matchesFilter;
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+              );
+            }
+          },
+        ),
+        title: Column(
+          children: [
+            Text(
+              'Gestionar citas',
+              style: AppTextStyles.displayExtraBold.copyWith(
+                color: AppColors.textDark,
+              ),
+            ),
+            if (!_showCalendarView)
+              Text(
+                'Citas del día',
+                style: AppTextStyles.caption.copyWith(
+                  color: Colors.black54,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Actualizar citas',
+            icon: const Icon(Icons.refresh, color: AppColors.primaryPink),
+            onPressed: _cargando ? null : _cargarCitas,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                icon: Icon(
+                  _showCalendarView ? Icons.format_list_bulleted : Icons.calendar_month,
+                  color: AppColors.primaryPink,
+                  size: 28,
+                ),
+                tooltip: _showCalendarView ? 'Ver lista de citas' : 'Ver calendario',
+                onPressed: () {
+                  setState(() {
+                    _showCalendarView = !_showCalendarView;
+                  });
+                },
+              ),
+            ),
+          ),
+
+          // Campo de Búsqueda
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+            child: TextField(
+              onChanged: (value) => setState(() => _searchQuery = value),
+              decoration: InputDecoration(
+                hintText: 'Buscar por nombre o #cita',
+                suffixIcon: const Icon(Icons.search, color: Colors.black),
+                filled: true,
+                fillColor: const Color(0xFFEFEFEF),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+
+          // Contenido principal: Calendario o Lista del día
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 240),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              child: _cargando
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(_error!, textAlign: TextAlign.center),
+                              const SizedBox(height: 12),
+                              ElevatedButton(
+                                onPressed: _cargarCitas,
+                                child: const Text('Reintentar'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : _showCalendarView
+                        ? KeyedSubtree(
+                            key: const ValueKey('calendario'),
+                            child: _buildCalendarView(),
+                          )
+                        : KeyedSubtree(
+                            key: const ValueKey('lista'),
+                            child: _buildDayAppointmentsView(),
+                          ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- VISTA 1: CALENDARIO ---
+  Widget _buildCalendarView() {
+    final daysInMonth = DateUtils.getDaysInMonth(_currentMonth.year, _currentMonth.month);
+    final firstDayOffset = DateTime(_currentMonth.year, _currentMonth.month, 1).weekday % 7;
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _formatMonthYear(_currentMonth),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left, color: Colors.black87),
+                    onPressed: () {
+                      setState(() {
+                        _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1, 1);
+                      });
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right, color: Colors.black87),
+                    onPressed: () {
+                      setState(() {
+                        _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1, 1);
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _DayHeader('D'),
+              _DayHeader('L'),
+              _DayHeader('M'),
+              _DayHeader('M'),
+              _DayHeader('J'),
+              _DayHeader('V'),
+              _DayHeader('S'),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: daysInMonth + firstDayOffset,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+            ),
+            itemBuilder: (context, index) {
+              if (index < firstDayOffset) {
+                return const SizedBox.shrink();
+              }
+              final dayNum = index - firstDayOffset + 1;
+              final dayDate = DateTime(_currentMonth.year, _currentMonth.month, dayNum);
+              final isSelected = _isSameDay(dayDate, _selectedDate);
+
+              final dayApps = _appointments.where((a) => _isSameDay(a.fecha, dayDate)).toList();
+              final hasApps = dayApps.isNotEmpty;
+
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    _selectedDate = dayDate;
+                    _showCalendarView = false;
+                  });
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.primaryPink.withValues(alpha: 0.15) : Colors.transparent,
+                    shape: BoxShape.circle,
+                    border: isSelected ? Border.all(color: AppColors.primaryPink, width: 2) : null,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '$dayNum',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected ? AppColors.primaryPink : Colors.black87,
+                        ),
+                      ),
+                      if (hasApps)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: dayApps.take(3).map((app) {
+                              return Container(
+                                width: 5,
+                                height: 5,
+                                margin: const EdgeInsets.symmetric(horizontal: 1),
+                                decoration: BoxDecoration(
+                                  color: _getStatusColor(app.estado),
+                                  shape: BoxShape.circle,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 20),
+
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryPink,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            icon: const Icon(Icons.list_alt, color: Colors.white),
+            label: Text(
+              'Ver citas del ${_formatFullDate(_selectedDate)}',
+              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+            onPressed: () {
+              setState(() {
+                _showCalendarView = false;
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- VISTA 2: LISTA DE CITAS DEL DÍA ---
+  Widget _buildDayAppointmentsView() {
+    final list = _filteredAppointments;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _formatFullDate(_selectedDate),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.calendar_month, size: 18, color: AppColors.primaryPink),
+                label: const Text(
+                  'Cambiar fecha',
+                  style: TextStyle(color: AppColors.primaryPink, fontSize: 12),
+                ),
+                onPressed: () {
+                  setState(() => _showCalendarView = true);
+                },
+              ),
+            ],
+          ),
+        ),
+
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+          child: Row(
+            children: [
+              _buildFilterChip('Todas'),
+              const SizedBox(width: 8),
+              _buildFilterChip('Pendientes'),
+              const SizedBox(width: 8),
+              _buildFilterChip('Confirmadas'),
+              const SizedBox(width: 8),
+              _buildFilterChip('Completadas'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+
+        Expanded(
+          child: list.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.event_busy, size: 48, color: Colors.black38),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No hay citas para esta fecha (${_formatFullDate(_selectedDate)})',
+                        style: const TextStyle(color: Colors.black54, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: list.length,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  itemBuilder: (context, index) {
+                    final appointment = list[index];
+                    final sinAnimaciones =
+                        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+                    return TweenAnimationBuilder<double>(
+                      key: ValueKey(appointment.idCita),
+                      tween: Tween(begin: 0, end: 1),
+                      duration: sinAnimaciones
+                          ? Duration.zero
+                          : Duration(milliseconds: 200 + (index < 4 ? index * 45 : 180)),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, progreso, child) => Opacity(
+                        opacity: progreso,
+                        child: Transform.translate(
+                          offset: Offset(0, sinAnimaciones ? 0 : 10 * (1 - progreso)),
+                          child: child,
+                        ),
+                      ),
+                      child: _buildAppointmentCard(appointment),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterChip(String label) {
+    final isSelected = _selectedFilter == label;
+    return InkWell(
+      onTap: () {
+        setState(() => _selectedFilter = label);
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryPink : const Color(0xFFFDE8EE),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : AppColors.primaryPink,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppointmentCard(AppointmentModel appointment) {
+    return CitaCardWidget(
+      appointment: appointment,
+      onVerDetalle: () => Navigator.push<void>(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => DetalleCitaScreen(
+            appointment: appointment,
+            onAppointmentUpdated: (_) => _cargarCitas(),
+          ),
+        ),
+      ),
+      // Todavía no hay endpoints administrativos para estas escrituras.
+      // Se conservan los accesos, pero no se simulan cambios en PostgreSQL.
+      onEditar: () => _operacionPendiente('Editar citas'),
+      onCancelar: () => _operacionPendiente('Cancelar citas'),
+    );
+  }
+
+}
+
+class _DayHeader extends StatelessWidget {
+  final String day;
+  const _DayHeader(this.day);
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 32,
+      child: Text(
+        day,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
+          fontSize: 13,
+        ),
+      ),
+    );
+  }
+}
