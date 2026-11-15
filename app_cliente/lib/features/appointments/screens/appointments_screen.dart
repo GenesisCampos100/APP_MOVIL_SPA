@@ -10,6 +10,8 @@ import '../../../data/services/sesion_service.dart';
 import '../../auth/auth_state.dart';
 import '../../auth/auth_flow.dart';
 import '../../auth/widgets/auth_widgets.dart';
+import '../../../data/models/servicio.dart';
+import '../../booking/screens/agendar_cita_screen.dart';
 
 const String _titulo = 'Sin registro de actividad';
 const String _mensajeSinSesion =
@@ -458,6 +460,53 @@ class _CitaCardState extends State<_CitaCard> {
     }
   }
 
+  Future<void> _reagendar(BuildContext context) async {
+    final cita = widget.cita;
+
+    final servicio = Servicio(
+      id: cita.idServicio,
+      nombre: cita.servicioNombre,
+      minutos: cita.duracionAplicada,
+      precio: cita.precioAplicado,
+      categoria: cita.servicioCategoria,
+    );
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AgendarCitaScreen(
+          servicio: servicio,
+          idCitaReagendar: cita.id,
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+
+    await widget.onActualizada();
+  }
+
+  void _reservarDeNuevo(BuildContext context) {
+    final cita = widget.cita;
+
+    final servicio = Servicio(
+      id: cita.idServicio,
+      nombre: cita.servicioNombre,
+      minutos: cita.duracionAplicada,
+      precio: cita.precioAplicado,
+      categoria: cita.servicioCategoria,
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AgendarCitaScreen(
+          servicio: servicio,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = widget.cita;
@@ -541,10 +590,7 @@ class _CitaCardState extends State<_CitaCard> {
       case Cita.cancelada:
         return FilledButton(
           style: negro(),
-          onPressed: () => _proximamente(
-            context,
-            'Reservar de nuevo',
-          ),
+          onPressed: () => _reservarDeNuevo(context),
           child: const Text('Reservar de nuevo'),
         );
 
@@ -556,11 +602,8 @@ class _CitaCardState extends State<_CitaCard> {
               child: OutlinedButton(
                 style: contorno(),
                 onPressed: _cancelando
-                    ? null
-                    : () => _proximamente(
-                          context,
-                          'Reagendar',
-                        ),
+                  ? null
+                  : () => _reagendar(context),
                 child: const Text('Reagendar'),
               ),
             ),

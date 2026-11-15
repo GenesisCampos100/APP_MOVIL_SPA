@@ -54,28 +54,66 @@ class ApiService {
 
 
   static Future<dynamic> put(
-  String endpoint,
-  Map<String, dynamic> body, {
-  String? token,
-}) async {
-  final headers = <String, String>{
-    'Content-Type': 'application/json',
-    if (token != null) 'Authorization': 'Bearer $token',
-  };
+    String endpoint,
+    Map<String, dynamic> body, {
+    String? token,
+  }) async {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
 
-  final url = '$baseUrl$endpoint';
+    final url = '$baseUrl$endpoint';
 
-  print('>>> API PUT: $url');
-  print('>>> BODY: ${jsonEncode(body)}');
+    print('>>> API PUT: $url');
+    print('>>> BODY: ${jsonEncode(body)}');
 
-  final response = await http.put(
-    Uri.parse(url),
-    headers: headers,
-    body: jsonEncode(body),
-  ).timeout(const Duration(seconds: 8));
+    final response = await http.put(
+      Uri.parse(url),
+      headers: headers,
+      body: jsonEncode(body),
+    ).timeout(const Duration(seconds: 8));
 
-  return _procesarRespuesta(response);
-}
+    return _procesarRespuesta(response);
+  }
+
+
+  static Future<dynamic> putFile(
+    String endpoint,
+    String filePath, {
+    String fieldName = 'foto',
+    String? token,
+  }) async {
+    final url = '$baseUrl$endpoint';
+
+    print('>>> API PUT FILE: $url');
+
+    final request = http.MultipartRequest(
+      'PUT',
+      Uri.parse(url),
+    );
+
+    if (token != null) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        fieldName,
+        filePath,
+      ),
+    );
+
+    final streamedResponse = await request.send()
+        .timeout(const Duration(seconds: 30));
+
+    final response = await http.Response.fromStream(
+      streamedResponse,
+    );
+
+    return _procesarRespuesta(response);
+  }
+
 
 
 

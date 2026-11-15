@@ -6,6 +6,9 @@ import '../../../data/repositories/perfil_repository.dart';
 import '../../auth/auth_state.dart';
 import '../../auth/widgets/auth_widgets.dart';
 import '../../auth/screens/auth_verify_screen.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 
 const _meses = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -42,6 +45,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   int? _dia, _mes, _anio;
   bool _cargando = false;
+  bool _cargandoFoto = false;
+  XFile? _fotoSeleccionada;
+  bool _eliminarFotoPendiente = false;
   String? _errNombre, _errApellido, _errTel, _errFecha, _errCorreo;
 
   @override
@@ -80,7 +86,52 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _correo.text.trim().toLowerCase() != o.correo.toLowerCase() ||
         _dia != f?.day ||
         _mes != f?.month ||
-        _anio != f?.year;
+        _anio != f?.year ||
+        _fotoSeleccionada != null ||
+        _eliminarFotoPendiente;
+  }
+
+  Future<bool> _esLaFotoOriginal(XFile imagen) async {
+    final fotoOriginal = _orig.foto;
+
+    if (fotoOriginal == null || fotoOriginal.isEmpty) {
+      return false;
+    }
+
+    final uri = Uri.tryParse(fotoOriginal);
+
+    List<int> bytesOriginales;
+
+    if (uri != null &&
+        (uri.scheme == 'http' || uri.scheme == 'https')) {
+      final respuesta = await http
+          .get(uri)
+          .timeout(const Duration(seconds: 20));
+
+      if (respuesta.statusCode != 200) {
+        throw Exception('No se pudo comprobar la foto original');
+      }
+
+      bytesOriginales = respuesta.bodyBytes;
+    } else if (uri != null && uri.scheme == 'file') {
+      bytesOriginales = await File.fromUri(uri).readAsBytes();
+    } else {
+      bytesOriginales = await File(fotoOriginal).readAsBytes();
+    }
+
+    final bytesSeleccionados = await imagen.readAsBytes();
+
+    if (bytesSeleccionados.length != bytesOriginales.length) {
+      return false;
+    }
+
+    for (var i = 0; i < bytesSeleccionados.length; i++) {
+      if (bytesSeleccionados[i] != bytesOriginales[i]) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   
@@ -172,6 +223,95 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return resultado == true;
   }
 
+  Future<void> _seleccionarFoto(ImageSource source) async {
+    if (_cargandoFoto) return;
+
+    try {
+      final picker = ImagePicker();
+
+      final imagen = await picker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1200,
+        maxHeight: 1200,
+      );
+
+      if (imagen == null || !mounted) return;
+
+      setState(() => _cargandoFoto = true);
+
+      final esOriginal = await _esLaFotoOriginal(imagen);
+
+      if (!mounted) return;
+
+      setState(() {
+        if (esOriginal) {
+          _fotoSeleccionada = null;
+          _eliminarFotoPendiente = false;
+        } else {
+          _fotoSeleccionada = imagen;
+          _eliminarFotoPendiente = false;
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            esOriginal
+                ? 'Es la misma fotografía. No hay cambios.'
+                : 'Vista previa actualizada. Guarda para confirmar.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo seleccionar la foto: $error'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _cargandoFoto = false);
+      }
+    }
+  }
+
+  Future<void> _eliminarFoto() async {
+    if (_cargandoFoto) return;
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar fotografía'),
+        content: const Text(
+          'La fotografía se eliminará cuando guardes los cambios.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Continuar',
+              style: TextStyle(color: Color(0xFFE5174D)),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true || !mounted) return;
+
+    setState(() {
+      _fotoSeleccionada = null;
+      _eliminarFotoPendiente = _orig.foto != null;
+    });
+  }
+
 
 
     
@@ -201,6 +341,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         fechaNacimiento: fecha,
       );
       await AuthState.instance.actualizarPerfil(nuevo);
+
+      // Aplicar cambios pendientes de fotografía.
+      if (_eliminarFotoPendiente) {
+        await _repo.eliminarFotoPerfil();
+
+        await AuthState.instance.actualizarFoto(null);
+      } else if (_fotoSeleccionada != null) {
+        final foto = await _repo.subirFotoPerfil(
+          _fotoSeleccionada!.path,
+        );
+
+        if (foto == null || foto.isEmpty) {
+          throw Exception('No se recibió la URL de la fotografía');
+        }
+
+        await AuthState.instance.actualizarFoto(foto);
+      }
 
       if (!mounted) return;
 
@@ -256,6 +413,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  ImageProvider? _crearImagenOriginal() {
+    debugPrint('FOTO ORIGINAL: ${_orig.foto}');
+    
+    final foto = _orig.foto;
+
+    if (foto == null || foto.isEmpty) return null;
+
+    final uri = Uri.tryParse(foto);
+
+    if (uri != null &&
+        (uri.scheme == 'http' || uri.scheme == 'https')) {
+      return NetworkImage(foto);
+    }
+
+    if (uri != null && uri.scheme == 'file') {
+      return FileImage(File.fromUri(uri));
+    }
+
+    // Si es una ruta local sin esquema.
+    return FileImage(File(foto));
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -277,21 +456,38 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           children: [
             Center(
               child: GestureDetector(
-                onTap: _abrirOpcionesFoto,
+                onTap: _cargandoFoto ? null : _abrirOpcionesFoto,
                 child: Stack(
                   children: [
-                    CircleAvatar(
-                      radius: 52,
-                      backgroundColor: AppColors.rosa,
-                      backgroundImage: _orig.foto != null ? NetworkImage(_orig.foto!) : null,
-                      child: _orig.foto == null
-                          ? Text(
-                        _orig.inicial,
-                        style: const TextStyle(
-                            fontSize: 40, color: Colors.white, fontWeight: FontWeight.w500),
-                      )
-                          : null,
+                    ListenableBuilder(
+                      listenable: AuthState.instance,
+                      builder: (context, child) {
+                        ImageProvider? imagen;
+
+                        if (_fotoSeleccionada != null) {
+                          imagen = FileImage(File(_fotoSeleccionada!.path));
+                        } else if (!_eliminarFotoPendiente) {
+                          imagen = _crearImagenOriginal();
+                        }
+
+                        return CircleAvatar(
+                          radius: 52,
+                          backgroundColor: AppColors.rosa,
+                          backgroundImage: imagen,
+                          child: imagen == null
+                              ? Text(
+                                  _orig.inicial,
+                                  style: const TextStyle(
+                                    fontSize: 40,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                )
+                              : null,
+                        );
+                      },
                     ),
+                    
                     Positioned(
                       right: 0,
                       bottom: 0,
@@ -303,9 +499,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
-                        child: const Icon(Icons.camera_alt_outlined, size: 17, color: Colors.white),
+                        child: Icon(
+                          _cargandoFoto
+                              ? Icons.hourglass_top
+                              : Icons.camera_alt_outlined,
+                          size: 17,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
+                    if (_cargandoFoto)
+                      const Positioned.fill(
+                        child: Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -466,18 +674,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _abrirOpcionesFoto() {
-    void proximamente(BuildContext ctx, String que) {
-      Navigator.pop(ctx);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$que: próximamente')),
-      );
-    }
+    final tieneFoto = _fotoSeleccionada != null ||
+    (_orig.foto != null && !_eliminarFotoPendiente);
 
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(20),
+        ),
       ),
       builder: (ctx) => SafeArea(
         child: Padding(
@@ -486,27 +692,56 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Foto de perfil',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              const Text(
+                'Foto de perfil',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               const SizedBox(height: 8),
+
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.photo_library_outlined),
-                title: Text(_orig.foto == null ? 'Subir desde la galería' : 'Cambiar desde la galería'),
-                onTap: () => proximamente(ctx, 'Subir foto'),
+                title: Text(
+                  tieneFoto
+                      ? 'Cambiar desde la galería'
+                      : 'Subir desde la galería',
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _seleccionarFoto(ImageSource.gallery);
+                },
               ),
+
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.photo_camera_outlined),
                 title: const Text('Tomar una foto'),
-                onTap: () => proximamente(ctx, 'Tomar foto'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _seleccionarFoto(ImageSource.camera);
+                },
               ),
-              if (_orig.foto != null)
+
+              if (tieneFoto)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.delete_outline, color: Color(0xFFE5174D)),
-                  title: const Text('Eliminar foto', style: TextStyle(color: Color(0xFFE5174D))),
-                  onTap: () => proximamente(ctx, 'Eliminar foto'),
+                  leading: const Icon(
+                    Icons.delete_outline,
+                    color: Color(0xFFE5174D),
+                  ),
+                  title: const Text(
+                    'Eliminar foto',
+                    style: TextStyle(
+                      color: Color(0xFFE5174D),
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _eliminarFoto();
+                  },
                 ),
             ],
           ),

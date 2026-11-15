@@ -12,8 +12,14 @@ import '../../../data/repositories/citas_repository.dart';
 
 /// Agendar cita: calendario + horarios disponibles.
 class AgendarCitaScreen extends StatefulWidget {
+  const AgendarCitaScreen({
+    super.key,
+    required this.servicio,
+    this.idCitaReagendar,
+  });
+
   final Servicio servicio;
-  const AgendarCitaScreen({super.key, required this.servicio});
+  final int? idCitaReagendar;
 
   @override
   State<AgendarCitaScreen> createState() => _AgendarCitaScreenState();
@@ -51,23 +57,46 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
     return DateTime(_mes.year, _mes.month + 1).isBefore(limite);
   }
 
+    
   Future<void> _continuar() async {
-    // Si no ha iniciado sesión, primero se le pide (y luego regresa aquí).
+    // Verificar sesión.
     if (!AuthState.instance.isLoggedIn) {
       final ok = await AuthFlow.iniciar(context);
       if (!ok || !mounted) return;
     }
+
     final usuario = AuthState.instance.usuario;
     if (usuario == null || !mounted) return;
 
-    final borrador = ReservaBorrador(servicio: widget.servicio, fecha: _dia!, hora: _hora!);
+    // Crear borrador conservando el ID si es reagendamiento.
+    final borrador = ReservaBorrador(
+      servicio: widget.servicio,
+      fecha: _dia!,
+      hora: _hora!,
+      idCitaReagendar: widget.idCitaReagendar,
+    );
+
+    // Si es reagendamiento, conservar el flujo de selección
+    // de especialista, sin pasar por la pantalla de teléfono.
+    if (borrador.esReagendamiento) {
+      Navigator.pushNamed(
+        context,
+        AppRoutes.especialista,
+        arguments: borrador,
+      );
+      return;
+    }
+
+    // Flujo original para nuevas reservas.
     final tieneTelefono = (usuario.telefono ?? '').isNotEmpty;
+
     Navigator.pushNamed(
       context,
       tieneTelefono ? AppRoutes.especialista : AppRoutes.telefono,
       arguments: borrador,
     );
   }
+
 
   Future<void> _seleccionarDia(DateTime dia) async {
     final solicitud = ++_solicitudDisponibilidad;
@@ -81,10 +110,10 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
     });
 
     try {
-      final horarios =
-          await CitasRepository.instance.obtenerDisponibilidad(
+      final horarios = await CitasRepository.instance.obtenerDisponibilidad(
         idServicio: widget.servicio.id,
         fecha: dia,
+        idCita: widget.idCitaReagendar,
       );
 
       if (!mounted || solicitud != _solicitudDisponibilidad) {

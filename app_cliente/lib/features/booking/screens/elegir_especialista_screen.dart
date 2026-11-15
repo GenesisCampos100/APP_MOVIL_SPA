@@ -54,57 +54,83 @@ class _ElegirEspecialistaScreenState
 
     setState(() => _apartando = true);
 
-    try {
-      final respuesta = await CitasRepository.instance.apartarHorario(
-        servicio: widget.borrador.servicio,
-        empleado: _seleccion,
+    
+  try {
+    // Si es un reagendamiento, actualizar la cita directamente.
+    if (widget.borrador.esReagendamiento) {
+      await CitasRepository.instance.reagendarCita(
+        idCita: widget.borrador.idCitaReagendar!,
+        idEmpleado: _seleccion.id,
         fecha: widget.borrador.fecha,
         hora: widget.borrador.hora,
       );
 
-      final reservaJson =
-          respuesta['reserva'] as Map<String, dynamic>;
-
-      final empleadoJson =
-          respuesta['empleado'] as Map<String, dynamic>;
-
-      final idReserva = (reservaJson['id_reserva'] as num).toInt();
-
-      final fechaExpiracion =
-          DateTime.parse(reservaJson['fecha_expiracion'].toString());
-
-      // El backend devuelve el empleado real asignado.
-      final empleadoAsignado = Empleado.fromJson(empleadoJson);
-
-      final nuevoBorrador = widget.borrador.conApartado(
-        idReserva: idReserva,
-        fechaExpiracion: fechaExpiracion,
-        empleado: empleadoAsignado,
-      );
-
-      if (!mounted) return;
-
-      Navigator.pushNamed(
-        context,
-        AppRoutes.confirmarCita,
-        arguments: nuevoBorrador,
-      );
-    } catch (e) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
-          ),
-          backgroundColor: Colors.red,
+        const SnackBar(
+          content: Text('Cita reagendada correctamente'),
+          backgroundColor: Colors.green,
         ),
       );
-    } finally {
-      if (mounted) {
-        setState(() => _apartando = false);
-      }
+
+      Navigator.pop(context); // Cierra ElegirEspecialistaScreen
+      Navigator.pop(context); // Cierra AgendarCitaScreen
+
+      return;
     }
+
+    // Si es una reserva nueva, utilizar el apartado temporal.
+    final respuesta = await CitasRepository.instance.apartarHorario(
+      servicio: widget.borrador.servicio,
+      empleado: _seleccion,
+      fecha: widget.borrador.fecha,
+      hora: widget.borrador.hora,
+    );
+
+    final reservaJson =
+        respuesta['reserva'] as Map<String, dynamic>;
+
+    final empleadoJson =
+        respuesta['empleado'] as Map<String, dynamic>;
+
+    final idReserva = (reservaJson['id_reserva'] as num).toInt();
+
+    final fechaExpiracion =
+        DateTime.parse(reservaJson['fecha_expiracion'].toString());
+
+    final empleadoAsignado = Empleado.fromJson(empleadoJson);
+
+    final nuevoBorrador = widget.borrador.conApartado(
+      idReserva: idReserva,
+      fechaExpiracion: fechaExpiracion,
+      empleado: empleadoAsignado,
+    );
+
+    if (!mounted) return;
+
+    Navigator.pushNamed(
+      context,
+      AppRoutes.confirmarCita,
+      arguments: nuevoBorrador,
+    );
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          e.toString().replaceFirst('Exception: ', ''),
+        ),
+        backgroundColor: Colors.red,
+      ),
+    );
+  } finally {
+    if (mounted) {
+      setState(() => _apartando = false);
+    }
+  }
+
   }
 
   @override

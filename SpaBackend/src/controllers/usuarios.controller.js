@@ -1,6 +1,12 @@
 const bcrypt = require('bcrypt');
 
 const {
+    generarUrlFoto,
+    subirFotoPerfil,
+    eliminarFotoPerfil
+} = require('../services/foto.service');
+
+const {
     guardarRegistro,
     obtenerRegistro,
     incrementarIntentos,
@@ -18,6 +24,12 @@ const pool = require('../db');
 const obtenerPerfil = async (req, res) => {
     try {
         const id_usuario = req.usuario.id_usuario;
+
+        if (Number(req.usuario.rol) !== 3) {
+            return res.status(403).json({
+                error: 'Solo los clientes pueden consultar este perfil'
+            });
+        }
 
         const result = await pool.query(
             `SELECT
@@ -62,9 +74,13 @@ const obtenerPerfil = async (req, res) => {
             });
         }
 
+        const usuario = result.rows[0];
+
+        usuario.foto = await generarUrlFoto(usuario.foto);
+
         return res.status(200).json({
             mensaje: 'Perfil obtenido correctamente',
-            usuario: result.rows[0]
+            usuario
         });
 
     } catch (error) {
@@ -123,34 +139,27 @@ const actualizarPerfil = async (req, res) => {
 
         const rol = Number(usuarioResult.rows[0].id_rol);
 
-        // Campos que puede modificar cada rol.
-        const camposPorRol = {
-            1: ['nombre', 'apellido_p', 'apellido_m', 'foto'],
-            2: ['nombre', 'apellido_p', 'apellido_m', 'foto'],
-            3: [
-                'nombre',
-                'apellido_p',
-                'apellido_m',
-                'foto',
-                'telefono',
-                'fecha_nacimiento'
-            ]
-        };
-        const camposPermitidos = camposPorRol[rol];
-
-        if (!camposPermitidos) {
-            await client.query('ROLLBACK');
-            transaccionIniciada = false;
-
-            return res.status(403).json({
-                error: 'El rol del usuario no está permitido'
-            });
+        if (rol !== 3) {
+            return await responderError(
+                client,
+                res,
+                403,
+                'Solo los clientes pueden actualizar este perfil'
+            );
         }
+
+        const camposPermitidos = [
+            'nombre',
+            'apellido_p',
+            'apellido_m',
+            'telefono',
+            'fecha_nacimiento'
+        ];
 
         // Rechazar campos que no corresponden al rol.
         const camposRecibidos = Object.keys(datos);
 
-        const campoNoPermitido = camposRecibidos.find(
+        const campoNoPermitido = Object.keys(datos).find(
             campo => !camposPermitidos.includes(campo)
         );
 
@@ -256,21 +265,6 @@ const actualizarPerfil = async (req, res) => {
                 valores[campo] = valor;
             }
 
-            else if (campo === 'foto') {
-                if (
-                    valor !== null &&
-                    (typeof valor !== 'string' || valor.length > 2048)
-                ) {
-                    return await responderError(
-                        client,
-                        res,
-                        400,
-                        'La foto no es válida'
-                    );
-                }
-
-                valores[campo] = valor === null ? null : valor.trim() || null;
-            }
         }
 
 
@@ -280,16 +274,6 @@ const actualizarPerfil = async (req, res) => {
                 SET correo = $1
                 WHERE id_usuario = $2`,
                 [valores.correo, id_usuario]
-            );
-        }
-
-        // Actualizar datos generales del usuario.
-        if (Object.hasOwn(valores, 'foto')) {
-            await client.query(
-                `UPDATE usuarios
-                 SET foto = $1
-                 WHERE id_usuario = $2`,
-                [valores.foto, id_usuario]
             );
         }
 
@@ -403,6 +387,10 @@ const actualizarPerfil = async (req, res) => {
             [id_usuario]
         );
 
+        perfilResult.rows[0].foto = await generarUrlFoto(
+            perfilResult.rows[0].foto
+        );
+
         await client.query('COMMIT');
         transaccionIniciada = false;
 
@@ -435,6 +423,205 @@ const actualizarPerfil = async (req, res) => {
         }
     }
 };
+
+
+const subirFoto = async (req, res) => {
+    let client;
+    let transaccionIniciada = false;
+    let nuevaRuta = null;
+
+    try {
+        const id_usuario = req.usuario.id_usuario;
+
+        if (Number(req.usuario.rol) !== 3) {
+            return res.status(403).json({
+                error: 'Solo los clientes pueden cambiar su fotografía'
+            });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({
+                error: 'Debes seleccionar una fotografía'
+            });
+        }
+
+        client = await pool.connect();
+
+        await client.query('BEGIN');
+        transaccionIniciada = true;
+
+        const usuarioResult = await client.query(
+            `SELECT foto
+             FROM usuarios
+             WHERE id_usuario = $1
+               AND id_rol = 3
+               AND estado = true
+             FOR UPDATE`,
+            [id_usuario]
+        );
+
+        if (usuarioResult.rows.length === 0) {
+            await responderError(
+                client,
+                res,
+                404,
+                'No se encontró un cliente activo'
+            );
+            transaccionIniciada = false;
+            return;
+        }
+
+        const fotoAnterior = usuarioResult.rows[0].foto;
+
+        // Subir primero la nueva fotografía.
+        nuevaRuta = await subirFotoPerfil(id_usuario, req.file);
+
+        // Generar la URL antes de confirmar la transacción.
+        const url = await generarUrlFoto(nuevaRuta);
+
+        await client.query(
+            `UPDATE usuarios
+             SET foto = $1
+             WHERE id_usuario = $2`,
+            [nuevaRuta, id_usuario]
+        );
+
+        await client.query('COMMIT');
+        transaccionIniciada = false;
+
+        // Eliminar la anterior solamente después del COMMIT.
+        if (
+            fotoAnterior &&
+            fotoAnterior.startsWith(`${id_usuario}/`)
+        ) {
+            try {
+                await eliminarFotoPerfil(fotoAnterior);
+            } catch (error) {
+                console.error(
+                    'No se pudo eliminar la fotografía anterior:',
+                    error.message
+                );
+            }
+        }
+
+        return res.status(200).json({
+            mensaje: 'Fotografía actualizada correctamente',
+            foto: url
+        });
+
+    } catch (error) {
+        console.error('Error al subir fotografía:', error.message);
+
+        if (client && transaccionIniciada) {
+            await client.query('ROLLBACK');
+            transaccionIniciada = false;
+        }
+
+        // Si falla la operación, eliminar la nueva imagen subida.
+        if (nuevaRuta) {
+            try {
+                await eliminarFotoPerfil(nuevaRuta);
+            } catch (errorEliminar) {
+                console.error(
+                    'No se pudo limpiar la nueva fotografía:',
+                    errorEliminar.message
+                );
+            }
+        }
+
+        return res.status(500).json({
+            error: 'No se pudo actualizar la fotografía'
+        });
+
+    } finally {
+        if (client) client.release();
+    }
+};
+
+
+const eliminarFoto = async (req, res) => {
+    let client;
+    let transaccionIniciada = false;
+
+    try {
+        const id_usuario = req.usuario.id_usuario;
+
+        if (Number(req.usuario.rol) !== 3) {
+            return res.status(403).json({
+                error: 'Solo los clientes pueden eliminar su fotografía'
+            });
+        }
+
+        client = await pool.connect();
+
+        await client.query('BEGIN');
+        transaccionIniciada = true;
+
+        const usuarioResult = await client.query(
+            `SELECT foto
+             FROM usuarios
+             WHERE id_usuario = $1
+               AND id_rol = 3
+               AND estado = true
+             FOR UPDATE`,
+            [id_usuario]
+        );
+
+        if (usuarioResult.rows.length === 0) {
+            await responderError(
+                client,
+                res,
+                404,
+                'No se encontró un cliente activo'
+            );
+            transaccionIniciada = false;
+            return;
+        }
+
+        const ruta = usuarioResult.rows[0].foto;
+
+        await client.query(
+            `UPDATE usuarios
+             SET foto = NULL
+             WHERE id_usuario = $1`,
+            [id_usuario]
+        );
+
+        await client.query('COMMIT');
+        transaccionIniciada = false;
+
+        if (ruta && ruta.startsWith(`${id_usuario}/`)) {
+            try {
+                await eliminarFotoPerfil(ruta);
+            } catch (error) {
+                console.error(
+                    'No se pudo eliminar el archivo de Storage:',
+                    error.message
+                );
+            }
+        }
+
+        return res.status(200).json({
+            mensaje: 'Fotografía eliminada correctamente',
+            foto: null
+        });
+
+    } catch (error) {
+        console.error('Error al eliminar fotografía:', error.message);
+
+        if (client && transaccionIniciada) {
+            await client.query('ROLLBACK');
+        }
+
+        return res.status(500).json({
+            error: 'No se pudo eliminar la fotografía'
+        });
+
+    } finally {
+        if (client) client.release();
+    }
+};
+
 
 
 
@@ -655,6 +842,10 @@ const verificarCambioCorreo = async (req, res) => {
             [id_usuario]
         );
 
+        perfilResult.rows[0].foto = await generarUrlFoto(
+            perfilResult.rows[0].foto
+        );
+
         await client.query('COMMIT');
         transaccionIniciada = false;
 
@@ -706,5 +897,7 @@ module.exports = {
     obtenerPerfil,
     actualizarPerfil,
     solicitarCambioCorreo,
-    verificarCambioCorreo
+    verificarCambioCorreo,
+    subirFoto,
+    eliminarFoto
 };

@@ -64,6 +64,21 @@ class AuthState extends ChangeNotifier {
     notifyListeners();
   }
 
+
+  // Actualiza la fotografía del usuario en memoria y almacenamiento.
+  Future<void> actualizarFoto(String? foto) async {
+    final actual = _usuario;
+    if (actual == null) return;
+
+    final actualizado = actual.copyWith(
+      foto: foto,
+      eliminarFoto: foto == null,
+    );
+
+    await actualizarPerfil(actualizado);
+  }
+
+
   /// Reemplaza los datos del usuario después de editar su perfil.
   Future<void> actualizarPerfil(UsuarioSesion nuevo) async {
     if (_usuario == null) return;

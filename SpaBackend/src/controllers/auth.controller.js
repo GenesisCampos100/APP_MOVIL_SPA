@@ -15,6 +15,8 @@ const {
     crearCodigoVerificacion
 } = require('../services/verificacion.service');
 
+const { generarUrlFoto } = require('../services/foto.service');
+
 
 const verificarCorreo = async (req, res) => {
     try {
@@ -140,6 +142,9 @@ const login = async (req, res) => {
             }
 
             const cliente = clienteResult.rows[0];
+
+            // Generar URL firmada para la foto del cliente
+            const fotoUrl = await generarUrlFoto(usuario.foto);
             return res.json({
                 mensaje: 'Inicio de sesión exitoso',
                 token,
@@ -152,7 +157,7 @@ const login = async (req, res) => {
                     apellido_m: cliente.apellido_m,
                     telefono: cliente.telefono,
                     fecha_nacimiento: cliente.fecha_nacimiento,
-                    foto: usuario.foto,
+                    foto: fotoUrl,
                     rol: usuario.rol
                 }
             });
