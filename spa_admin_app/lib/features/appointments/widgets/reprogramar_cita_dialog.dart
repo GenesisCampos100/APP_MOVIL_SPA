@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:spa_admin_app/features/appointments/widgets/cita_visual_components.dart';
 import 'package:spa_admin_app/data/services/api_client.dart';
 import 'package:spa_admin_app/data/services/api_exception.dart';
+import 'package:spa_admin_app/core/preferences/staff_preferences.dart';
+import 'package:spa_admin_app/data/services/sesion_service.dart';
 
 /// Resultado del cambio de fecha, hora o especialista (misma cita).
 class ReprogramacionResultado {
@@ -29,6 +32,8 @@ class ReprogramarCitaDialog extends StatefulWidget {
 }
 
 class _ReprogramarCitaDialogState extends State<ReprogramarCitaDialog> {
+  String t(String es, String en) => AuthSession.esEmpleado
+      ? StaffPreferences.tr(es, en) : es;
   final ApiClient _api = ApiClient();
   Map<String, dynamic>? _cita;
   List<Map<String, dynamic>> _especialistas = [];
@@ -145,18 +150,20 @@ class _ReprogramarCitaDialogState extends State<ReprogramarCitaDialog> {
     final fin = inicio.add(const Duration(days: 365));
     final actual = _fecha ?? inicio;
     final inicial = actual.isBefore(inicio) ? inicio : (actual.isAfter(fin) ? fin : actual);
-    final seleccionada = await showDatePicker(
-      context: context,
-      initialDate: inicial,
-      firstDate: inicio,
-      lastDate: fin,
-      helpText: 'Fecha nueva de la cita',
-      cancelText: 'Cancelar',
-      confirmText: 'Elegir fecha',
+    final seleccionada = await abrirCalendarioCita(
+      context,
+      fechaActual: inicial,
+      fechaMinima: inicio,
+      fechaMaxima: fin,
     );
     if (!mounted || seleccionada == null) return;
-    setState(() => _fecha = seleccionada);
-    await _consultarHoras();
+    _seleccionarDia(seleccionada);
+  }
+
+  void _seleccionarDia(DateTime fecha) {
+    if (_guardando || (_fecha != null && _fechaSQL(_fecha!) == _fechaSQL(fecha))) return;
+    setState(() => _fecha = fecha);
+    _consultarHoras();
   }
 
   bool get _sinCambios {
@@ -206,10 +213,10 @@ class _ReprogramarCitaDialogState extends State<ReprogramarCitaDialog> {
   Widget build(BuildContext context) {
     final actual = _cita;
     return AlertDialog(
-      title: const Row(children: [
-        Icon(Icons.event_repeat_outlined),
-        SizedBox(width: 8),
-        Expanded(child: Text('Reprogramar cita')),
+      title: Row(children: [
+        const Icon(Icons.event_repeat_outlined),
+        const SizedBox(width: 8),
+        Expanded(child: Text(t('Reprogramar cita', 'Reschedule appointment'))),
       ]),
       content: SizedBox(
         width: 450,
@@ -222,19 +229,36 @@ class _ReprogramarCitaDialogState extends State<ReprogramarCitaDialog> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Cliente: ${actual?['cliente'] ?? 'Sin nombre'}',
+                        Text('${t('Cliente', 'Client')}: ${actual?['cliente'] ?? t('Sin nombre', 'Unknown')}',
                             style: const TextStyle(fontWeight: FontWeight.w600)),
                         const SizedBox(height: 4),
-                        Text('Servicio: ${actual?['servicio'] ?? 'Sin nombre'}'),
+                        Text('${t('Servicio', 'Service')}: ${actual?['servicio'] ?? t('Sin nombre', 'Unknown')}'),
                         const SizedBox(height: 4),
-                        Text('Actual: ${actual?['fecha'] ?? ''} a las ${_hora5(actual?['hora_inicio'])}'),
+                        Text('${t('Actual', 'Current')}: ${actual?['fecha'] ?? ''} ${t('a las', 'at')} ${_hora5(actual?['hora_inicio'])}'),
+                        const SizedBox(height: 14),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.secondaryContainer,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(children: [
+                            Icon(Icons.info_outline,
+                                color: Theme.of(context).colorScheme.onSecondaryContainer, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(t('Conservaremos la misma cita y su historial.',
+                              'The same appointment and history will be preserved.'),
+                              style: TextStyle(fontSize: 12,
+                                  color: Theme.of(context).colorScheme.onSecondaryContainer))),
+                          ]),
+                        ),
                         const SizedBox(height: 14),
                         DropdownButtonFormField<int>(
                           initialValue: _especialistas.any((e) => _entero(e['id_empleado']) == _idEmpleado)
                               ? _idEmpleado : null,
                           isExpanded: true,
-                          decoration: const InputDecoration(labelText: 'Especialista',
-                              border: OutlineInputBorder()),
+                          decoration: InputDecoration(labelText: t('Especialista', 'Specialist'),
+                              border: const OutlineInputBorder()),
                           items: _especialistas.map((e) => DropdownMenuItem<int>(
                             value: _entero(e['id_empleado']),
                             child: Text('${e['nombre'] ?? 'Especialista'}', overflow: TextOverflow.ellipsis),
@@ -245,31 +269,31 @@ class _ReprogramarCitaDialogState extends State<ReprogramarCitaDialog> {
                           },
                         ),
                         const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: _guardando ? null : _elegirFecha,
-                          icon: const Icon(Icons.calendar_month_outlined),
-                          label: Text(_fecha == null ? 'Elegir fecha' : 'Fecha: ${_fechaSQL(_fecha!)}'),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text('Horarios libres', style: TextStyle(fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 7),
-                        if (_cargandoHoras) const Center(child: Padding(
-                          padding: EdgeInsets.all(12), child: CircularProgressIndicator(),
-                        )),
-                        if (!_cargandoHoras && _horas.isEmpty)
-                          Text((_errorHoras?.isNotEmpty ?? false)
-                              ? _errorHoras! : 'No hay horarios libres para esa fecha.'),
-                        if (!_cargandoHoras && _horas.isNotEmpty)
-                          Wrap(spacing: 7, runSpacing: 7,
-                            children: _horas.map((h) => ChoiceChip(
-                              label: Text(h),
-                              selected: _horaElegida == h,
-                              onSelected: _guardando ? null : (_) => setState(() => _horaElegida = h),
-                            )).toList(),
+                        if (_fecha != null)
+                          SelectorFechaCita(
+                            fecha: _fecha!,
+                            fechaMinima: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
+                            fechaMaxima: DateTime.now().add(const Duration(days: 365)),
+                            onSeleccionar: _seleccionarDia,
+                            onAbrirCalendario: _elegirFecha,
+                            habilitado: !_guardando,
                           ),
                         const SizedBox(height: 12),
-                        const Text('Después de reprogramar, la cita quedará Pendiente hasta que el personal la confirme.',
-                          style: TextStyle(fontSize: 12, color: Color(0xFF855B10))),
+                        SelectorHorariosCita(
+                          horas: _horas,
+                          seleccion: _horaElegida,
+                          cargando: _cargandoHoras,
+                          habilitado: !_guardando,
+                          error: (_errorHoras?.isNotEmpty ?? false) ? _errorHoras : null,
+                          mensajeVacio: t('No hay horarios libres para esa fecha. Prueba otro día.',
+                            'No free times for that date. Try another day.'),
+                          onSeleccionar: (hora) => setState(() => _horaElegida = hora),
+                          onReintentar: _consultarHoras,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(t('Después de reprogramar, la cita quedará Pendiente hasta que el personal la confirme.',
+                          'After rescheduling, the booking stays Pending until staff accept it.'),
+                          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                         if (_error != null) ...[
                           const SizedBox(height: 10),
                           Text(_error!, style: const TextStyle(color: Color(0xFFB53942))),
@@ -281,7 +305,7 @@ class _ReprogramarCitaDialogState extends State<ReprogramarCitaDialog> {
       actions: [
         TextButton(
           onPressed: _guardando ? null : () => Navigator.of(context).pop(),
-          child: const Text('Volver'),
+          child: Text(t('Volver', 'Back')),
         ),
         FilledButton.icon(
           onPressed: _guardando || _cargando || _cargandoHoras || _sinCambios ? null : _guardar,
@@ -289,7 +313,7 @@ class _ReprogramarCitaDialogState extends State<ReprogramarCitaDialog> {
               ? const SizedBox(width: 16, height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2))
               : const Icon(Icons.save_outlined),
-          label: Text(_guardando ? 'Guardando...' : 'Guardar cambio'),
+          label: Text(_guardando ? t('Guardando...', 'Saving...') : t('Guardar cambio', 'Save change')),
         ),
       ],
     );

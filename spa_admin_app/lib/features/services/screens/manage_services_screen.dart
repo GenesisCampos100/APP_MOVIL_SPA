@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:spa_admin_app/core/theme/admin_visual.dart';
 import 'package:spa_admin_app/core/theme/app_colors.dart';
 import 'package:spa_admin_app/core/theme/app_text_styles.dart';
 import 'package:spa_admin_app/data/models/service_model.dart';
 import 'package:spa_admin_app/data/repositories/servicios_repository.dart';
 import 'package:spa_admin_app/data/services/api_exception.dart';
 import 'package:spa_admin_app/features/services/widgets/service_form_dialog.dart';
+import 'package:spa_admin_app/features/services/widgets/service_image_preview.dart';
 import 'package:spa_admin_app/shared/widgets/confirm_action_dialog.dart';
 
 class ManageServicesScreen extends StatefulWidget {
@@ -18,6 +20,7 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
   final ServiciosRepository _repository = ServiciosRepository();
   final TextEditingController _busquedaController = TextEditingController();
   List<ServiceModel> _services = [];
+  Map<String, String> _categorias = {};
   bool _cargando = true;
   String? _error;
   String _busqueda = '';
@@ -42,8 +45,12 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
     });
     try {
       final servicios = await _repository.obtenerServicios();
+      final categorias = await _repository.obtenerCategorias();
       if (!mounted) return;
-      setState(() => _services = servicios);
+      setState(() {
+        _services = servicios;
+        _categorias = categorias;
+      });
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (_) {
@@ -55,30 +62,19 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
     }
   }
 
-  Map<String, String> get _categorias {
-    final map = <String, String>{};
-    for (final servicio in _services) {
-      if (servicio.idCategoria != null && servicio.categoria.isNotEmpty) {
-        map[servicio.idCategoria!] = servicio.categoria;
-      }
-    }
-    return map;
-  }
-
   Future<void> _abrirFormulario({ServiceModel? servicio}) async {
     final categorias = _categorias;
-    if (categorias.isEmpty) {
-      _mostrarMensaje(
-        'No hay categorías disponibles para asignar al servicio.',
-      );
-      return;
-    }
     final guardado = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => ServiceFormDialog(
         serviceToEdit: servicio,
         categorias: categorias,
+        onCrearCategoria: (nombre) async {
+          final nueva = await _repository.crearCategoria(nombre);
+          if (mounted) setState(() => _categorias[nueva.key] = nueva.value);
+          return nueva;
+        },
         onSave: (datos) => servicio == null
             ? _repository.crearServicio(datos)
             : _repository.actualizarServicio(datos),
@@ -123,7 +119,7 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(mensaje),
-        backgroundColor: error ? Colors.red.shade700 : AppColors.primaryPink,
+        backgroundColor: error ? Colors.red.shade700 : _ServiciosTema.acentoBoton(context),
       ),
     );
   }
@@ -137,9 +133,15 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
       s.descripcion.toLowerCase().contains(consulta)
     ).toList();
     final animacionesReducidas = MediaQuery.disableAnimationsOf(context);
+    // Theme.of(context) registra esta pestaña en el tema heredado.
+    // IndexedStack conserva su State: debe reconstruirse al cambiar la apariencia.
+    final temaActual = Theme.of(context);
+    final idiomaActual = Localizations.localeOf(context).languageCode;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: temaActual.brightness == Brightness.dark
+          ? const Color(0xFF211A21)
+          : AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -150,14 +152,14 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
                 icon: const Icon(Icons.arrow_back_ios_new_rounded),
               )
             : null,
-        title: Text('Gestionar servicios',
-          style: AppTextStyles.displayExtraBold.copyWith(color: AppColors.textDark),
+        title: AdminTranslatedText('Gestionar servicios', 'Manage services',
+          style: AppTextStyles.displayExtraBold.copyWith(color: _ServiciosTema.texto(context)),
         ),
         actions: [
           IconButton(
             tooltip: 'Actualizar servicios',
             onPressed: _cargando ? null : _cargarServicios,
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.primaryPink),
+            icon: Icon(Icons.refresh_rounded, color: _ServiciosTema.acento(context)),
           ),
         ],
       ),
@@ -168,19 +170,19 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    'Catálogo del SPA',
-                    style: AppTextStyles.heading2.copyWith(color: AppColors.textDark),
+                  child: AdminTranslatedText(
+                    'Catálogo del SPA', 'Spa catalog',
+                    style: AppTextStyles.heading2.copyWith(color: _ServiciosTema.texto(context)),
                   ),
                 ),
                 FilledButton.icon(
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primaryPink,
+                    backgroundColor: _ServiciosTema.acentoBoton(context),
                     padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
                   ),
                   onPressed: _cargando || _error != null ? null : () => _abrirFormulario(),
                   icon: const Icon(Icons.add_rounded),
-                  label: const Text('Agregar'),
+                  label: const AdminTranslatedText('Agregar', 'Add'),
                 ),
               ],
             ),
@@ -191,8 +193,8 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
               controller: _busquedaController,
               onChanged: (valor) => setState(() => _busqueda = valor),
               decoration: InputDecoration(
-                hintText: 'Buscar servicio o categoría...',
-                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primaryPink),
+                hintText: AdminVisual.t('Buscar servicio o categoría...', 'Search service or category...'),
+                prefixIcon: Icon(Icons.search_rounded, color: _ServiciosTema.acento(context)),
                 suffixIcon: _busqueda.isNotEmpty
                     ? IconButton(
                         onPressed: () {
@@ -203,14 +205,14 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
                       )
                     : null,
                 filled: true,
-                fillColor: AppColors.fieldBackground,
+                fillColor: _ServiciosTema.campo(context),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: AppColors.cardBorder),
+                  borderSide: BorderSide(color: _ServiciosTema.borde(context)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: AppColors.cardBorder),
+                  borderSide: BorderSide(color: _ServiciosTema.borde(context)),
                 ),
               ),
             ),
@@ -220,8 +222,9 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                _cargando ? 'Consultando catálogo…' : '${visibles.length} servicio(s) visible(s)',
-                style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+                _cargando ? (idiomaActual == 'en' ? 'Loading catalog…' : 'Consultando catálogo…')
+                    : idiomaActual == 'en' ? '${visibles.length} service(s) shown' : '${visibles.length} servicio(s) visible(s)',
+                style: AppTextStyles.caption.copyWith(color: _ServiciosTema.secundario(context)),
               ),
             ),
           ),
@@ -231,15 +234,15 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
                   ? Duration.zero
                   : const Duration(milliseconds: 240),
               child: _cargando
-                  ? const Center(
-                      key: ValueKey('loading'),
-                      child: CircularProgressIndicator(color: AppColors.primaryPink),
+                  ? Center(
+                      key: const ValueKey('loading'),
+                      child: CircularProgressIndicator(color: _ServiciosTema.acento(context)),
                     )
                   : _error != null
                       ? _EstadoServicios(
                           key: const ValueKey('error'),
                           icono: Icons.wifi_off_rounded,
-                          titulo: 'No se pudieron cargar los servicios',
+                          titulo: AdminVisual.t('No se pudieron cargar los servicios', 'Could not load services'),
                           descripcion: _error!,
                           onActualizar: _cargarServicios,
                         )
@@ -248,16 +251,16 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
                               key: const ValueKey('empty'),
                               icono: Icons.spa_outlined,
                               titulo: _busqueda.isEmpty
-                                  ? 'No hay servicios activos'
-                                  : 'No se encontraron servicios',
+                                  ? AdminVisual.t('No hay servicios activos', 'No active services')
+                                  : AdminVisual.t('No se encontraron servicios', 'No services found'),
                               descripcion: _busqueda.isEmpty
-                                  ? 'Los servicios registrados aparecerán aquí.'
-                                  : 'Intenta buscar con otro nombre o categoría.',
+                                  ? AdminVisual.t('Los servicios registrados aparecerán aquí.', 'Registered services will appear here.')
+                                  : AdminVisual.t('Intenta buscar con otro nombre o categoría.', 'Try a different name or category.'),
                               onActualizar: _cargarServicios,
                             )
                           : RefreshIndicator(
                               key: const ValueKey('list'),
-                              color: AppColors.primaryPink,
+                              color: _ServiciosTema.acentoBoton(context),
                               onRefresh: _cargarServicios,
                               child: ListView.builder(
                                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
@@ -295,6 +298,33 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
   }
 }
 
+/// Colores de esta pestaña basados en el tema Flutter activo, no en
+/// valores globales que pueden quedar obsoletos dentro del IndexedStack.
+/// No interviene en repositorios, validaciones ni estados de los servicios.
+class _ServiciosTema {
+  const _ServiciosTema._();
+  static bool oscuro(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark;
+  static Color tarjeta(BuildContext context) => oscuro(context)
+      ? const Color(0xFF302630) : AppColors.cardBackground;
+  static Color campo(BuildContext context) => oscuro(context)
+      ? const Color(0xFF382C37) : AppColors.fieldBackground;
+  static Color borde(BuildContext context) => oscuro(context)
+      ? const Color(0xFF584654) : AppColors.cardBorder;
+  static Color texto(BuildContext context) => oscuro(context)
+      ? const Color(0xFFFFEFF5) : AppColors.textDark;
+  static Color secundario(BuildContext context) => oscuro(context)
+      ? const Color(0xFFD5C0CC) : AppColors.textMuted;
+  static Color acento(BuildContext context) => oscuro(context)
+      ? const Color(0xFFF3B8CE) : AppColors.primaryPink;
+  static Color acentoBoton(BuildContext context) => oscuro(context)
+      ? const Color(0xFFB46E8A) : AppColors.primaryPink;
+  static Color verdeFondo(BuildContext context) => oscuro(context)
+      ? const Color(0xFF244237) : const Color(0xFFE8F5EB);
+  static Color verdeTexto(BuildContext context) => oscuro(context)
+      ? const Color(0xFF9EE3B7) : const Color(0xFF286A44);
+}
+
 class _TarjetaServicio extends StatelessWidget {
   final ServiceModel servicio;
   final bool trabajando;
@@ -314,12 +344,12 @@ class _TarjetaServicio extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
+        color: _ServiciosTema.tarjeta(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: _ServiciosTema.borde(context)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryPink.withValues(alpha: 0.05),
+            color: _ServiciosTema.acentoBoton(context).withValues(alpha: 0.05),
             blurRadius: 14,
             offset: const Offset(0, 4),
           ),
@@ -331,14 +361,7 @@ class _TarjetaServicio extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.primaryPinkSoft,
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                padding: const EdgeInsets.all(11),
-                child: const Icon(Icons.spa_outlined, color: AppColors.primaryPink),
-              ),
+              ServiceImagePreview(imagen: servicio.imagen, size: 52),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -346,11 +369,11 @@ class _TarjetaServicio extends StatelessWidget {
                   children: [
                     Text(
                       servicio.nombre,
-                      style: AppTextStyles.heading2.copyWith(color: AppColors.textDark),
+                      style: AppTextStyles.heading2.copyWith(color: _ServiciosTema.texto(context)),
                     ),
                     const SizedBox(height: 4),
                     Text(servicio.categoria,
-                      style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+                      style: AppTextStyles.caption.copyWith(color: _ServiciosTema.secundario(context)),
                     ),
                   ],
                 ),
@@ -358,11 +381,11 @@ class _TarjetaServicio extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5EB),
+                  color: _ServiciosTema.verdeFondo(context),
                   borderRadius: BorderRadius.circular(30),
                 ),
-                child: const Text('Activo',
-                  style: TextStyle(color: Color(0xFF286A44), fontSize: 11, fontWeight: FontWeight.w600),
+                child: AdminTranslatedText('Activo', 'Active',
+                  style: TextStyle(color: _ServiciosTema.verdeTexto(context), fontSize: 11, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -373,7 +396,7 @@ class _TarjetaServicio extends StatelessWidget {
               servicio.descripcion,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.body.copyWith(color: AppColors.textMuted),
+              style: AppTextStyles.body.copyWith(color: _ServiciosTema.secundario(context)),
             ),
           ],
           const SizedBox(height: 14),
@@ -386,7 +409,7 @@ class _TarjetaServicio extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          const Divider(color: AppColors.cardBorder),
+          Divider(color: _ServiciosTema.borde(context)),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -396,13 +419,13 @@ class _TarjetaServicio extends StatelessWidget {
                     ? const SizedBox(width: 16, height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.block_outlined, size: 19),
-                label: const Text('Desactivar'),
+                label: const AdminTranslatedText('Desactivar', 'Deactivate'),
               ),
               const SizedBox(width: 8),
               FilledButton.tonalIcon(
                 onPressed: trabajando ? null : onEditar,
                 icon: const Icon(Icons.edit_outlined, size: 18),
-                label: const Text('Editar'),
+                label: const AdminTranslatedText('Editar', 'Edit'),
               ),
             ],
           ),
@@ -423,9 +446,9 @@ class _DatoIcono extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icono, size: 17, color: AppColors.primaryPink),
+        Icon(icono, size: 17, color: _ServiciosTema.acentoBoton(context)),
         const SizedBox(width: 5),
-        Text(texto, style: AppTextStyles.caption.copyWith(color: AppColors.textDark)),
+        Text(texto, style: AppTextStyles.caption.copyWith(color: _ServiciosTema.texto(context))),
       ],
     );
   }
@@ -453,18 +476,18 @@ class _EstadoServicios extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icono, size: 44, color: AppColors.primaryPink),
+            Icon(icono, size: 44, color: _ServiciosTema.acentoBoton(context)),
             const SizedBox(height: 14),
             Text(titulo, textAlign: TextAlign.center,
-              style: AppTextStyles.heading2.copyWith(color: AppColors.textDark)),
+              style: AppTextStyles.heading2.copyWith(color: _ServiciosTema.texto(context))),
             const SizedBox(height: 8),
             Text(descripcion, textAlign: TextAlign.center,
-              style: AppTextStyles.body.copyWith(color: AppColors.textMuted)),
+              style: AppTextStyles.body.copyWith(color: _ServiciosTema.secundario(context))),
             const SizedBox(height: 12),
             TextButton.icon(
               onPressed: onActualizar,
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Reintentar'),
+              label: const AdminTranslatedText('Reintentar', 'Retry'),
             ),
           ],
         ),

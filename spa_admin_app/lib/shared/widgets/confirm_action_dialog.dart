@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:spa_admin_app/core/theme/app_colors.dart';
+import 'package:spa_admin_app/core/preferences/staff_preferences.dart';
+import 'package:spa_admin_app/data/services/sesion_service.dart';
 
 /// Reutilizable para confirmar operaciones antes de ejecutar sus efectos.
 /// Devuelve true solo cuando el usuario acepta explícitamente.
@@ -13,12 +15,12 @@ Future<bool> mostrarConfirmacion({
   final confirmado = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      backgroundColor: AppColors.cardBackground,
+      backgroundColor: Theme.of(dialogContext).colorScheme.surface,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       title: Row(
         children: [
-          Icon(icono, color: AppColors.primaryPink),
+          Icon(icono, color: Theme.of(dialogContext).colorScheme.primary),
           const SizedBox(width: 10),
           Expanded(child: Text(titulo, style: const TextStyle(fontSize: 18))),
         ],
@@ -27,10 +29,11 @@ Future<bool> mostrarConfirmacion({
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(dialogContext, false),
-          child: const Text('Cancelar'),
+          child: Text(AuthSession.esEmpleado ? StaffPreferences.tr('Cancelar', 'Cancel') : 'Cancelar'),
         ),
         FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: AppColors.primaryPink),
+          style: FilledButton.styleFrom(backgroundColor: Theme.of(dialogContext).colorScheme.primary,
+            foregroundColor: Theme.of(dialogContext).colorScheme.onPrimary),
           onPressed: () => Navigator.pop(dialogContext, true),
           child: Text(textoConfirmar),
         ),

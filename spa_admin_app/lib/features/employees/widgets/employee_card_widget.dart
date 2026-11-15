@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spa_admin_app/core/theme/admin_visual.dart';
 import 'package:spa_admin_app/core/theme/app_colors.dart';
 import 'package:spa_admin_app/core/theme/app_text_styles.dart';
 import 'package:spa_admin_app/data/models/employee_model.dart';
@@ -28,9 +29,9 @@ class EmployeeCardWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
+        color: AdminVisual.cardBackground,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: AdminVisual.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,7 +46,7 @@ class EmployeeCardWidget extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.subtitle.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textDark,
+                    color: AdminVisual.textDark,
                   ),
                 ),
               ),
@@ -57,8 +58,8 @@ class EmployeeCardWidget extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: activo
-                      ? const Color(0xFFEAF7EC)
-                      : const Color(0xFFF0EFF1),
+                      ? AdminVisual.greenBackground
+                      : AdminVisual.statusBackground,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -66,8 +67,8 @@ class EmployeeCardWidget extends StatelessWidget {
                   style: AppTextStyles.caption.copyWith(
                     fontWeight: FontWeight.w600,
                     color: activo
-                        ? const Color(0xFF297D4A)
-                        : AppColors.textMuted,
+                        ? AdminVisual.greenText
+                        : AdminVisual.textMuted,
                   ),
                 ),
               ),
@@ -76,7 +77,7 @@ class EmployeeCardWidget extends StatelessWidget {
           const SizedBox(height: 5),
           Text(
             empleado.puesto.isEmpty ? 'Sin puesto asignado' : empleado.puesto,
-            style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+            style: AppTextStyles.caption.copyWith(color: AdminVisual.textMuted),
           ),
           const SizedBox(height: 12),
           if (empleado.correo.isNotEmpty) ...[
@@ -91,7 +92,7 @@ class EmployeeCardWidget extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: accionesDisponibles ? onEditar : null,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primaryPink,
+                  foregroundColor: AdminVisual.primaryPink,
                   side: const BorderSide(color: AppColors.cardBorder),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -102,14 +103,14 @@ class EmployeeCardWidget extends StatelessWidget {
                   ),
                 ),
                 icon: const Icon(Icons.edit_outlined, size: 17),
-                label: const Text('Editar'),
+                label: const AdminTranslatedText('Editar', 'Edit'),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: FilledButton.icon(
                   onPressed: accionesDisponibles ? onCambiarEstado : null,
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primaryPink,
+                    backgroundColor: AdminVisual.primaryPink,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
@@ -145,14 +146,14 @@ class EmployeeCardWidget extends StatelessWidget {
   Widget _dato(IconData icono, String texto) {
     return Row(
       children: [
-        Icon(icono, size: 16, color: AppColors.primaryPink),
+        Icon(icono, size: 16, color: AdminVisual.primaryPink),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             texto,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+            style: AppTextStyles.caption.copyWith(color: AdminVisual.textMuted),
           ),
         ),
       ],

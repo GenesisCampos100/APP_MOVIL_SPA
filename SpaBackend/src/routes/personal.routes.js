@@ -5,6 +5,7 @@ const router = express.Router();
 const verificarToken = require('../middlewares/verificarToken');
 const { obtenerAgendaRecepcion } = require('../controllers/personal.controller');
 const citasManuales = require('../controllers/citas_manuales.controller');
+const inasistencias = require('../controllers/inasistencias.controller');
 
 router.get('/agenda', verificarToken, obtenerAgendaRecepcion);
 router.get('/citas-manuales/catalogo', verificarToken, citasManuales.catalogo);
@@ -22,4 +23,7 @@ router.get('/citas-manuales/:id/reprogramacion', verificarToken, citasManuales.d
 router.get('/citas-manuales/:id/reprogramacion/disponibilidad', verificarToken, citasManuales.disponibilidadReprogramacion);
 router.patch('/citas-manuales/:id/reprogramar', verificarToken, citasManuales.reprogramarCitaPersonal);
 
+// Etapa 3B: inasistencia reportada como Cancelada, validada por la API.
+router.get('/citas-manuales/inasistencias-habilitadas', verificarToken, inasistencias.inasistenciasHabilitadas);
+router.patch('/citas-manuales/:id/reportar-inasistencia', verificarToken, inasistencias.reportarInasistencia);
 module.exports = router;

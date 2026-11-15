@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spa_admin_app/core/theme/admin_visual.dart';
 import 'package:spa_admin_app/core/theme/app_colors.dart';
 import 'package:spa_admin_app/data/models/horario_semanal_model.dart';
 
@@ -125,15 +126,15 @@ class _HorarioBloqueFormDialogState extends State<HorarioBloqueFormDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: Colors.white,
+      backgroundColor: AdminVisual.cardBackground,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: Text(_editando ? 'Editar horario' : 'Nuevo horario',
-        style: const TextStyle(fontWeight: FontWeight.w800,
-          color: AppColors.textDark, fontSize: 19)),
+      title: Text(_editando ? AdminVisual.t('Editar horario', 'Edit schedule') : AdminVisual.t('Nuevo horario', 'New schedule'),
+        style: TextStyle(fontWeight: FontWeight.w800,
+          color: AdminVisual.textDark, fontSize: 19)),
       content: SingleChildScrollView(
         child: Column(mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Text('Empleado', style: TextStyle(fontWeight: FontWeight.w600)),
+          const AdminTranslatedText('Empleado', 'Staff member', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 7),
           DropdownButtonFormField<int>(
             value: _idEmpleado,
@@ -147,7 +148,7 @@ class _HorarioBloqueFormDialogState extends State<HorarioBloqueFormDialog> {
                 ? null : (id) { if (id != null) setState(() => _idEmpleado = id); },
           ),
           const SizedBox(height: 14),
-          Text(_editando ? 'Día de la semana' : 'Días laborales',
+          Text(_editando ? AdminVisual.t('Día de la semana', 'Day of week') : AdminVisual.t('Días laborales', 'Workdays'),
             style: const TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 7),
           if (_editando)
@@ -156,13 +157,13 @@ class _HorarioBloqueFormDialogState extends State<HorarioBloqueFormDialog> {
               isExpanded: true,
               decoration: const InputDecoration(border: OutlineInputBorder()),
               items: _dias.entries.map((e) => DropdownMenuItem<String>(
-                value: e.key, child: Text(e.value),
+                value: e.key, child: Text(AdminVisual.ui(e.value)),
               )).toList(),
               onChanged: (dia) { if (dia != null) setState(() => _dia = dia); },
             )
           else ...[
-            const Text('Puedes seleccionar varios días con el mismo turno.',
-              style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+            Text(AdminVisual.t('Puedes seleccionar varios días con el mismo turno.', 'Select several days for the same shift.'),
+              style: TextStyle(color: AdminVisual.textMuted, fontSize: 12)),
             const SizedBox(height: 9),
             Wrap(
               spacing: 6,
@@ -170,11 +171,11 @@ class _HorarioBloqueFormDialogState extends State<HorarioBloqueFormDialog> {
               children: _dias.entries.map((entrada) {
                 final elegido = _diasSeleccionados.contains(entrada.key);
                 return FilterChip(
-                  label: Text(entrada.value,
+                  label: Text(AdminVisual.ui(entrada.value),
                     style: const TextStyle(fontSize: 12)),
                   selected: elegido,
-                  selectedColor: AppColors.primaryPinkSoft,
-                  checkmarkColor: AppColors.primaryPink,
+                  selectedColor: AdminVisual.primaryPinkSoft,
+                  checkmarkColor: AdminVisual.primaryPink,
                   side: const BorderSide(color: AppColors.cardBorder),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
@@ -197,14 +198,14 @@ class _HorarioBloqueFormDialogState extends State<HorarioBloqueFormDialog> {
                     ..addAll(['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes']);
                   _error = null;
                 }),
-                child: const Text('Lunes a viernes'),
+                child: const AdminTranslatedText('Lunes a viernes', 'Monday to Friday'),
               ),
               TextButton(
                 onPressed: _diasSeleccionados.isEmpty ? null : () => setState(() {
                   _diasSeleccionados.clear();
                   _error = null;
                 }),
-                child: const Text('Limpiar'),
+                child: const AdminTranslatedText('Limpiar', 'Clear'),
               ),
             ]),
             AnimatedSwitcher(
@@ -220,7 +221,7 @@ class _HorarioBloqueFormDialogState extends State<HorarioBloqueFormDialog> {
             ),
           ],
           const SizedBox(height: 14),
-          const Text('Turno', style: TextStyle(fontWeight: FontWeight.w600)),
+          const AdminTranslatedText('Turno', 'Shift', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 7),
           Row(children: [
             Expanded(child: OutlinedButton.icon(
@@ -244,15 +245,15 @@ class _HorarioBloqueFormDialogState extends State<HorarioBloqueFormDialog> {
           Text(_editando
               ? 'Los cambios no deben afectar las citas que ya están reservadas.'
               : 'Si algún día se cruza con otro turno, no se guardará ninguno.',
-            style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+            style: TextStyle(color: AdminVisual.textMuted, fontSize: 12)),
         ]),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        TextButton(onPressed: () => Navigator.pop(context), child: const AdminTranslatedText('Cancelar', 'Cancel')),
         FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: AppColors.primaryPink),
+          style: FilledButton.styleFrom(backgroundColor: AdminVisual.primaryPink),
           onPressed: _guardar,
-          child: Text(_editando ? 'Guardar cambios' : 'Guardar horario'),
+          child: Text(_editando ? AdminVisual.t('Guardar cambios', 'Save changes') : AdminVisual.t('Guardar horario', 'Save schedule')),
         ),
       ],
     );

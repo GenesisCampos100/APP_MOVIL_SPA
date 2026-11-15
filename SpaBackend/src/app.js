@@ -13,12 +13,17 @@ const pruebaRoutes = require('./routes/prueba.routes');
 
 // Rutas de Vanessa
 const usuariosRoutes = require('./routes/usuarios.routes');
+const usuariosFotoRoutes = require('./routes/usuarios_foto.routes');
+const {carpeta: carpetaFotosPerfil} = require('./controllers/usuarios_foto.controller');
 
 // Rutas administrativas de GENESIS
 const adminServiciosRoutes = require('./routes/admin_servicios.routes');
+const adminServiciosImagenRoutes = require('./routes/admin_servicios_imagen.routes');
+const {carpeta: carpetaImagenesServicios} = require('./controllers/servicios_imagen.controller');
 const adminEmpleadosRoutes = require('./routes/admin_empleados.routes');
 const adminHorariosRoutes = require('./routes/admin_horarios.routes');
 const personalRoutes = require('./routes/personal.routes');
+const adminResenasRoutes = require('./routes/admin_resenas.routes');
 
 // Registrar rutas compartidas
 app.use('/api/auth', authRoutes);
@@ -28,13 +33,18 @@ app.use('/api/prueba', pruebaRoutes);
 
 // Registrar rutas de usuarios
 app.use('/api/usuarios', usuariosRoutes);
+app.use('/api/usuarios/foto', usuariosFotoRoutes);
+app.use('/uploads/perfiles', express.static(carpetaFotosPerfil, {index: false, dotfiles: 'deny'}));
 
 // Registrar rutas administrativas
 app.use('/api/admin/servicios', adminServiciosRoutes);
+app.use('/api/admin/servicios/imagen', adminServiciosImagenRoutes);
+app.use('/uploads/servicios', require('express').static(carpetaImagenesServicios, {index: false, dotfiles: 'deny'}));
 app.use('/api/admin/empleados', adminEmpleadosRoutes);
 app.use('/api/admin/horarios', adminHorariosRoutes);
 
 // Nueva ruta de Recepción, independiente del flujo de app_cliente.
 app.use('/api/personal', personalRoutes);
+app.use('/api/admin/resenas', adminResenasRoutes);
 
 module.exports = app;

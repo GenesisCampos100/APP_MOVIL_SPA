@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spa_admin_app/core/theme/admin_visual.dart';
 import 'package:spa_admin_app/core/theme/app_colors.dart';
 import 'package:spa_admin_app/core/theme/app_text_styles.dart';
 import 'package:spa_admin_app/data/models/employee_model.dart';
@@ -70,14 +71,6 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
     try {
       final puestos = await _repository.obtenerPuestos();
       if (!mounted) return;
-      if (puestos.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No hay puestos disponibles para asignar.'),
-          ),
-        );
-        return;
-      }
       // Solo un nuevo especialista puede pasar directamente a asignar servicios.
       // Conservamos correo y puesto del formulario únicamente tras guardar con éxito.
       String? correoNuevo;
@@ -88,6 +81,7 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
         builder: (ctx) => EmployeeFormDialog(
           employeeToEdit: empleado,
           puestos: puestos,
+          onCrearPuesto: _repository.crearPuesto,
           onSave: (datos) async {
             if (empleado == null) {
               await _repository.crearEmpleado(datos);
@@ -115,7 +109,7 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
           context: context,
           barrierDismissible: false,
           builder: (dialogContext) => AlertDialog(
-            backgroundColor: AppColors.cardBackground,
+            backgroundColor: AdminVisual.cardBackground,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(22),
             ),
@@ -134,16 +128,16 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Más tarde'),
+                child: const AdminTranslatedText('Más tarde', 'Later'),
               ),
               FilledButton.icon(
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primaryPink,
+                  backgroundColor: AdminVisual.primaryPink,
                   foregroundColor: Colors.white,
                 ),
                 onPressed: () => Navigator.pop(dialogContext, true),
                 icon: const Icon(Icons.spa_outlined),
-                label: const Text('Asignar ahora'),
+                label: const AdminTranslatedText('Asignar ahora', 'Assign now'),
               ),
             ],
           ),
@@ -166,7 +160,7 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
           context: context,
           barrierDismissible: false,
           builder: (dialogContext) => AlertDialog(
-            backgroundColor: AppColors.cardBackground,
+            backgroundColor: AdminVisual.cardBackground,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(22),
             ),
@@ -186,16 +180,16 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Más tarde'),
+                child: const AdminTranslatedText('Más tarde', 'Later'),
               ),
               FilledButton.icon(
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primaryPink,
+                  backgroundColor: AdminVisual.primaryPink,
                   foregroundColor: Colors.white,
                 ),
                 onPressed: () => Navigator.pop(dialogContext, true),
                 icon: const Icon(Icons.schedule_outlined),
-                label: const Text('Configurar horarios'),
+                label: const AdminTranslatedText('Configurar horarios', 'Set schedules'),
               ),
             ],
           ),
@@ -307,31 +301,30 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
     final reducirMovimiento = MediaQuery.of(context).disableAnimations;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AdminVisual.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: AdminVisual.background,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         leading: Navigator.canPop(context)
             ? IconButton(
                 tooltip: 'Regresar',
-                icon: const Icon(
+                icon: Icon(
                   Icons.arrow_back_ios_new,
-                  color: AppColors.textDark,
+                  color: AdminVisual.textDark,
                 ),
                 onPressed: () => Navigator.pop(context),
               )
             : null,
-        title: Text(
-          'Gestionar empleados',
+        title: AdminTranslatedText('Gestionar empleados', 'Manage employees',
           style: AppTextStyles.heading1.copyWith(
-            color: AppColors.textDark,
+            color: AdminVisual.textDark,
           ),
         ),
         actions: [
           IconButton(
-            tooltip: 'Actualizar empleados',
+            tooltip: AdminVisual.t('Actualizar empleados', 'Refresh staff'),
             icon: const Icon(Icons.refresh_rounded, color: AppColors.primaryPink),
             onPressed: _loading ? null : _cargarEmpleados,
           ),
@@ -344,12 +337,12 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Administración del personal', style: AppTextStyles.heading2),
+                AdminTranslatedText('Administración del personal', 'Staff management', style: AppTextStyles.heading2),
                 const SizedBox(height: 4),
                 Text(
                   'Consulta, organiza y administra al personal del SPA.',
                   style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textMuted,
+                    color: AdminVisual.textMuted,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -366,9 +359,9 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
                   onChanged: (texto) => setState(() => _searchQuery = texto),
                   textInputAction: TextInputAction.search,
                   decoration: InputDecoration(
-                    hintText: 'Buscar por nombre, puesto o correo',
+                    hintText: AdminVisual.t('Buscar por nombre, puesto o correo', 'Search name, role or email'),
                     hintStyle: AppTextStyles.body.copyWith(
-                      color: AppColors.textMuted,
+                      color: AdminVisual.textMuted,
                     ),
                     prefixIcon: const Icon(
                       Icons.search_rounded,
@@ -377,7 +370,7 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
                     suffixIcon: _searchQuery.isEmpty
                         ? null
                         : IconButton(
-                            tooltip: 'Limpiar búsqueda',
+                            tooltip: AdminVisual.t('Limpiar búsqueda', 'Clear search'),
                             icon: const Icon(Icons.close_rounded, size: 19),
                             onPressed: () {
                               _busquedaController.clear();
@@ -385,7 +378,7 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
                             },
                           ),
                     filled: true,
-                    fillColor: AppColors.fieldBackground,
+                    fillColor: AdminVisual.fieldBackground,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 14,
                       vertical: 13,
@@ -420,7 +413,7 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
                       child: Text(
                         '${disponibles.length} empleado(s)',
                         style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textMuted,
+                          color: AdminVisual.textMuted,
                         ),
                       ),
                     ),
@@ -430,12 +423,12 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
                           ? null
                           : () => _abrirFormulario(),
                       style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.primaryPink,
+                        backgroundColor: AdminVisual.primaryPink,
                         foregroundColor: Colors.white,
                         shape: const StadiumBorder(),
                       ),
                       icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Nuevo'),
+                      label: const AdminTranslatedText('Nuevo', 'New'),
                     ),
                   ],
                 ),
@@ -478,7 +471,7 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
                           : RefreshIndicator(
                               key: const ValueKey('empleados'),
                               onRefresh: _cargarEmpleados,
-                              color: AppColors.primaryPink,
+                              color: AdminVisual.primaryPink,
                               child: ListView.separated(
                                 physics: const AlwaysScrollableScrollPhysics(),
                                 padding: const EdgeInsets.fromLTRB(18, 7, 18, 28),
@@ -536,20 +529,20 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: AppColors.primaryPinkSoft,
+          color: AdminVisual.primaryPinkSoft,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           children: [
-            Icon(icono, size: 20, color: AppColors.primaryPink),
+            Icon(icono, size: 20, color: AdminVisual.primaryPink),
             const SizedBox(width: 7),
             Expanded(
               child: Text(
-                titulo,
+                AdminVisual.ui(titulo),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppTextStyles.caption.copyWith(
-                  color: AppColors.textDark,
+                  color: AdminVisual.textDark,
                 ),
               ),
             ),
@@ -559,7 +552,7 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
                 _loading && _employees.isEmpty ? '—' : '$valor',
                 key: ValueKey('$titulo-$valor-$_loading'),
                 style: AppTextStyles.heading2.copyWith(
-                  color: AppColors.primaryPink,
+                  color: AdminVisual.primaryPink,
                 ),
               ),
             ),
@@ -572,21 +565,21 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
   Widget _filtroChip(String filtro) {
     final seleccionado = _filtro == filtro;
     return ChoiceChip(
-      label: Text(filtro),
+      label: Text(AdminVisual.ui(filtro)),
       selected: seleccionado,
       showCheckmark: seleccionado,
-      selectedColor: AppColors.primaryPinkSoft,
-      checkmarkColor: AppColors.primaryPink,
-      backgroundColor: AppColors.cardBackground,
+      selectedColor: AdminVisual.primaryPinkSoft,
+      checkmarkColor: AdminVisual.primaryPink,
+      backgroundColor: AdminVisual.cardBackground,
       side: BorderSide(
-        color: seleccionado ? AppColors.primaryPinkSoft : AppColors.cardBorder,
+        color: seleccionado ? AdminVisual.primaryPinkSoft : AdminVisual.cardBorder,
       ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
       labelStyle: AppTextStyles.caption.copyWith(
         fontWeight: seleccionado ? FontWeight.w600 : FontWeight.w400,
-        color: seleccionado ? AppColors.primaryPink : AppColors.textDark,
+        color: seleccionado ? AdminVisual.primaryPink : AdminVisual.textDark,
       ),
       onSelected: (_) => setState(() => _filtro = filtro),
     );
@@ -606,7 +599,7 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: AppColors.primaryPink, size: 42),
+            Icon(icon, color: AdminVisual.primaryPink, size: 42),
             const SizedBox(height: 12),
             Text(
               titulo,
@@ -624,7 +617,7 @@ class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
               FilledButton.icon(
                 onPressed: _cargarEmpleados,
                 icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Reintentar'),
+                label: const AdminTranslatedText('Reintentar', 'Retry'),
               ),
             ],
           ],

@@ -11,6 +11,10 @@ class AppointmentModel {
   final String duracionAplicada; // duracion_aplicada
   final String estado; // estado ('Confirmada', 'Pendiente', 'Completada', 'Cancelada')
   final String? observaciones; // observaciones
+  // Se reciben solo si la API los expone. Un estado Confirmada no demuestra asistencia.
+  final DateTime? fechaConfirmacion;
+  final DateTime? fechaLimite;
+  final bool datosAsistenciaDisponibles;
 
   AppointmentModel({
     String? idCita,
@@ -34,6 +38,9 @@ class AppointmentModel {
     String? estado,
     String? status,
     this.observaciones,
+    this.fechaConfirmacion,
+    this.fechaLimite,
+    this.datosAsistenciaDisponibles = false,
   })  : idCita = idCita ?? id ?? '',
         idCliente = idCliente ?? clientId ?? '',
         nombreCliente = nombreCliente ?? clientName ?? '',
@@ -69,6 +76,8 @@ class AppointmentModel {
     String? duracionAplicada,
     String? estado,
     String? observaciones,
+    // Invalidación explícita al reprogramar; no reutilizar respuestas anteriores.
+    bool invalidarDatosAsistencia = false,
   }) {
     return AppointmentModel(
       idCita: idCita ?? this.idCita,
@@ -82,6 +91,10 @@ class AppointmentModel {
       duracionAplicada: duracionAplicada ?? this.duracionAplicada,
       estado: estado ?? this.estado,
       observaciones: observaciones ?? this.observaciones,
+      fechaConfirmacion: invalidarDatosAsistencia ? null : fechaConfirmacion,
+      fechaLimite: invalidarDatosAsistencia ? null : fechaLimite,
+      datosAsistenciaDisponibles:
+          invalidarDatosAsistencia ? false : datosAsistenciaDisponibles,
     );
   }
 }

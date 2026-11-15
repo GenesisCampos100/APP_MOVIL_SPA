@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:spa_admin_app/core/theme/admin_visual.dart';
 import 'package:spa_admin_app/core/theme/app_colors.dart';
 import 'package:spa_admin_app/core/theme/app_text_styles.dart';
 import 'package:spa_admin_app/data/models/service_model.dart';
 import 'package:spa_admin_app/data/repositories/servicios_repository.dart';
 import 'package:spa_admin_app/data/services/api_exception.dart';
 import 'package:spa_admin_app/features/services/widgets/service_form_dialog.dart';
+import 'package:spa_admin_app/features/services/widgets/service_image_preview.dart';
 import 'package:spa_admin_app/shared/widgets/confirm_action_dialog.dart';
 
 /// Administración completa de servicios, accesible desde Más opciones.
@@ -23,6 +25,7 @@ class _AdminManageServicesScreenState extends State<AdminManageServicesScreen> {
   final _repositorio = ServiciosRepository();
   final _busquedaController = TextEditingController();
   List<ServiceModel> _servicios = [];
+  Map<String, String> _categorias = {};
   _FiltroServicio _filtro = _FiltroServicio.todos;
   bool _cargando = true;
   String? _error;
@@ -49,8 +52,12 @@ class _AdminManageServicesScreenState extends State<AdminManageServicesScreen> {
     });
     try {
       final resultado = await _repositorio.obtenerTodosServiciosAdmin();
+      final categorias = await _repositorio.obtenerCategorias();
       if (!mounted) return;
-      setState(() => _servicios = resultado);
+      setState(() {
+        _servicios = resultado;
+        _categorias = categorias;
+      });
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (_) {
@@ -62,35 +69,26 @@ class _AdminManageServicesScreenState extends State<AdminManageServicesScreen> {
     }
   }
 
-  Map<String, String> get _categorias {
-    final resultado = <String, String>{};
-    for (final servicio in _servicios) {
-      if (servicio.idCategoria != null && servicio.categoria.isNotEmpty) {
-        resultado[servicio.idCategoria!] = servicio.categoria;
-      }
-    }
-    return resultado;
-  }
-
   void _aviso(String mensaje, {bool error = false}) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(mensaje),
-      backgroundColor: error ? Colors.red.shade700 : AppColors.primaryPink,
+      backgroundColor: error ? Colors.red.shade700 : AdminVisual.primaryPink,
     ));
   }
 
   Future<void> _abrirFormulario({ServiceModel? servicio}) async {
     if (_idEnProceso != null) return;
-    if (_categorias.isEmpty) {
-      _aviso('No hay categorías disponibles. Se necesita el catálogo de categorías.', error: true);
-      return;
-    }
     final guardado = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => ServiceFormDialog(
         serviceToEdit: servicio,
         categorias: _categorias,
+        onCrearCategoria: (nombre) async {
+          final nueva = await _repositorio.crearCategoria(nombre);
+          if (mounted) setState(() => _categorias[nueva.key] = nueva.value);
+          return nueva;
+        },
         onSave: (datos) => servicio == null
             ? _repositorio.crearServicio(datos)
             : _repositorio.actualizarServicio(datos),
@@ -157,15 +155,15 @@ class _AdminManageServicesScreenState extends State<AdminManageServicesScreen> {
     final reducirAnimacion = MediaQuery.disableAnimationsOf(context);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AdminVisual.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: AdminVisual.background,
         centerTitle: true,
-        title: Text('Gestionar servicios',
-          style: AppTextStyles.heading1.copyWith(color: AppColors.textDark)),
+        title: AdminTranslatedText('Gestionar servicios', 'Manage services',
+          style: AppTextStyles.heading1.copyWith(color: AdminVisual.textDark)),
         actions: [
           IconButton(
-            tooltip: 'Actualizar catálogo',
+            tooltip: AdminVisual.t('Actualizar catálogo', 'Refresh catalog'),
             onPressed: _cargando ? null : _cargar,
             icon: const Icon(Icons.refresh_rounded, color: AppColors.primaryPink),
           ),
@@ -175,11 +173,11 @@ class _AdminManageServicesScreenState extends State<AdminManageServicesScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Administración del catálogo',
-              style: AppTextStyles.heading2.copyWith(color: AppColors.textDark)),
+            AdminTranslatedText('Administración del catálogo', 'Catalog management',
+              style: AppTextStyles.heading2.copyWith(color: AdminVisual.textDark)),
             const SizedBox(height: 5),
-            Text('Consulta, organiza y administra los servicios del SPA.',
-              style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
+            AdminTranslatedText('Consulta, organiza y administra los servicios del SPA.', 'Browse and manage the spa service catalog.',
+              style: AppTextStyles.caption.copyWith(color: AdminVisual.textMuted)),
             const SizedBox(height: 14),
             Row(children: [
               _ResumenEstado(label: 'Activos', cantidad: activos, icono: Icons.check_circle_outline),
@@ -191,10 +189,10 @@ class _AdminManageServicesScreenState extends State<AdminManageServicesScreen> {
               controller: _busquedaController,
               onChanged: (value) => setState(() => _busqueda = value),
               decoration: InputDecoration(
-                hintText: 'Buscar por nombre o categoría',
+                hintText: AdminVisual.t('Buscar por nombre o categoría', 'Search name or category'),
                 prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primaryPink),
                 suffixIcon: consulta.isEmpty ? null : IconButton(
-                  tooltip: 'Limpiar búsqueda',
+                  tooltip: AdminVisual.t('Limpiar búsqueda', 'Clear search'),
                   icon: const Icon(Icons.close_rounded),
                   onPressed: () {
                     _busquedaController.clear();
@@ -202,7 +200,7 @@ class _AdminManageServicesScreenState extends State<AdminManageServicesScreen> {
                   },
                 ),
                 filled: true,
-                fillColor: AppColors.fieldBackground,
+                fillColor: AdminVisual.fieldBackground,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(15),
                   borderSide: const BorderSide(color: AppColors.cardBorder)),
                 enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15),
@@ -223,12 +221,12 @@ class _AdminManageServicesScreenState extends State<AdminManageServicesScreen> {
             const SizedBox(height: 8),
             Row(children: [
               Expanded(child: Text('${visibles.length} servicio(s)',
-                style: AppTextStyles.caption.copyWith(color: AppColors.textMuted))),
+                style: AppTextStyles.caption.copyWith(color: AdminVisual.textMuted))),
               FilledButton.icon(
                 onPressed: _cargando || _error != null ? null : () => _abrirFormulario(),
-                style: FilledButton.styleFrom(backgroundColor: AppColors.primaryPink),
+                style: FilledButton.styleFrom(backgroundColor: AdminVisual.primaryPink),
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('Nuevo'),
+                label: const AdminTranslatedText('Nuevo', 'New'),
               ),
             ]),
           ]),
@@ -253,7 +251,7 @@ class _AdminManageServicesScreenState extends State<AdminManageServicesScreen> {
                           onActualizar: _cargar)
                       : RefreshIndicator(
                           key: const ValueKey('lista'),
-                          color: AppColors.primaryPink,
+                          color: AdminVisual.primaryPink,
                           onRefresh: _cargar,
                           child: ListView.builder(
                             physics: const AlwaysScrollableScrollPhysics(),
@@ -290,13 +288,13 @@ class _AdminManageServicesScreenState extends State<AdminManageServicesScreen> {
   }
 
   Widget _filtroChip(String titulo, _FiltroServicio filtro) => ChoiceChip(
-    label: Text(titulo),
+    label: Text(AdminVisual.ui(titulo)),
     selected: _filtro == filtro,
-    selectedColor: AppColors.primaryPinkSoft,
-    checkmarkColor: AppColors.primaryPink,
+    selectedColor: AdminVisual.primaryPinkSoft,
+    checkmarkColor: AdminVisual.primaryPink,
     side: const BorderSide(color: AppColors.cardBorder),
     labelStyle: TextStyle(
-      color: _filtro == filtro ? AppColors.primaryPink : AppColors.textDark,
+      color: _filtro == filtro ? AdminVisual.primaryPink : AdminVisual.textDark,
       fontWeight: _filtro == filtro ? FontWeight.w600 : FontWeight.normal,
     ),
     onSelected: (_) => setState(() => _filtro = filtro),
@@ -313,14 +311,14 @@ class _ResumenEstado extends StatelessWidget {
   Widget build(BuildContext context) => Expanded(child: Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
     decoration: BoxDecoration(
-      color: AppColors.primaryPinkSoft,
+      color: AdminVisual.primaryPinkSoft,
       borderRadius: BorderRadius.circular(16),
     ),
     child: Row(children: [
-      Icon(icono, color: AppColors.primaryPink, size: 20),
+      Icon(icono, color: AdminVisual.primaryPink, size: 20),
       const SizedBox(width: 7),
-      Expanded(child: Text(label, style: AppTextStyles.caption.copyWith(color: AppColors.textDark))),
-      Text('$cantidad', style: AppTextStyles.heading2.copyWith(color: AppColors.primaryPink)),
+      Expanded(child: Text(AdminVisual.ui(label), style: AppTextStyles.caption.copyWith(color: AdminVisual.textDark))),
+      Text('$cantidad', style: AppTextStyles.heading2.copyWith(color: AdminVisual.primaryPink)),
     ]),
   ));
 }
@@ -344,26 +342,28 @@ class _TarjetaAdmin extends StatelessWidget {
     margin: const EdgeInsets.only(bottom: 12),
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: AppColors.cardBackground,
+      color: AdminVisual.cardBackground,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: AppColors.cardBorder),
+      border: Border.all(color: AdminVisual.cardBorder),
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        ServiceImagePreview(imagen: servicio.imagen, size: 58),
+        const SizedBox(width: 10),
         Expanded(child: Text(servicio.nombre,
           style: AppTextStyles.subtitle.copyWith(fontWeight: FontWeight.w700,
-            color: AppColors.textDark))),
+            color: AdminVisual.textDark))),
         const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: servicio.estado ? const Color(0xFFEAF7EC) : const Color(0xFFF0EFF1),
+            color: servicio.estado ? AdminVisual.greenBackground : AdminVisual.statusBackground,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Text(servicio.estado ? 'Activo' : 'Inactivo',
+          child: Text(AdminVisual.ui(servicio.estado ? 'Activo' : 'Inactivo'),
             style: AppTextStyles.caption.copyWith(
               fontWeight: FontWeight.w600,
-              color: servicio.estado ? const Color(0xFF297D4A) : AppColors.textMuted,
+              color: servicio.estado ? AdminVisual.greenText : AdminVisual.textMuted,
             )),
         ),
       ]),
@@ -371,7 +371,7 @@ class _TarjetaAdmin extends StatelessWidget {
         const SizedBox(height: 6),
         Text(servicio.descripcion,
           maxLines: 2, overflow: TextOverflow.ellipsis,
-          style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
+          style: AppTextStyles.caption.copyWith(color: AdminVisual.textMuted)),
       ],
       const SizedBox(height: 12),
       Wrap(spacing: 10, runSpacing: 7, children: [
@@ -384,13 +384,13 @@ class _TarjetaAdmin extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: bloqueada ? null : onEditar,
           icon: const Icon(Icons.edit_outlined, size: 17),
-          label: const Text('Editar'),
+          label: const AdminTranslatedText('Editar', 'Edit'),
         ),
         const SizedBox(width: 10),
         Expanded(child: FilledButton.icon(
           onPressed: bloqueada ? null : onCambiarEstado,
           style: FilledButton.styleFrom(
-            backgroundColor: AppColors.primaryPink,
+            backgroundColor: AdminVisual.primaryPink,
             padding: const EdgeInsets.symmetric(horizontal: 10),
           ),
           icon: ocupada
@@ -398,7 +398,7 @@ class _TarjetaAdmin extends StatelessWidget {
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
               : Icon(servicio.estado ? Icons.pause_circle_outline : Icons.restore_rounded,
                   size: 18),
-          label: Text(servicio.estado ? 'Desactivar' : 'Reactivar'),
+          label: Text(AdminVisual.ui(servicio.estado ? 'Desactivar' : 'Reactivar')),
         )),
       ]),
     ]),
@@ -407,9 +407,9 @@ class _TarjetaAdmin extends StatelessWidget {
   Widget _dato(IconData icono, String valor) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Icon(icono, size: 15, color: AppColors.primaryPink),
+      Icon(icono, size: 15, color: AdminVisual.primaryPink),
       const SizedBox(width: 5),
-      Text(valor, style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
+      Text(valor, style: AppTextStyles.caption.copyWith(color: AdminVisual.textMuted)),
     ],
   );
 }
@@ -427,16 +427,16 @@ class _EstadoLista extends StatelessWidget {
     child: Padding(
       padding: const EdgeInsets.all(24),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icono, color: AppColors.primaryPink, size: 38),
+        Icon(icono, color: AdminVisual.primaryPink, size: 38),
         const SizedBox(height: 12),
         Text(titulo, textAlign: TextAlign.center,
-          style: AppTextStyles.heading2.copyWith(color: AppColors.textDark)),
+          style: AppTextStyles.heading2.copyWith(color: AdminVisual.textDark)),
         const SizedBox(height: 8),
         Text(mensaje, textAlign: TextAlign.center,
-          style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
+          style: AppTextStyles.caption.copyWith(color: AdminVisual.textMuted)),
         const SizedBox(height: 12),
         OutlinedButton.icon(onPressed: onActualizar,
-          icon: const Icon(Icons.refresh_rounded), label: const Text('Reintentar')),
+          icon: const Icon(Icons.refresh_rounded), label: const AdminTranslatedText('Reintentar', 'Retry')),
       ]),
     ),
   );

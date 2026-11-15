@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:spa_admin_app/features/appointments/widgets/cita_visual_components.dart';
 import 'package:spa_admin_app/data/repositories/citas_repository.dart';
 import 'package:spa_admin_app/data/services/api_exception.dart';
-import 'package:spa_admin_app/core/theme/app_colors.dart';
+import 'package:spa_admin_app/core/theme/admin_visual.dart';
+import 'package:spa_admin_app/core/preferences/staff_preferences.dart';
 import 'package:spa_admin_app/core/theme/app_text_styles.dart';
 import 'package:spa_admin_app/data/models/appointment_model.dart';
 import 'package:spa_admin_app/features/appointments/widgets/estado_badge.dart';
+import 'package:spa_admin_app/features/appointments/widgets/estado_asistencia_card.dart';
 import 'package:spa_admin_app/features/appointments/widgets/reprogramar_cita_dialog.dart';
 
 /// Detalle de una cita obtenida de GET /api/citas.
@@ -29,15 +32,92 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
   bool _cancelando = false;
   bool _reprogramando = false;
   bool _completando = false;
+  bool _reportandoInasistencia = false;
+  bool _puedeReportarInasistencia = false;
   final CitasRepository _repository = CitasRepository();
 
   @override
   void initState() {
     super.initState();
     _citaActual = widget.appointment;
+    _consultarPermisoInasistencia();
   }
 
   AppointmentModel get _cita => _citaActual;
+
+  String _t(String es, String en) => StaffPreferences.tr(es, en);
+
+  Future<void> _consultarPermisoInasistencia() async {
+    if (_cita.estado != 'Confirmada') return;
+    try {
+      final ids = await _repository.obtenerIdsInasistenciasHabilitadas();
+      if (!mounted) return;
+      final id = int.tryParse(_cita.idCita.replaceFirst('#Cita-', '').trim());
+      setState(() => _puedeReportarInasistencia = id != null && ids.contains(id));
+    } catch (_) {
+      // Backend todavía no integrado, permiso denegado o error de red:
+      // no mostrar una acción que pueda aparentar funcionar.
+      if (mounted) setState(() => _puedeReportarInasistencia = false);
+    }
+  }
+
+  Future<void> _reportarInasistencia() async {
+    if (!mounted || !_puedeReportarInasistencia ||
+        _cita.estado != 'Confirmada' || _confirmando || _cancelando ||
+        _completando || _reprogramando || _reportandoInasistencia) return;
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (dialogo) => AlertDialog(
+        title: Text(_t('¿Reportar inasistencia?', 'Report a no-show?')),
+        content: Text(_t(
+          'Confirma que ${_cita.nombreCliente} no acudió a la cita '
+          '${_cita.idCita} y que el horario reservado ya terminó. '
+          'La cita quedará Cancelada. Las observaciones del cliente no se modificarán. '
+          'Esta acción no podrá deshacerse desde la aplicación.',
+          'Confirm that ${_cita.nombreCliente} did not attend appointment '
+          '${_cita.idCita} and that the reserved time has ended. '
+          'The appointment will be Cancelled. Customer notes will not be changed. '
+          'This action cannot be undone in the app.',
+        )),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogo, false),
+              child: Text(_t('Volver', 'Back'))),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogo, true),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFAD5965)),
+            icon: const Icon(Icons.person_off_outlined),
+            label: Text(_t('Sí, reportar', 'Yes, report')),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmado != true) return;
+    setState(() => _reportandoInasistencia = true);
+    try {
+      await _repository.reportarInasistencia(_cita.idCita);
+      if (!mounted) return;
+      final actualizada = _cita.copyWith(estado: 'Cancelada');
+      setState(() {
+        _citaActual = actualizada;
+        _puedeReportarInasistencia = false;
+      });
+      widget.onAppointmentUpdated(actualizada);
+      mostrarAvisoCita(context, _t('Ausencia registrada: cita Cancelada. Observaciones intactas.', 'No-show recorded: appointment Cancelled. Customer notes unchanged.'),
+          tipo: CitaAvisoTipo.advertencia);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      mostrarAvisoCita(context, e.message, tipo: CitaAvisoTipo.error);
+      await _consultarPermisoInasistencia();
+    } catch (_) {
+      if (!mounted) return;
+      mostrarAvisoCita(context,
+          _t('No se pudo registrar la inasistencia. Verifica la conexión.', 'Could not report the no-show. Check your connection.'),
+          tipo: CitaAvisoTipo.error);
+    } finally {
+      if (mounted) setState(() => _reportandoInasistencia = false);
+    }
+  }
+
 
   Future<void> _solicitarCancelacion() async {
     if (_confirmando || _cancelando || _completando ||
@@ -47,19 +127,24 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
     final aceptada = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Cancelar cita'),
-        content: Text(
+        title: Text(_t('Cancelar cita', 'Cancel appointment')),
+        content: Text(_t(
           '¿Deseas cancelar la cita ${_cita.idCita} de ${_cita.nombreCliente}? '
-          'El registro permanecerá en el historial. Esta acción no enviará notificaciones automáticas.',
-        ),
+          'El registro permanecerá en el historial y el horario quedará disponible. '
+          'Esta acción no enviará notificaciones automáticas.',
+          'Cancel appointment ${_cita.idCita} for ${_cita.nombreCliente}? '
+          'The record will remain in the history and the time slot will become available. '
+          'This action will not send automatic notifications.',
+        )),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Volver'),
+            child: Text(_t('Volver', 'Back')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Sí, cancelar'),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFB83E4F)),
+            child: Text(_t('Sí, cancelar', 'Yes, cancel')),
           ),
         ],
       ),
@@ -81,21 +166,17 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
         _cancelando = false;
       });
       widget.onAppointmentUpdated(actualizada);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cita cancelada correctamente.')),
-      );
+      if (mounted) setState(() => _puedeReportarInasistencia = false);
+      mostrarAvisoCita(context, _t('Cita cancelada correctamente.', 'Appointment cancelled successfully.'), tipo: CitaAvisoTipo.error);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _cancelando = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      mostrarAvisoCita(context, e.message, tipo: CitaAvisoTipo.error);
     } catch (_) {
       if (!mounted) return;
       setState(() => _cancelando = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo cancelar la cita. Verifica la conexión.')),
-      );
+      mostrarAvisoCita(context, _t('No se pudo cancelar la cita. Verifica la conexión.', 'Could not cancel the appointment. Check your connection.'),
+          tipo: CitaAvisoTipo.error);
     }
   }
   Future<void> _confirmarCita() async {
@@ -103,16 +184,22 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
     final aceptada = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Confirmar cita'),
-        content: Text('¿Deseas confirmar la cita ${_cita.idCita} de ${_cita.nombreCliente}?'),
+        title: Text(_t('¿Aceptar esta solicitud?', 'Accept this request?')),
+        content: Text(_t(
+          '¿Deseas aceptar la cita ${_cita.idCita} de ${_cita.nombreCliente}? '
+          'Se mostrará como Confirmada al cliente, pero esto no significa que ya confirmó su asistencia.',
+          'Accept appointment ${_cita.idCita} for ${_cita.nombreCliente}? '
+          'The customer will see it as Confirmed, but this does not mean they confirmed attendance.',
+        )),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Volver'),
+            child: Text(_t('Volver', 'Back')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Sí, confirmar'),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF237A51)),
+            child: Text(_t('Sí, aceptar', 'Yes, accept')),
           ),
         ],
       ),
@@ -129,21 +216,18 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
         _confirmando = false;
       });
       widget.onAppointmentUpdated(citaConfirmada);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cita confirmada correctamente.')),
-      );
+      await _consultarPermisoInasistencia();
+      mostrarAvisoCita(context, _t('Solicitud aceptada. La asistencia se confirma por separado.', 'Request accepted. Attendance is confirmed separately.'),
+          tipo: CitaAvisoTipo.exito);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _confirmando = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      mostrarAvisoCita(context, e.message, tipo: CitaAvisoTipo.error);
     } catch (_) {
       if (!mounted) return;
       setState(() => _confirmando = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo confirmar la cita. Verifica la conexión.')),
-      );
+      mostrarAvisoCita(context, _t('No se pudo aceptar la solicitud. Verifica la conexión.', 'Could not accept the request. Check your connection.'),
+          tipo: CitaAvisoTipo.error);
     }
   }
 
@@ -166,13 +250,12 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
           horaInicio: resultado.hora,
           nombreEmpleado: resultado.especialista,
           estado: resultado.estado,
+          invalidarDatosAsistencia: true,
         );
-        setState(() => _citaActual = nueva);
+        setState(() { _citaActual = nueva; _puedeReportarInasistencia = false; });
         widget.onAppointmentUpdated(nueva);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          backgroundColor: Color(0xFF93651B),
-          content: Text('Cita reprogramada. Quedó Pendiente de confirmación.'),
-        ));
+        mostrarAvisoCita(context, _t('Cita reprogramada. Quedó Pendiente de aceptación; la confirmación de asistencia anterior ya no aplica.', 'Appointment rescheduled and Pending acceptance. Previous attendance confirmation no longer applies.'),
+            tipo: CitaAvisoTipo.advertencia);
       }
     } finally {
       if (mounted) setState(() => _reprogramando = false);
@@ -184,30 +267,36 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
       'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
       'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
     ];
+    if (StaffPreferences.language.value == 'en') {
+      return MaterialLocalizations.of(context).formatMediumDate(fecha);
+    }
     return '${fecha.day} de ${meses[fecha.month - 1]} de ${fecha.year}';
   }
 
   Future<void> _completarCita() async {
     if (!mounted || _completando || _confirmando || _cancelando || _reprogramando ||
-        _cita.estado != 'Confirmada') return;
+        _reportandoInasistencia || _cita.estado != 'Confirmada') return;
     final aceptada = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('¿Marcar cita como completada?'),
-        content: Text(
+        title: Text(_t('¿Marcar cita como completada?', 'Mark appointment as completed?')),
+        content: Text(_t(
           'Confirma que el servicio de ${_cita.nombreCliente} ya se realizó. '
           'Solo puede completarse una cita Confirmada después de terminar su horario reservado. '
           'Esta acción no se puede deshacer desde la aplicación.',
-        ),
+          'Confirm that the service for ${_cita.nombreCliente} has been performed. '
+          'Only Confirmed appointments can be completed after the reserved time ends. '
+          'This action cannot be undone in the app.',
+        )),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Volver'),
+            child: Text(_t('Volver', 'Back')),
           ),
           FilledButton.icon(
             onPressed: () => Navigator.pop(dialogContext, true),
             icon: const Icon(Icons.task_alt),
-            label: const Text('Sí, completar'),
+            label: Text(_t('Sí, completar', 'Yes, complete')),
           ),
         ],
       ),
@@ -220,22 +309,16 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
       final actualizada = _cita.copyWith(estado: 'Completada');
       setState(() => _citaActual = actualizada);
       widget.onAppointmentUpdated(actualizada);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        backgroundColor: Color(0xFF27804F),
-        content: Text('Cita completada correctamente.'),
-      ));
+      if (mounted) setState(() => _puedeReportarInasistencia = false);
+      mostrarAvisoCita(context, _t('Cita completada correctamente.', 'Appointment completed successfully.'),
+          tipo: CitaAvisoTipo.exito);
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        backgroundColor: const Color(0xFFC03945),
-        content: Text(e.message),
-      ));
+      mostrarAvisoCita(context, e.message, tipo: CitaAvisoTipo.error);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        backgroundColor: Color(0xFFC03945),
-        content: Text('No se pudo completar la cita. Revisa la conexión.'),
-      ));
+      mostrarAvisoCita(context, _t('No se pudo completar la cita. Revisa la conexión.', 'Could not complete the appointment. Check your connection.'),
+          tipo: CitaAvisoTipo.error);
     } finally {
       if (mounted) setState(() => _completando = false);
     }
@@ -245,19 +328,19 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
   Widget build(BuildContext context) {
     final sinAnimaciones = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AdminVisual.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          tooltip: 'Volver',
-          icon: const Icon(Icons.arrow_back_ios, color: AppColors.textDark),
+          tooltip: _t('Volver', 'Back'),
+          icon: Icon(Icons.arrow_back_ios, color: AdminVisual.textDark),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Detalle de cita',
-          style: AppTextStyles.displayExtraBold.copyWith(color: AppColors.textDark),
+          _t('Detalle de cita', 'Appointment details'),
+          style: AppTextStyles.displayExtraBold.copyWith(color: AdminVisual.textDark),
         ),
       ),
       body: TweenAnimationBuilder<double>(
@@ -276,9 +359,9 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.cardBackground,
+              color: AdminVisual.cardBackground,
               borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: AppColors.cardBorder),
+              border: Border.all(color: AdminVisual.cardBorder),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.04),
@@ -294,11 +377,11 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        'Información de la reservación',
+                        _t('Información de la reservación', 'Booking information'),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.heading2.copyWith(
-                          color: AppColors.textDark,
+                          color: AdminVisual.textDark,
                           fontSize: 16,
                         ),
                       ),
@@ -311,26 +394,26 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(15),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryPinkSoft,
+                    color: AdminVisual.primaryPinkSoft,
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Servicio reservado',
-                        style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                      Text(
+                        _t('Servicio reservado', 'Booked service'),
+                        style: TextStyle(fontSize: 12, color: AdminVisual.textMuted),
                       ),
                       const SizedBox(height: 5),
                       Text(
                         _cita.nombreServicio,
-                        style: AppTextStyles.heading2.copyWith(color: AppColors.textDark),
+                        style: AppTextStyles.heading2.copyWith(color: AdminVisual.textDark),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         '\$${_cita.precioAplicado.toStringAsFixed(2)} MXN',
                         style: AppTextStyles.heading1.copyWith(
-                          color: AppColors.primaryPink,
+                          color: AdminVisual.primaryPink,
                           fontSize: 19,
                         ),
                       ),
@@ -338,23 +421,31 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                _dato(Icons.person_outline, 'Cliente', _cita.nombreCliente),
+                _dato(Icons.person_outline, _t('Cliente', 'Customer'), _cita.nombreCliente),
                 const SizedBox(height: 14),
-                _dato(Icons.badge_outlined, 'Especialista', _cita.nombreEmpleado),
+                _dato(Icons.badge_outlined, _t('Especialista', 'Specialist'), _cita.nombreEmpleado),
                 const SizedBox(height: 14),
-                _dato(Icons.event_outlined, 'Fecha', _fechaLegible(_cita.fecha)),
+                _dato(Icons.event_outlined, _t('Fecha', 'Date'), _fechaLegible(_cita.fecha)),
                 const SizedBox(height: 14),
-                _dato(Icons.schedule_outlined, 'Hora', _cita.horaInicio),
+                _dato(Icons.schedule_outlined, _t('Hora', 'Time'), _cita.horaInicio),
                 const SizedBox(height: 14),
-                _dato(Icons.timelapse_outlined, 'Duración', _cita.duracionAplicada),
+                _dato(Icons.timelapse_outlined, _t('Duración', 'Duration'), _cita.duracionAplicada),
+                if (_cita.estado == 'Confirmada') ...[
+                  const SizedBox(height: 18),
+                  EstadoAsistenciaCard(
+                    datosDisponibles: _cita.datosAsistenciaDisponibles,
+                    fechaConfirmacion: _cita.fechaConfirmacion,
+                    fechaLimite: _cita.fechaLimite,
+                  ),
+                ],
                 const SizedBox(height: 18),
-                const Divider(color: AppColors.cardBorder),
+                Divider(color: AdminVisual.cardBorder),
                 const SizedBox(height: 12),
                 Text(
-                  'Observaciones',
+                  _t('Observaciones', 'Notes'),
                   style: AppTextStyles.subtitle.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textDark,
+                    color: AdminVisual.textDark,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -362,14 +453,14 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.fieldBackground,
+                    color: AdminVisual.fieldBackground,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Text(
                     (_cita.observaciones?.trim().isNotEmpty ?? false)
                         ? _cita.observaciones!
-                        : 'Sin observaciones registradas.',
-                    style: AppTextStyles.caption.copyWith(color: AppColors.textDark),
+                        : _t('Sin observaciones registradas.', 'No notes recorded.'),
+                    style: AppTextStyles.caption.copyWith(color: AdminVisual.textDark),
                   ),
                 ),
                 const SizedBox(height: 18),
@@ -385,7 +476,7 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.check_circle_outline),
-                      label: Text(_confirmando ? 'Confirmando...' : 'Confirmar cita'),
+                      label: Text(_confirmando ? _t('Aceptando...', 'Accepting...') : _t('Aceptar solicitud', 'Accept request')),
                     ),
                   ),
                 if (_cita.estado == 'Pendiente' || _cita.estado == 'Confirmada') ...[
@@ -396,7 +487,7 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
                       onPressed: (_confirmando || _cancelando || _reprogramando || _completando)
                           ? null : _reprogramarCita,
                       icon: const Icon(Icons.event_repeat_outlined),
-                      label: const Text('Reprogramar cita'),
+                      label: Text(_t('Reprogramar cita', 'Reschedule appointment')),
                     ),
                   ),
                 ],
@@ -414,7 +505,7 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.event_busy_outlined),
-                      label: Text(_cancelando ? 'Cancelando...' : 'Cancelar cita'),
+                      label: Text(_cancelando ? _t('Cancelando...', 'Cancelling...') : _t('Cancelar cita', 'Cancel appointment')),
                     ),
                   ),
                 if (_cita.estado == 'Confirmada') ...[
@@ -429,14 +520,41 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
                           ? const SizedBox(width: 16, height: 16,
                               child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.task_alt),
-                      label: Text(_completando ? 'Guardando...' : 'Marcar como completada'),
+                      label: Text(_completando ? _t('Guardando...', 'Saving...') : _t('Marcar como completada', 'Mark as completed')),
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
-                    'Solo al finalizar el servicio. El servidor validará la hora.',
-                    style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                  Text(
+                    _t('Solo al finalizar el servicio. El servidor validará la hora.',
+                       'Only after the service ends. The server will verify the time.'),
+                    style: TextStyle(fontSize: 11, color: AdminVisual.textMuted),
                   ),
+                  if (_puedeReportarInasistencia) ...[
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: (_reportandoInasistencia || _confirmando ||
+                                _cancelando || _completando || _reprogramando)
+                            ? null : _reportarInasistencia,
+                        icon: _reportandoInasistencia
+                            ? const SizedBox(width: 16, height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.person_off_outlined),
+                        label: Text(_reportandoInasistencia
+                            ? _t('Registrando...', 'Reporting...') : _t('Reportar inasistencia', 'Report no-show')),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFAD5965),
+                          side: const BorderSide(color: Color(0xFFE2B7C0)),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      _t('Solo si el cliente no acudió y el horario terminó.',
+                         'Only if the customer did not attend and the reserved time has ended.'),
+                      style: TextStyle(fontSize: 11, color: AdminVisual.textMuted),
+                    ),
+                  ],
                 ],
               ],
             ),
@@ -453,10 +571,10 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
         Container(
           padding: const EdgeInsets.all(9),
           decoration: BoxDecoration(
-            color: AppColors.primaryPinkSoft,
+            color: AdminVisual.primaryPinkSoft,
             borderRadius: BorderRadius.circular(11),
           ),
-          child: Icon(icono, color: AppColors.primaryPink, size: 19),
+          child: Icon(icono, color: AdminVisual.primaryPink, size: 19),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -465,13 +583,13 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
             children: [
               Text(
                 etiqueta,
-                style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+                style: AppTextStyles.caption.copyWith(color: AdminVisual.textMuted),
               ),
               const SizedBox(height: 2),
               Text(
-                valor.trim().isEmpty ? 'No disponible' : valor,
+                valor.trim().isEmpty ? _t('No disponible', 'Unavailable') : valor,
                 style: AppTextStyles.body.copyWith(
-                  color: AppColors.textDark,
+                  color: AdminVisual.textDark,
                   fontWeight: FontWeight.w600,
                 ),
               ),

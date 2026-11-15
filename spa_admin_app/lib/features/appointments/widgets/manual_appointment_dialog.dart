@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:spa_admin_app/features/appointments/widgets/cita_visual_components.dart';
 import 'package:spa_admin_app/core/theme/app_colors.dart';
+import 'package:spa_admin_app/core/preferences/staff_preferences.dart';
+import 'package:spa_admin_app/data/services/sesion_service.dart';
 import 'package:spa_admin_app/data/services/api_client.dart';
 import 'package:spa_admin_app/data/services/api_exception.dart';
 
@@ -15,6 +18,9 @@ class ManualAppointmentDialog extends StatefulWidget {
 enum _TipoClienteManual { registrado, sinCuenta }
 
 class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
+  String t(String es, String en) => AuthSession.esEmpleado
+      ? StaffPreferences.tr(es, en) : es;
+
   final ApiClient _api = ApiClient();
   final TextEditingController _busqueda = TextEditingController();
   final TextEditingController _observaciones = TextEditingController();
@@ -88,7 +94,7 @@ class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
       if (!mounted) return;
       setState(() {
         _cargando = false;
-        _error = e is ApiException ? e.message : 'No fue posible cargar los datos.';
+        _error = e is ApiException ? e.message : t('No fue posible cargar los datos.', 'Unable to load data.');
       });
     }
   }
@@ -111,7 +117,7 @@ class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
       if (!mounted) return;
       setState(() {
         _buscando = false;
-        _error = e is ApiException ? e.message : 'No se pudieron buscar los clientes.';
+        _error = e is ApiException ? e.message : t('No se pudieron buscar los clientes.', 'Unable to search for clients.');
       });
     }
   }
@@ -161,36 +167,41 @@ class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
       if (!mounted || version != _versionHorarios) return;
       setState(() {
         _cargandoHoras = false;
-        _errorHoras = e is ApiException ? e.message : 'No se pudo consultar la disponibilidad.';
+        _errorHoras = e is ApiException ? e.message : t('No se pudo consultar la disponibilidad.', 'Unable to check availability.');
       });
     }
   }
 
+  void _seleccionarDia(DateTime fecha) {
+    if (_guardando || _fechaIso(fecha) == _fechaIso(_fecha)) return;
+    setState(() { _fecha = fecha; _limpiarHoras(); });
+    _cargarHoras();
+  }
+
   Future<void> _elegirFecha() async {
     final hoy = DateTime.now();
-    final seleccion = await showDatePicker(
-      context: context,
-      initialDate: _fecha.isBefore(DateTime(hoy.year, hoy.month, hoy.day)) ? hoy : _fecha,
-      firstDate: DateTime(hoy.year, hoy.month, hoy.day),
-      lastDate: DateTime(hoy.year + 1, hoy.month, hoy.day),
-      helpText: 'Selecciona la fecha de la cita',
+    final minimo = DateTime(hoy.year, hoy.month, hoy.day);
+    final seleccion = await abrirCalendarioCita(
+      context,
+      fechaActual: _fecha,
+      fechaMinima: minimo,
+      fechaMaxima: DateTime(hoy.year + 1, hoy.month, hoy.day),
     );
     if (seleccion == null || !mounted) return;
-    setState(() { _fecha = seleccion; _limpiarHoras(); });
-    await _cargarHoras();
+    _seleccionarDia(seleccion);
   }
 
   Future<void> _guardar() async {
     final esNuevo = _tipoCliente == _TipoClienteManual.sinCuenta;
     if (_idServicio == null || _idEmpleado == null || _hora == null ||
         (!esNuevo && _idCliente == null)) {
-      setState(() => _error = 'Selecciona el cliente, servicio, especialista y un horario disponible.');
+      setState(() => _error = t('Selecciona el cliente, servicio, especialista y un horario disponible.', 'Choose a client, service, specialist and available time.'));
       return;
     }
     if (esNuevo && (_nombreNuevo.text.trim().isEmpty ||
         _apellidoPaternoNuevo.text.trim().isEmpty ||
         !RegExp(r'^\d{10}$').hasMatch(_telefonoNuevo.text.trim()))) {
-      setState(() => _error = 'Escribe nombre, apellido paterno y teléfono de 10 dígitos.');
+      setState(() => _error = t('Escribe nombre, apellido paterno y teléfono de 10 dígitos.', 'Enter a first name, last name and 10-digit phone number.'));
       return;
     }
     setState(() { _guardando = true; _error = null; });
@@ -222,7 +233,7 @@ class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
       if (!mounted) return;
       setState(() {
         _guardando = false;
-        _error = e is ApiException ? e.message : 'No fue posible guardar la cita.';
+        _error = e is ApiException ? e.message : t('No fue posible guardar la cita.', 'Unable to save the appointment.');
       });
       // Ante un conflicto de disponibilidad, refrescar los horarios.
       if (e is ApiException && e.statusCode == 409) await _cargarHoras();
@@ -233,8 +244,10 @@ class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
   Widget build(BuildContext context) {
     final disponibles = _especialistasFiltrados;
     final servicio = _servicios.where((s) => _id(s['id_servicio']) == _idServicio).toList();
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: dark ? scheme.surface : Colors.white,
       insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: ConstrainedBox(
@@ -246,19 +259,20 @@ class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryPink.withValues(alpha: 0.12),
+                  color: scheme.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Icons.event_available_outlined, color: AppColors.primaryPink),
+                child: Icon(Icons.event_available_outlined, color: scheme.primary),
               ),
               const SizedBox(width: 12),
-              const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Nueva cita', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 19)),
-                Text('Estado inicial: Pendiente',
-                    style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(t('Nueva cita', 'New appointment'),
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 19)),
+                Text(t('Estado inicial: Pendiente', 'Initial status: Pending'),
+                    style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
               ])),
               IconButton(onPressed: _guardando ? null : () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded), tooltip: 'Cerrar'),
+                  icon: const Icon(Icons.close_rounded), tooltip: t('Cerrar', 'Close')),
             ]),
           ),
           const Divider(height: 1),
@@ -270,19 +284,19 @@ class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
                     if (_error != null) ...[
                       Container(
                         padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: const Color(0xFFFFF0F0), borderRadius: BorderRadius.circular(12)),
-                        child: Text(_error!, style: const TextStyle(color: Color(0xFF9B2534))),
+                        decoration: BoxDecoration(color: scheme.errorContainer, borderRadius: BorderRadius.circular(12)),
+                        child: Text(_error!, style: TextStyle(color: scheme.onErrorContainer)),
                       ),
                       const SizedBox(height: 14),
                     ],
                     if (_servicios.isEmpty) ...[
-                      const Text('No hay servicios disponibles para crear citas.'),
-                      TextButton(onPressed: _cargarCatalogo, child: const Text('Reintentar')),
+                      Text(t('No hay servicios disponibles para crear citas.', 'No services available for appointments.')),
+                      TextButton(onPressed: _cargarCatalogo, child: Text(t('Reintentar', 'Retry'))),
                     ] else ...[
-                      _subtitulo('1. Datos del cliente'),
+                      _subtitulo(t('1. Datos del cliente', '1. Client details')),
                       Wrap(spacing: 8, runSpacing: 8, children: [
                         ChoiceChip(
-                          label: const Text('Cliente existente'),
+                          label: Text(t('Cliente existente', 'Existing client')),
                           selected: _tipoCliente == _TipoClienteManual.registrado,
                           onSelected: _guardando ? null : (_) => setState(() {
                             _tipoCliente = _TipoClienteManual.registrado;
@@ -290,7 +304,7 @@ class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
                           }),
                         ),
                         ChoiceChip(
-                          label: const Text('Nuevo sin cuenta'),
+                          label: Text(t('Nuevo sin cuenta', 'New without account')),
                           selected: _tipoCliente == _TipoClienteManual.sinCuenta,
                           onSelected: _guardando ? null : (_) => setState(() {
                             _tipoCliente = _TipoClienteManual.sinCuenta;
@@ -306,8 +320,8 @@ class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
                           enabled: !_guardando,
                           textInputAction: TextInputAction.search,
                           onSubmitted: (_) => _buscarClientes(),
-                          decoration: const InputDecoration(
-                            hintText: 'Buscar nombre, teléfono o correo',
+                          decoration: InputDecoration(
+                            hintText: t('Buscar nombre, teléfono o correo', 'Search name, phone or email'),
                             prefixIcon: Icon(Icons.search_rounded),
                             isDense: true,
                             border: OutlineInputBorder(),
@@ -315,7 +329,7 @@ class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
                         )),
                         const SizedBox(width: 8),
                         IconButton.filledTonal(
-                          tooltip: 'Buscar clientes',
+                          tooltip: t('Buscar clientes', 'Search clients'),
                           onPressed: _buscando || _guardando ? null : _buscarClientes,
                           icon: _buscando ? const SizedBox(width: 18, height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.search_rounded),
@@ -326,23 +340,25 @@ class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
                         key: ValueKey('clientes-${_clientes.length}-${_idCliente ?? 0}'),
                         initialValue: _idCliente,
                         isExpanded: true,
-                        decoration: const InputDecoration(labelText: 'Seleccionar cliente', border: OutlineInputBorder()),
+                        decoration: InputDecoration(labelText: t('Seleccionar cliente', 'Select client'), border: const OutlineInputBorder()),
                         items: _clientes.map((cliente) => DropdownMenuItem<int>(
                           value: _id(cliente['id_cliente']),
-                          child: Text('${_texto(cliente['nombre'])} · ${cliente['sin_cuenta'] == true ? 'Sin cuenta' : _texto(cliente['correo'])}',
+                          child: Text('${_texto(cliente['nombre'])} · ${cliente['sin_cuenta'] == true ? t('Sin cuenta', 'No account') : _texto(cliente['correo'])}',
                               overflow: TextOverflow.ellipsis),
                         )).toList(),
                         onChanged: _guardando ? null : (valor) => setState(() => _idCliente = valor),
                       ),
-                      if (_clientes.isEmpty) const Padding(
-                        padding: EdgeInsets.only(top: 8),
-                        child: Text('No se encontraron clientes. Busca otro nombre o teléfono.',
-                            style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                      if (_clientes.isEmpty) Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(t('No se encontraron clientes. Busca otro nombre o teléfono.',
+                            'No clients found. Try another name or phone.'),
+                            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
                       ),
                       ] else ...[
-                        const Text(
-                          'Se guardará un perfil de atención sin acceso a la app ni correos. La cita quedará Pendiente hasta que Administración o Recepción la confirme.',
-                          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                        Text(
+                          t('Se guardará un perfil de atención sin acceso a la app ni correos. La cita quedará Pendiente hasta que Administración o Recepción la confirme.',
+                            'A client record will be created without app access or emails. The appointment stays Pending until staff accept it.'),
+                          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
                         ),
                         const SizedBox(height: 10),
                         TextField(
@@ -350,8 +366,8 @@ class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
                           maxLength: 80,
                           textCapitalization: TextCapitalization.words,
                           enabled: !_guardando,
-                          decoration: const InputDecoration(
-                            labelText: 'Nombre *', border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            labelText: t('Nombre *', 'First name *'), border: const OutlineInputBorder(),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -360,8 +376,8 @@ class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
                           maxLength: 80,
                           textCapitalization: TextCapitalization.words,
                           enabled: !_guardando,
-                          decoration: const InputDecoration(
-                            labelText: 'Apellido paterno *', border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            labelText: t('Apellido paterno *', 'Last name *'), border: const OutlineInputBorder(),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -370,8 +386,8 @@ class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
                           maxLength: 80,
                           textCapitalization: TextCapitalization.words,
                           enabled: !_guardando,
-                          decoration: const InputDecoration(
-                            labelText: 'Apellido materno (opcional)', border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            labelText: t('Apellido materno (opcional)', 'Second last name (optional)'), border: const OutlineInputBorder(),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -380,17 +396,17 @@ class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
                           maxLength: 10,
                           keyboardType: TextInputType.phone,
                           enabled: !_guardando,
-                          decoration: const InputDecoration(
-                            labelText: 'Teléfono de 10 dígitos *', border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            labelText: t('Teléfono de 10 dígitos *', '10-digit phone *'), border: const OutlineInputBorder(),
                           ),
                         ),
                       ],
                       const SizedBox(height: 18),
-                      _subtitulo('2. Servicio y especialista'),
+                      _subtitulo(t('2. Servicio y especialista', '2. Service and specialist')),
                       DropdownButtonFormField<int>(
                         initialValue: _idServicio,
                         isExpanded: true,
-                        decoration: const InputDecoration(labelText: 'Servicio', border: OutlineInputBorder()),
+                        decoration: InputDecoration(labelText: t('Servicio', 'Service'), border: const OutlineInputBorder()),
                         items: _servicios.map((s) => DropdownMenuItem<int>(
                           value: _id(s['id_servicio']),
                           child: Text(_texto(s['nombre']), overflow: TextOverflow.ellipsis),
@@ -406,7 +422,7 @@ class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
                         key: ValueKey('empleado-${_idServicio ?? 0}'),
                         initialValue: _idEmpleado,
                         isExpanded: true,
-                        decoration: const InputDecoration(labelText: 'Especialista', border: OutlineInputBorder()),
+                        decoration: InputDecoration(labelText: t('Especialista', 'Specialist'), border: const OutlineInputBorder()),
                         items: disponibles.map((e) => DropdownMenuItem<int>(
                           value: _id(e['id_empleado']),
                           child: Text(_texto(e['nombre']), overflow: TextOverflow.ellipsis),
@@ -417,43 +433,47 @@ class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
                         },
                       ),
                       if (_idServicio != null && disponibles.isEmpty)
-                        const Padding(padding: EdgeInsets.only(top: 8), child: Text(
-                          'Este servicio todavía no tiene especialistas asignados.',
-                          style: TextStyle(color: AppColors.textMuted, fontSize: 12))),
+                        Padding(padding: const EdgeInsets.only(top: 8), child: Text(
+                          t('Este servicio todavía no tiene especialistas asignados.',
+                            'There are no specialists assigned to this service yet.'),
+                          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12))),
                       if (servicio.isNotEmpty) Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Text('${_texto(servicio.first['duracion'])} min · \$${_texto(servicio.first['precio'])}',
-                            style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
                       ),
                       const SizedBox(height: 18),
-                      _subtitulo('3. Fecha y horario disponible'),
-                      OutlinedButton.icon(
-                        onPressed: _guardando ? null : _elegirFecha,
-                        icon: const Icon(Icons.calendar_month_outlined),
-                        label: Text('Fecha: ${_fechaIso(_fecha)}'),
+                      _subtitulo(t('3. Fecha y horario disponible', '3. Date and available times')),
+                      SelectorFechaCita(
+                        fecha: _fecha,
+                        fechaMinima: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
+                        fechaMaxima: DateTime(DateTime.now().year + 1, DateTime.now().month, DateTime.now().day),
+                        onSeleccionar: _seleccionarDia,
+                        onAbrirCalendario: _elegirFecha,
+                        habilitado: !_guardando,
                       ),
-                      const SizedBox(height: 9),
-                      if (_cargandoHoras) const Center(child: Padding(
-                        padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
-                      if (_errorHoras != null) Text(_errorHoras!,
-                          style: const TextStyle(color: Color(0xFF9B2534))),
-                      if (!_cargandoHoras && _idEmpleado != null && _errorHoras == null && _horas.isEmpty)
-                        const Text('No hay horarios disponibles para esa fecha y especialista.',
-                            style: TextStyle(color: AppColors.textMuted)),
-                      if (!_cargandoHoras && _horas.isNotEmpty)
-                        Wrap(spacing: 7, runSpacing: 7, children: _horas.map((h) => ChoiceChip(
-                          label: Text(h), selected: _hora == h,
-                          onSelected: _guardando ? null : (_) => setState(() => _hora = h),
-                        )).toList()),
+                      const SizedBox(height: 12),
+                      SelectorHorariosCita(
+                        horas: _horas,
+                        seleccion: _hora,
+                        cargando: _cargandoHoras,
+                        habilitado: !_guardando,
+                        error: _errorHoras,
+                        mensajeVacio: _idEmpleado == null
+                            ? t('Primero selecciona el servicio y el especialista.', 'Choose a service and specialist first.')
+                            : t('No hay horarios disponibles para esta fecha. Prueba otro día.', 'No times available for this date. Try another day.'),
+                        onSeleccionar: (hora) => setState(() => _hora = hora),
+                        onReintentar: _idEmpleado == null ? null : _cargarHoras,
+                      ),
                       const SizedBox(height: 18),
                       TextField(
                         controller: _observaciones,
                         maxLength: 500,
                         maxLines: 2,
                         enabled: !_guardando,
-                        decoration: const InputDecoration(
-                          labelText: 'Observaciones (opcional)',
-                          hintText: 'Indicaciones para la cita',
+                        decoration: InputDecoration(
+                          labelText: t('Observaciones (opcional)', 'Notes (optional)'),
+                          hintText: t('Indicaciones para la cita', 'Appointment instructions'),
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -465,16 +485,22 @@ class _ManualAppointmentDialogState extends State<ManualAppointmentDialog> {
             child: Row(children: [
               Expanded(child: OutlinedButton(
                 onPressed: _guardando ? null : () => Navigator.pop(context),
-                child: const Text('Cancelar'),
+                child: Text(t('Cancelar', 'Cancel')),
               )),
               const SizedBox(width: 10),
               Expanded(child: FilledButton.icon(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.primaryPink),
+                style: FilledButton.styleFrom(backgroundColor: scheme.primary,
+                  foregroundColor: scheme.onPrimary),
                 onPressed: _cargando || _guardando || _cargandoHoras || _hora == null ? null : _guardar,
-                icon: _guardando ? const SizedBox(width: 16, height: 16,
-                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.check_rounded),
-                label: const Text('Crear cita'),
+                icon: _guardando ? SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    color: scheme.onPrimary,
+                    strokeWidth: 2,
+                  ),
+                ) : const Icon(Icons.check_rounded),
+                label: Text(t('Crear cita', 'Create appointment')),
               )),
             ]),
           ),

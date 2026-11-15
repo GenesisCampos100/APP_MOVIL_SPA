@@ -10,6 +10,7 @@ const {
 } = require('../controllers/admin_empleados.controller');
 
 const { listarAsignacionesAdmin, reemplazarAsignacionesAdmin } = require('../controllers/admin_asignaciones.controller');
+const { crearPuestoAdmin } = require('../controllers/admin_catalogos.controller');
 
 const router = express.Router();
 
@@ -38,6 +39,7 @@ router.use(verificarToken, autorizarAdministradorActivo);
 router.get('/asignaciones', listarAsignacionesAdmin);
 router.put('/:id/asignaciones', reemplazarAsignacionesAdmin);
 router.get('/puestos', listarPuestosAdmin);
+router.post('/puestos', crearPuestoAdmin);
 router.get('/', listarEmpleadosAdmin);
 router.post('/', crearEmpleadoAdmin);
 router.put('/:id/estado', cambiarEstadoEmpleadoAdmin);

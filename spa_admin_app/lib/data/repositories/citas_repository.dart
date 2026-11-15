@@ -35,6 +35,37 @@ class CitasRepository {
     await _client.patch('/personal/citas-manuales/$id/completar', body: <String, dynamic>{});
   }
 
+  // PostgreSQL devuelve timestamptz habitualmente como ISO 8601.
+  // Nunca inferir asistencia de estado = Confirmada.
+  DateTime? _fechaAsistencia(dynamic valor) {
+    if (valor == null || valor.toString().trim().isEmpty) return null;
+    return DateTime.tryParse(valor.toString());
+  }
+
+  /// Capacidades concedidas por el servidor, calculadas con el reloj de PostgreSQL.
+  /// Si esta ruta no está integrada, la interfaz no debe mostrar la acción.
+  Future<Set<int>> obtenerIdsInasistenciasHabilitadas() async {
+    final respuesta = await _client.get('/personal/citas-manuales/inasistencias-habilitadas');
+    if (respuesta is! Map<String, dynamic> || respuesta['ids_habilitados'] is! List) {
+      throw ApiException(message: 'La API devolvió permisos de inasistencia inválidos.');
+    }
+    return (respuesta['ids_habilitados'] as List)
+        .map((v) => int.tryParse('$v'))
+        .whereType<int>()
+        .where((id) => id > 0)
+        .toSet();
+  }
+
+  /// El servidor comprueba rol, estado Confirmada y final del horario.
+  Future<void> reportarInasistencia(String idCita) async {
+    final id = int.tryParse(idCita.replaceFirst('#Cita-', '').trim());
+    if (id == null || id <= 0) {
+      throw ApiException(message: 'El identificador de la cita no es válido.');
+    }
+    await _client.patch('/personal/citas-manuales/$id/reportar-inasistencia',
+        body: <String, dynamic>{});
+  }
+
   Future<List<AppointmentModel>> obtenerCitas() async {
     final respuesta = await _client.get('/citas');
 
@@ -72,6 +103,9 @@ class CitasRepository {
         duracionAplicada: '${dato['duracion_aplicada'] ?? 0} min',
         estado: (dato['estado'] ?? 'Pendiente').toString(),
         observaciones: dato['observaciones']?.toString(),
+        datosAsistenciaDisponibles: dato.containsKey('fecha_confirmacion'),
+        fechaConfirmacion: _fechaAsistencia(dato['fecha_confirmacion']),
+        fechaLimite: _fechaAsistencia(dato['fecha_limite']),
       );
     }).toList();
 

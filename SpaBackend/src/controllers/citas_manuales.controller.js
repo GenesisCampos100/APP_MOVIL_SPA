@@ -50,7 +50,7 @@ async function catalogo(req, res) {
                         FROM empleados e
                         JOIN usuarios u ON u.id_usuario = e.id_usuario
                         JOIN empleado_servicios es ON es.id_empleado = e.id_empleado
-                        WHERE u.estado = true AND u.id_rol = 2 AND e.id_puesto BETWEEN 1 AND 4
+                        WHERE u.estado = true AND u.id_rol = 2 AND e.id_puesto IS NOT NULL AND e.id_puesto <> 5
                         ORDER BY e.nombre, e.apellido_p, e.id_empleado`)
         ]);
         return res.json({ servicios: servicios.rows, especialistas: especialistas.rows });
@@ -99,7 +99,7 @@ async function horariosDisponibles(db, idServicio, idEmpleado, fecha, bloquearEm
         JOIN usuarios u ON u.id_usuario = e.id_usuario
         JOIN empleado_servicios es ON es.id_empleado = e.id_empleado
         WHERE e.id_empleado = $1 AND es.id_servicio = $2
-          AND e.id_puesto BETWEEN 1 AND 4 AND u.estado = true AND u.id_rol = 2
+          AND e.id_puesto IS NOT NULL AND e.id_puesto <> 5 AND u.estado = true AND u.id_rol = 2
         ${bloquearEmpleado ? 'FOR UPDATE OF e' : ''}`, [idEmpleado, idServicio]);
     if (!empleado.rows.length) return { horas: [], razon: 'El especialista no está habilitado para este servicio' };
 
@@ -436,7 +436,7 @@ async function detalleParaReprogramar(req, res) {
             FROM empleados e
             JOIN usuarios u ON u.id_usuario = e.id_usuario
             JOIN empleado_servicios es ON es.id_empleado = e.id_empleado
-            WHERE es.id_servicio = $1 AND e.id_puesto BETWEEN 1 AND 4
+            WHERE es.id_servicio = $1 AND e.id_puesto IS NOT NULL AND e.id_puesto <> 5
               AND u.estado = true AND u.id_rol = 2
             ORDER BY e.nombre, e.apellido_p, e.id_empleado`, [cita.rows[0].id_servicio]);
         return res.json({ cita: cita.rows[0], especialistas: especialistas.rows });

@@ -3,6 +3,7 @@ import 'package:spa_admin_app/core/theme/app_colors.dart';
 import 'package:spa_admin_app/core/theme/app_text_styles.dart';
 import 'package:spa_admin_app/data/services/api_service.dart';
 import 'package:spa_admin_app/data/services/sesion_service.dart';
+import 'package:spa_admin_app/core/preferences/staff_preferences.dart';
 import 'package:spa_admin_app/features/shell/screens/employee_navigation_screen.dart';
 import 'package:spa_admin_app/features/shell/screens/main_navigation_screen.dart';
 import 'package:spa_admin_app/features/shell/screens/reception_navigation_screen.dart';
@@ -79,13 +80,19 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
         }
         if (puesto == 5) {
           pantallaDestino = const ReceptionNavigationScreen();
-        } else if (puesto != null && puesto >= 1 && puesto <= 4) {
+        } else if (puesto != null && puesto > 0 && puesto != 5) {
           pantallaDestino = const EmployeeNavigationScreen();
         } else {
           throw Exception('Este puesto aún no tiene un panel asignado.');
         }
       }
 
+      if (!mounted) return;
+      if (!mounted) return;
+      // Cargar las preferencias del usuario antes de entrar a su panel.
+      // No afecta el login, que sigue claro y en español.
+      final id = int.tryParse(usuario['id_usuario'].toString());
+      if (id != null && id > 0) await StaffPreferences.bindToUser(id);
       if (!mounted) return;
       AuthSession.iniciar(tokenRespuesta: token, usuario: usuario);
       Navigator.of(context).pushAndRemoveUntil(

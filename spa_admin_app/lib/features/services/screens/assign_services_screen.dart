@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spa_admin_app/core/theme/admin_visual.dart';
 import 'package:spa_admin_app/core/theme/app_colors.dart';
 import 'package:spa_admin_app/core/theme/app_text_styles.dart';
 import 'package:spa_admin_app/data/models/employee_model.dart';
@@ -117,7 +118,7 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
               children: [
                 Icon(Icons.check_circle_outline_rounded, color: Colors.white),
                 SizedBox(width: 10),
-                Expanded(child: Text('Servicios asignados correctamente.')),
+                Expanded(child: const AdminTranslatedText('Servicios asignados correctamente.', 'Services assigned successfully.')),
               ],
             ),
           ),
@@ -152,11 +153,11 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.cardBackground,
+        backgroundColor: AdminVisual.cardBackground,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
         title: Text(
           'Servicios de ${empleado.nombreCompleto}',
-          style: AppTextStyles.heading2.copyWith(color: AppColors.textDark),
+          style: AppTextStyles.heading2.copyWith(color: AdminVisual.textDark),
         ),
         content: SizedBox(
           width: double.maxFinite,
@@ -174,13 +175,13 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                       leading: Icon(
                         Icons.check_circle_outline_rounded,
                         color: servicio.estado
-                            ? AppColors.primaryPink
-                            : AppColors.textMuted,
+                            ? AdminVisual.primaryPink
+                            : AdminVisual.textMuted,
                       ),
                       title: Text(servicio.nombre),
                       subtitle: servicio.estado
                           ? null
-                          : const Text('Servicio inactivo'),
+                          : const AdminTranslatedText('Servicio inactivo', 'Inactive service'),
                     );
                   },
                 ),
@@ -188,7 +189,7 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cerrar'),
+            child: const AdminTranslatedText('Cerrar', 'Close'),
           ),
           if (empleado.estado)
             FilledButton(
@@ -197,9 +198,9 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                 _editar(empleado);
               },
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primaryPink,
+                backgroundColor: AdminVisual.primaryPink,
               ),
-              child: const Text('Editar servicios'),
+              child: const AdminTranslatedText('Editar servicios', 'Edit services'),
             ),
         ],
       ),
@@ -211,8 +212,8 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
         decoration: BoxDecoration(
-          color: AppColors.cardBackground,
-          border: Border.all(color: AppColors.cardBorder),
+          color: AdminVisual.cardBackground,
+          border: Border.all(color: AdminVisual.cardBorder),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -220,12 +221,12 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
           children: [
             Row(
               children: [
-                Icon(icono, size: 18, color: AppColors.primaryPink),
+                Icon(icono, size: 18, color: AdminVisual.primaryPink),
                 const Spacer(),
                 Text(
                   numero,
                   style: AppTextStyles.heading1.copyWith(
-                    color: AppColors.textDark,
+                    color: AdminVisual.textDark,
                   ),
                 ),
               ],
@@ -235,7 +236,7 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
               etiqueta,
               maxLines: 2,
               style: AppTextStyles.caption.copyWith(
-                color: AppColors.textMuted,
+                color: AdminVisual.textMuted,
                 fontSize: 11,
               ),
             ),
@@ -258,12 +259,12 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
+        color: AdminVisual.cardBackground,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: AdminVisual.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryPink.withValues(alpha: 0.045),
+            color: AdminVisual.primaryPink.withValues(alpha: 0.045),
             blurRadius: 16,
             offset: const Offset(0, 5),
           ),
@@ -277,11 +278,11 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
             children: [
               CircleAvatar(
                 radius: 25,
-                backgroundColor: AppColors.primaryPinkSoft,
+                backgroundColor: AdminVisual.primaryPinkSoft,
                 child: Text(
                   inicial,
                   style: AppTextStyles.heading1.copyWith(
-                    color: AppColors.primaryPink,
+                    color: AdminVisual.primaryPink,
                   ),
                 ),
               ),
@@ -295,7 +296,7 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.subtitle.copyWith(
-                        color: AppColors.textDark,
+                        color: AdminVisual.textDark,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -303,7 +304,7 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                     Text(
                       empleado.puesto,
                       style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textMuted,
+                        color: AdminVisual.textMuted,
                       ),
                     ),
                   ],
@@ -331,7 +332,7 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
             ],
           ),
           const SizedBox(height: 14),
-          Divider(color: AppColors.cardBorder.withValues(alpha: 0.8), height: 1),
+          Divider(color: AdminVisual.cardBorder.withValues(alpha: 0.8), height: 1),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -345,7 +346,7 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                 '${asignados.length} ${asignados.length == 1 ? 'servicio asignado' : 'servicios asignados'}',
                 style: AppTextStyles.caption.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textDark,
+                  color: AdminVisual.textDark,
                 ),
               ),
             ],
@@ -359,7 +360,7 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: AppTextStyles.caption.copyWith(
-              color: AppColors.textMuted,
+              color: AdminVisual.textMuted,
             ),
           ),
           const SizedBox(height: 14),
@@ -369,9 +370,9 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                 child: OutlinedButton.icon(
                   onPressed: () => _verResumen(empleado),
                   icon: const Icon(Icons.visibility_outlined, size: 17),
-                  label: const Text('Ver servicios'),
+                  label: const AdminTranslatedText('Ver servicios', 'View services'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primaryPink,
+                    foregroundColor: AdminVisual.primaryPink,
                     side: const BorderSide(color: AppColors.cardBorder),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
@@ -387,9 +388,9 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                       ? null
                       : () => _editar(empleado),
                   icon: const Icon(Icons.tune_rounded, size: 17),
-                  label: const Text('Asignar'),
+                  label: const AdminTranslatedText('Asignar', 'Assign'),
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primaryPink,
+                    backgroundColor: AdminVisual.primaryPink,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
@@ -416,14 +417,14 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
       (_asignaciones[e.idEmpleado] ?? <String>{}).isNotEmpty).length;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AdminVisual.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: AdminVisual.background,
         centerTitle: true,
         title: Text(
           'Asignar servicios',
           style: AppTextStyles.displayExtraBold.copyWith(
-            color: AppColors.textDark,
+            color: AdminVisual.textDark,
             fontSize: 21,
           ),
         ),
@@ -445,18 +446,20 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppColors.primaryPinkSoft, Color(0xFFFFF4F6)],
+                    gradient: LinearGradient(
+                      colors: AdminVisual.dark
+                          ? [const Color(0xFF503744), const Color(0xFF332931)]
+                          : [AppColors.primaryPinkSoft, const Color(0xFFFFF4F6)],
                     ),
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: AppColors.cardBorder),
+                    border: Border.all(color: AdminVisual.cardBorder),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(11),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AdminVisual.cardBackground,
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: const Icon(
@@ -473,7 +476,7 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                             Text(
                               'Servicios por especialista',
                               style: AppTextStyles.subtitle.copyWith(
-                                color: AppColors.textDark,
+                                color: AdminVisual.textDark,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -481,7 +484,7 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                             Text(
                               'Elige qué tratamientos puede realizar cada profesional.',
                               style: AppTextStyles.caption.copyWith(
-                                color: AppColors.textMuted,
+                                color: AdminVisual.textMuted,
                               ),
                             ),
                           ],
@@ -510,7 +513,7 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                       color: AppColors.primaryPink,
                     ),
                     filled: true,
-                    fillColor: AppColors.cardBackground,
+                    fillColor: AdminVisual.cardBackground,
                     contentPadding: const EdgeInsets.symmetric(vertical: 13),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -528,14 +531,14 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                     Text(
                       '${visibles.length} ${visibles.length == 1 ? 'resultado' : 'resultados'}',
                       style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textMuted,
+                        color: AdminVisual.textMuted,
                       ),
                     ),
                     const Spacer(),
                     Text(
                       'Solo especialistas',
                       style: AppTextStyles.caption.copyWith(
-                        color: AppColors.primaryPink,
+                        color: AdminVisual.primaryPink,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -561,7 +564,7 @@ class _AssignServicesScreenState extends State<AssignServicesScreen> {
                               const SizedBox(height: 14),
                               FilledButton(
                                 onPressed: _cargar,
-                                child: const Text('Reintentar'),
+                                child: const AdminTranslatedText('Reintentar', 'Retry'),
                               ),
                             ],
                           ),

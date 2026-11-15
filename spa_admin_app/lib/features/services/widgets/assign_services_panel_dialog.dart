@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:spa_admin_app/core/theme/admin_visual.dart';
 import 'package:spa_admin_app/core/theme/app_colors.dart';
 import 'package:spa_admin_app/core/theme/app_text_styles.dart';
 import 'package:spa_admin_app/data/models/employee_model.dart';
@@ -66,9 +67,9 @@ class _AssignServicesPanelDialogState extends State<AssignServicesPanelDialog> {
     return Container(
       margin: const EdgeInsets.only(bottom: 9),
       decoration: BoxDecoration(
-        color: seleccionado ? AppColors.primaryPinkSoft : Colors.white,
+        color: seleccionado ? AdminVisual.primaryPinkSoft : Colors.white,
         border: Border.all(
-          color: seleccionado ? AppColors.primaryPink : AppColors.cardBorder,
+          color: seleccionado ? AdminVisual.primaryPink : AdminVisual.cardBorder,
           width: seleccionado ? 1.25 : 1,
         ),
         borderRadius: BorderRadius.circular(14),
@@ -76,7 +77,7 @@ class _AssignServicesPanelDialogState extends State<AssignServicesPanelDialog> {
       child: CheckboxListTile(
         value: seleccionado,
         controlAffinity: ListTileControlAffinity.trailing,
-        activeColor: AppColors.primaryPink,
+        activeColor: AdminVisual.primaryPink,
         checkColor: Colors.white,
         contentPadding: const EdgeInsets.fromLTRB(13, 5, 7, 5),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -96,7 +97,7 @@ class _AssignServicesPanelDialogState extends State<AssignServicesPanelDialog> {
           servicio.nombre,
           style: AppTextStyles.body.copyWith(
             fontWeight: FontWeight.w600,
-            color: AppColors.textDark,
+            color: AdminVisual.textDark,
           ),
         ),
         subtitle: Padding(
@@ -106,11 +107,10 @@ class _AssignServicesPanelDialogState extends State<AssignServicesPanelDialog> {
             children: [
               Text(
                 '${servicio.duracion} · \$${servicio.precio.toStringAsFixed(2)} MXN',
-                style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+                style: AppTextStyles.caption.copyWith(color: AdminVisual.textMuted),
               ),
               if (!servicio.estado)
-                const Text(
-                  'Servicio inactivo',
+                const AdminTranslatedText('Servicio inactivo', 'Inactive service',
                   style: TextStyle(fontSize: 11, color: Color(0xFFA55D5D)),
                 ),
             ],
@@ -139,7 +139,7 @@ class _AssignServicesPanelDialogState extends State<AssignServicesPanelDialog> {
         : widget.employee.nombreCompleto.trim()[0].toUpperCase();
 
     return Dialog(
-      backgroundColor: AppColors.cardBackground,
+      backgroundColor: AdminVisual.cardBackground,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: SizedBox(
@@ -154,7 +154,7 @@ class _AssignServicesPanelDialogState extends State<AssignServicesPanelDialog> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.primaryPinkSoft,
+                      color: AdminVisual.primaryPinkSoft,
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Icon(
@@ -171,14 +171,14 @@ class _AssignServicesPanelDialogState extends State<AssignServicesPanelDialog> {
                         Text(
                           'Asignar servicios',
                           style: AppTextStyles.heading2.copyWith(
-                            color: AppColors.textDark,
+                            color: AdminVisual.textDark,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         Text(
                           'Selecciona los tratamientos que puede realizar',
                           style: AppTextStyles.caption.copyWith(
-                            color: AppColors.textMuted,
+                            color: AdminVisual.textMuted,
                             fontSize: 11,
                           ),
                         ),
@@ -186,7 +186,7 @@ class _AssignServicesPanelDialogState extends State<AssignServicesPanelDialog> {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Cerrar',
+                    tooltip: AdminVisual.t('Cerrar', 'Close'),
                     onPressed: _guardando ? null : () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.close_rounded, color: AppColors.textMuted),
                   ),
@@ -198,19 +198,19 @@ class _AssignServicesPanelDialogState extends State<AssignServicesPanelDialog> {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.fieldBackground,
-                  border: Border.all(color: AppColors.cardBorder),
+                  color: AdminVisual.fieldBackground,
+                  border: Border.all(color: AdminVisual.cardBorder),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
                   children: [
                     CircleAvatar(
                       radius: 21,
-                      backgroundColor: AppColors.primaryPinkSoft,
+                      backgroundColor: AdminVisual.primaryPinkSoft,
                       child: Text(
                         inicial,
                         style: AppTextStyles.subtitle.copyWith(
-                          color: AppColors.primaryPink,
+                          color: AdminVisual.primaryPink,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -223,14 +223,14 @@ class _AssignServicesPanelDialogState extends State<AssignServicesPanelDialog> {
                           Text(
                             widget.employee.nombreCompleto,
                             style: AppTextStyles.body.copyWith(
-                              color: AppColors.textDark,
+                              color: AdminVisual.textDark,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                           Text(
                             widget.employee.puesto,
                             style: AppTextStyles.caption.copyWith(
-                              color: AppColors.textMuted,
+                              color: AdminVisual.textMuted,
                             ),
                           ),
                         ],
@@ -239,7 +239,7 @@ class _AssignServicesPanelDialogState extends State<AssignServicesPanelDialog> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryPinkSoft,
+                        color: AdminVisual.primaryPinkSoft,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -265,7 +265,7 @@ class _AssignServicesPanelDialogState extends State<AssignServicesPanelDialog> {
                         Text(
                           'Catálogo de servicios ($total)',
                           style: AppTextStyles.caption.copyWith(
-                            color: AppColors.textMuted,
+                            color: AdminVisual.textMuted,
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -283,7 +283,7 @@ class _AssignServicesPanelDialogState extends State<AssignServicesPanelDialog> {
                                   categoria,
                                   style: AppTextStyles.subtitle.copyWith(
                                     fontWeight: FontWeight.w700,
-                                    color: AppColors.textDark,
+                                    color: AdminVisual.textDark,
                                     fontSize: 13,
                                   ),
                                 ),
@@ -291,7 +291,7 @@ class _AssignServicesPanelDialogState extends State<AssignServicesPanelDialog> {
                               Text(
                                 '${grupos[categoria]!.length}',
                                 style: AppTextStyles.caption.copyWith(
-                                  color: AppColors.textMuted,
+                                  color: AdminVisual.textMuted,
                                 ),
                               ),
                             ],
@@ -331,7 +331,7 @@ class _AssignServicesPanelDialogState extends State<AssignServicesPanelDialog> {
                         child: OutlinedButton(
                           onPressed: _guardando ? null : () => Navigator.of(context).pop(),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.textDark,
+                            foregroundColor: AdminVisual.textDark,
                             side: const BorderSide(color: AppColors.cardBorder),
                             padding: const EdgeInsets.symmetric(vertical: 13),
                             shape: RoundedRectangleBorder(
@@ -347,7 +347,7 @@ class _AssignServicesPanelDialogState extends State<AssignServicesPanelDialog> {
                         child: FilledButton.icon(
                           onPressed: (_guardando || !_hayCambios) ? null : _guardar,
                           style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.primaryPink,
+                            backgroundColor: AdminVisual.primaryPink,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 13),
                             shape: RoundedRectangleBorder(

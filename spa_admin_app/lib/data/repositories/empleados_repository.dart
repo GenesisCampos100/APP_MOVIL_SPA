@@ -37,6 +37,18 @@ class EmpleadosRepository {
     }).toList();
   }
 
+  /// Crea un puesto administrativo del catálogo, sin otorgar permisos extra.
+  Future<PuestoModel> crearPuesto(String nombre, {String? descripcion}) async {
+    final respuesta = await _client.post('/admin/empleados/puestos', body: {
+      'nombre': nombre.trim(),
+      'descripcion': descripcion?.trim() ?? '',
+    });
+    if (respuesta is! Map) {
+      throw ApiException(message: 'La API no confirmó el nuevo puesto.');
+    }
+    return PuestoModel.fromJson(Map<String, dynamic>.from(respuesta));
+  }
+
   Future<void> crearEmpleado(Map<String, dynamic> datos) async {
     await _client.post('/admin/empleados', body: datos);
   }

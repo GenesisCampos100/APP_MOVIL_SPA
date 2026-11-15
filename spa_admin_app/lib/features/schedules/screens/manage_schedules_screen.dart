@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spa_admin_app/core/theme/admin_visual.dart';
 import 'package:spa_admin_app/core/theme/app_colors.dart';
 import 'package:spa_admin_app/data/models/horario_semanal_model.dart';
 import 'package:spa_admin_app/data/repositories/horarios_repository.dart';
@@ -232,23 +233,23 @@ class _ManageSchedulesScreenState extends State<ManageSchedulesScreen> {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: AdminVisual.cardBackground,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('¿Deseas eliminar este horario?'),
+        title: const AdminTranslatedText('¿Deseas eliminar este horario?', 'Delete this schedule?'),
         content: Text(
           '${empleado.nombre} · ${_diaVisible(bloque.diaSemana)}\n'
           '${bloque.inicioVisible} – ${bloque.finVisible}\n\n'
-          'No podrás eliminarlo si deja citas futuras sin horario.'
+          '${AdminVisual.t("No podrás eliminarlo si deja citas futuras sin horario.", "You cannot delete this shift if future appointments would lose their assigned time.")}'
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancelar'),
+            child: const AdminTranslatedText('Cancelar', 'Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.primaryPink),
+            style: FilledButton.styleFrom(backgroundColor: AdminVisual.primaryPink),
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Sí, eliminar'),
+            child: const AdminTranslatedText('Sí, eliminar', 'Yes, delete'),
           ),
         ],
       ),
@@ -274,50 +275,50 @@ class _ManageSchedulesScreenState extends State<ManageSchedulesScreen> {
     final reducirAnimaciones = MediaQuery.disableAnimationsOf(context);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AdminVisual.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: AdminVisual.background,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textDark),
+          icon: Icon(Icons.arrow_back_ios_new, color: AdminVisual.textDark),
           onPressed: () => Navigator.of(context).maybePop(),
-          tooltip: 'Volver',
+          tooltip: AdminVisual.t('Volver', 'Back'),
         ),
-        title: const Text('Gestionar horarios',
+        title: AdminTranslatedText('Gestionar horarios', 'Manage schedules',
           style: TextStyle(fontWeight: FontWeight.w800,
-              fontSize: 20, color: AppColors.textDark)),
+              fontSize: 20, color: AdminVisual.textDark)),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.primaryPink),
-            tooltip: 'Actualizar horarios',
+            tooltip: AdminVisual.t('Actualizar horarios', 'Refresh schedules'),
             onPressed: _cargando || _procesando ? null : _cargar,
           ),
         ],
       ),
       body: RefreshIndicator(
-        color: AppColors.primaryPink,
+        color: AdminVisual.primaryPink,
         onRefresh: _cargar,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(18, 20, 18, 30),
           children: [
-            const Text('Horarios del equipo',
+            AdminTranslatedText('Horarios del equipo', 'Team schedules',
               style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700,
-                  color: AppColors.textDark)),
+                  color: AdminVisual.textDark)),
             const SizedBox(height: 4),
-            const Text('Consulta los días y turnos del personal.',
-              style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
+            AdminTranslatedText('Consulta los días y turnos del personal.', 'View staff workdays and shifts.',
+              style: TextStyle(fontSize: 13, color: AdminVisual.textMuted)),
             const SizedBox(height: 18),
             Row(children: [
               Expanded(child: _resumen(
                 icono: Icons.event_available_outlined,
-                etiqueta: 'Con horario', cantidad: conHorario,
+                etiqueta: AdminVisual.t('Con horario', 'With schedule'), cantidad: conHorario,
               )),
               const SizedBox(width: 12),
               Expanded(child: _resumen(
                 icono: Icons.event_busy_outlined,
-                etiqueta: 'Sin horario', cantidad: sinHorario,
+                etiqueta: AdminVisual.t('Sin horario', 'No schedule'), cantidad: sinHorario,
               )),
             ]),
             const SizedBox(height: 18),
@@ -325,18 +326,18 @@ class _ManageSchedulesScreenState extends State<ManageSchedulesScreen> {
               controller: _busquedaController,
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
-                hintText: 'Buscar por nombre o puesto',
-                hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+                hintText: AdminVisual.t('Buscar por nombre o puesto', 'Search name or job title'),
+                hintStyle: TextStyle(color: AdminVisual.textMuted, fontSize: 14),
                 prefixIcon: const Icon(Icons.search, color: AppColors.primaryPink),
                 suffixIcon: _busquedaController.text.isNotEmpty
                     ? IconButton(
                         onPressed: _busquedaController.clear,
                         icon: const Icon(Icons.close, size: 19),
-                        tooltip: 'Limpiar búsqueda',
+                        tooltip: AdminVisual.t('Limpiar búsqueda', 'Clear search'),
                       )
                     : null,
                 filled: true,
-                fillColor: AppColors.fieldBackground,
+                fillColor: AdminVisual.fieldBackground,
                 contentPadding: const EdgeInsets.symmetric(vertical: 14),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -361,13 +362,13 @@ class _ManageSchedulesScreenState extends State<ManageSchedulesScreen> {
                   final dia = _dias[i];
                   final seleccionado = dia == _diaSeleccionado;
                   return ChoiceChip(
-                    label: Text(_etiquetas[dia] ?? dia),
+                    label: Text(AdminVisual.ui(_etiquetas[dia] ?? dia)),
                     selected: seleccionado,
                     onSelected: (_) => setState(() => _diaSeleccionado = dia),
-                    selectedColor: AppColors.primaryPinkSoft,
-                    backgroundColor: Colors.white,
+                    selectedColor: AdminVisual.primaryPinkSoft,
+                    backgroundColor: AdminVisual.cardBackground,
                     labelStyle: TextStyle(
-                      color: seleccionado ? AppColors.primaryPink : AppColors.textMuted,
+                      color: seleccionado ? AdminVisual.primaryPink : AdminVisual.textMuted,
                       fontWeight: seleccionado ? FontWeight.w700 : FontWeight.w500,
                     ),
                     side: const BorderSide(color: AppColors.cardBorder),
@@ -382,14 +383,14 @@ class _ManageSchedulesScreenState extends State<ManageSchedulesScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('${_resultados.length} empleado(s)',
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                  style: TextStyle(color: AdminVisual.textMuted, fontSize: 13)),
                 FilledButton.icon(
                   onPressed: _cargando || _procesando || _empleados.where((e) => e.activo).isEmpty
                       ? null : () => _nuevoHorario(),
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Nuevo horario'),
+                  label: const AdminTranslatedText('Nuevo horario', 'New schedule'),
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primaryPink,
+                    backgroundColor: AdminVisual.primaryPink,
                     foregroundColor: Colors.white,
                     minimumSize: const Size(0, 44),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -454,11 +455,11 @@ class _ManageSchedulesScreenState extends State<ManageSchedulesScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 15),
       decoration: BoxDecoration(
-        color: AppColors.primaryPinkSoft,
+        color: AdminVisual.primaryPinkSoft,
         borderRadius: BorderRadius.circular(17),
       ),
       child: Row(children: [
-        Icon(icono, color: AppColors.primaryPink, size: 22),
+        Icon(icono, color: AdminVisual.primaryPink, size: 22),
         const SizedBox(width: 8),
         Expanded(child: Text(etiqueta,
           style: const TextStyle(fontSize: 12, color: AppColors.textMuted))),
@@ -471,12 +472,12 @@ class _ManageSchedulesScreenState extends State<ManageSchedulesScreen> {
   Widget _selectorEmpleados() {
     return DropdownButtonFormField<int?>(
       value: _empleadoSeleccionado,
-      hint: const Text('Todo el personal'),
+      hint: const AdminTranslatedText('Todo el personal', 'All staff'),
       isExpanded: true,
       decoration: InputDecoration(
         prefixIcon: const Icon(Icons.people_alt_outlined, color: AppColors.primaryPink),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: AdminVisual.fieldBackground,
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         border: OutlineInputBorder(
           borderSide: const BorderSide(color: AppColors.cardBorder),
@@ -484,7 +485,7 @@ class _ManageSchedulesScreenState extends State<ManageSchedulesScreen> {
         ),
       ),
       items: <DropdownMenuItem<int?>>[
-        const DropdownMenuItem<int?>(value: null, child: Text('Todo el personal')),
+        const DropdownMenuItem<int?>(value: null, child: const AdminTranslatedText('Todo el personal', 'All staff')),
         ..._empleados.map((e) => DropdownMenuItem<int?>(
           value: e.idEmpleado,
           child: Text(e.nombre, overflow: TextOverflow.ellipsis),
@@ -514,36 +515,36 @@ class _ManageSchedulesScreenState extends State<ManageSchedulesScreen> {
         margin: const EdgeInsets.only(bottom: 13),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AdminVisual.cardBackground,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.cardBorder),
+          border: Border.all(color: AdminVisual.cardBorder),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             CircleAvatar(
               radius: 22,
-              backgroundColor: AppColors.primaryPinkSoft,
+              backgroundColor: AdminVisual.primaryPinkSoft,
               child: Text(empleado.nombre.isNotEmpty ? empleado.nombre[0].toUpperCase() : '·',
                 style: const TextStyle(color: AppColors.primaryPink, fontWeight: FontWeight.w700)),
             ),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(empleado.nombre,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800,
-                    color: AppColors.textDark)),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800,
+                    color: AdminVisual.textDark)),
               const SizedBox(height: 3),
-              Text(empleado.puesto, style: const TextStyle(
-                  color: AppColors.textMuted, fontSize: 13)),
+              Text(empleado.puesto, style: TextStyle(
+                  color: AdminVisual.textMuted, fontSize: 13)),
             ])),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
               decoration: BoxDecoration(
-                color: empleado.activo ? const Color(0xFFE6F5EC) : const Color(0xFFF0F0F0),
+                color: empleado.activo ? AdminVisual.greenBackground : AdminVisual.statusBackground,
                 borderRadius: BorderRadius.circular(30),
               ),
-              child: Text(empleado.activo ? 'Activo' : 'Inactivo',
+              child: Text(AdminVisual.ui(empleado.activo ? 'Activo' : 'Inactivo'),
                 style: TextStyle(color: empleado.activo
-                    ? const Color(0xFF278452) : Colors.grey.shade700,
+                    ? AdminVisual.greenText : AdminVisual.textMuted,
                     fontSize: 11, fontWeight: FontWeight.w700)),
             ),
           ]),
@@ -551,10 +552,10 @@ class _ManageSchedulesScreenState extends State<ManageSchedulesScreen> {
           const Divider(color: AppColors.cardBorder),
           const SizedBox(height: 6),
           if (bloques.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
               child: Text('Aún no tiene horarios registrados.',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                style: TextStyle(color: AdminVisual.textMuted, fontSize: 13)),
             )
           else
             ...bloques.map((bloque) => Padding(
@@ -562,13 +563,13 @@ class _ManageSchedulesScreenState extends State<ManageSchedulesScreen> {
               child: Row(children: [
                 const Icon(Icons.event_note_outlined, color: AppColors.primaryPink, size: 18),
                 const SizedBox(width: 10),
-                Expanded(child: Text(_diaVisible(bloque.diaSemana),
-                  style: const TextStyle(color: AppColors.textDark,
+                Expanded(child: Text(AdminVisual.ui(_diaVisible(bloque.diaSemana)),
+                  style: TextStyle(color: AdminVisual.textDark,
                     fontWeight: FontWeight.w600, fontSize: 13))),
-                const Icon(Icons.schedule, color: AppColors.textMuted, size: 16),
+                Icon(Icons.schedule, color: AdminVisual.textMuted, size: 16),
                 const SizedBox(width: 5),
                 Text('${bloque.inicioVisible} – ${bloque.finVisible}',
-                  style: const TextStyle(color: AppColors.textDark, fontSize: 13)),
+                  style: TextStyle(color: AdminVisual.textDark, fontSize: 13)),
                 PopupMenuButton<String>(
                   tooltip: 'Opciones del turno',
                   enabled: !_procesando,
@@ -578,8 +579,8 @@ class _ManageSchedulesScreenState extends State<ManageSchedulesScreen> {
                     if (accion == 'eliminar') _eliminarHorario(empleado, bloque);
                   },
                   itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'editar', child: Text('Editar turno')),
-                    PopupMenuItem(value: 'eliminar', child: Text('Eliminar turno')),
+                    PopupMenuItem(value: 'editar', child: const AdminTranslatedText('Editar turno', 'Edit shift')),
+                    PopupMenuItem(value: 'eliminar', child: const AdminTranslatedText('Eliminar turno', 'Delete shift')),
                   ],
                 ),
               ]),
@@ -592,8 +593,8 @@ class _ManageSchedulesScreenState extends State<ManageSchedulesScreen> {
               onPressed: _procesando || !empleado.activo
                   ? null : () => _nuevoHorario(empleado),
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Agregar turno'),
-              style: TextButton.styleFrom(foregroundColor: AppColors.primaryPink),
+              label: const AdminTranslatedText('Agregar turno', 'Add shift'),
+              style: TextButton.styleFrom(foregroundColor: AdminVisual.primaryPink),
             ),
           ),
         ]),
@@ -622,18 +623,18 @@ class _ManageSchedulesScreenState extends State<ManageSchedulesScreen> {
       padding: const EdgeInsets.all(25),
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AdminVisual.cardBackground,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: AdminVisual.cardBorder),
       ),
       child: Column(children: [
-        Icon(icono, size: 32, color: AppColors.primaryPink),
+        Icon(icono, size: 32, color: AdminVisual.primaryPink),
         const SizedBox(height: 10),
         Text(titulo, textAlign: TextAlign.center,
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
         const SizedBox(height: 6),
         Text(detalle, textAlign: TextAlign.center,
-          style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+          style: TextStyle(color: AdminVisual.textMuted, fontSize: 13)),
         if (boton != null && onPressed != null) ...[
           const SizedBox(height: 10),
           TextButton(onPressed: onPressed, child: Text(boton)),

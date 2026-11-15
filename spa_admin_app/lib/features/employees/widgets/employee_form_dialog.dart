@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:spa_admin_app/core/theme/admin_visual.dart';
 import 'package:spa_admin_app/core/theme/app_colors.dart';
 import 'package:spa_admin_app/data/models/employee_model.dart';
 import 'package:spa_admin_app/data/models/puesto_model.dart';
@@ -10,12 +11,14 @@ import 'package:spa_admin_app/shared/widgets/confirm_action_dialog.dart';
 class EmployeeFormDialog extends StatefulWidget {
   final EmployeeModel? employeeToEdit;
   final List<PuestoModel> puestos;
+  final Future<PuestoModel> Function(String nombre, {String? descripcion}) onCrearPuesto;
   final Future<void> Function(Map<String, dynamic>) onSave;
 
   const EmployeeFormDialog({
     super.key,
     this.employeeToEdit,
     required this.puestos,
+    required this.onCrearPuesto,
     required this.onSave,
   });
 
@@ -31,7 +34,9 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
   late final TextEditingController _telefono;
   late final TextEditingController _correo;
   late final TextEditingController _clave;
+  late List<PuestoModel> _puestosDisponibles;
   int? _puestoId;
+  bool _creandoPuesto = false;
   bool _mostrarClave = false;
   bool _guardando = false;
   bool _confirmandoSalida = false;
@@ -85,8 +90,9 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
     _telefono = TextEditingController(text: e?.telefono ?? '');
     _correo = TextEditingController(text: e?.correo ?? '');
     _clave = TextEditingController();
+    _puestosDisponibles = List<PuestoModel>.from(widget.puestos);
     final puestoActual = int.tryParse(e?.idPuesto ?? '');
-    _puestoId = widget.puestos.any((p) => p.idPuesto == puestoActual)
+    _puestoId = _puestosDisponibles.any((p) => p.idPuesto == puestoActual)
         ? puestoActual : null;
     _puestoInicial = _puestoId;
   }
@@ -100,6 +106,80 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
     _correo.dispose();
     _clave.dispose();
     super.dispose();
+  }
+
+  Future<void> _crearPuesto() async {
+    if (_guardando || _creandoPuesto) return;
+    String nombrePuesto = '';
+    String descripcionPuesto = '';
+    final key = GlobalKey<FormState>();
+    final datos = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const AdminTranslatedText('Nuevo puesto', 'New job title'),
+        content: Form(key: key, child: SingleChildScrollView(child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              onChanged: (valor) => nombrePuesto = valor,
+              autofocus: true,
+              maxLength: 60,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(labelText: 'Nombre del puesto'),
+              validator: (value) {
+                final nombre = value?.trim() ?? '';
+                if (nombre.length < 2) return 'Escribe al menos 2 caracteres.';
+                if (_puestosDisponibles.any((p) =>
+                    p.nombre.toLowerCase() == nombre.toLowerCase())) {
+                  return 'Ya existe ese puesto.';
+                }
+                return null;
+              },
+            ),
+            TextFormField(
+              onChanged: (valor) => descripcionPuesto = valor,
+              maxLength: 200,
+              maxLines: 2,
+              decoration: const InputDecoration(labelText: 'Descripción (opcional)'),
+            ),
+            const Text('El puesto se guardará de inmediato. Los puestos nuevos usan el panel de especialista, no el de Recepción.',
+                style: TextStyle(fontSize: 12)),
+          ],
+        ))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext),
+              child: const AdminTranslatedText('Cancelar', 'Cancel')),
+          FilledButton(onPressed: () {
+            if (key.currentState?.validate() ?? false) {
+              Navigator.pop(dialogContext, {
+                'nombre': nombrePuesto.trim(),
+                'descripcion': descripcionPuesto.trim(),
+              });
+            }
+          }, child: const AdminTranslatedText('Crear puesto', 'Create job title')),
+        ],
+      ),
+    );
+    if (!mounted || datos == null) return;
+    setState(() { _creandoPuesto = true; _error = null; });
+    try {
+      final puesto = await widget.onCrearPuesto(datos['nombre']!,
+          descripcion: datos['descripcion']);
+      if (!mounted) return;
+      setState(() {
+        _puestosDisponibles.add(puesto);
+        _puestosDisponibles.sort((a, b) => a.nombre.compareTo(b.nombre));
+        _puestoId = puesto.idPuesto;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Puesto registrado y seleccionado.')));
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _error = 'No se pudo registrar el puesto.');
+    } finally {
+      if (mounted) setState(() => _creandoPuesto = false);
+    }
   }
 
   Future<void> _guardar() async {
@@ -139,9 +219,9 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
       hintText: pista,
       prefixIcon: icono == null
           ? null
-          : Icon(icono, size: 20, color: AppColors.primaryPink),
+          : Icon(icono, size: 20, color: AdminVisual.primaryPink),
       filled: true,
-      fillColor: AppColors.fieldBackground,
+      fillColor: AdminVisual.fieldBackground,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: AppColors.cardBorder),
@@ -168,15 +248,15 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
       padding: const EdgeInsets.only(top: 6, bottom: 13),
       child: Row(
         children: [
-          Icon(icono, color: AppColors.primaryPink, size: 20),
+          Icon(icono, color: AdminVisual.primaryPink, size: 20),
           const SizedBox(width: 8),
           Text(
             titulo,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'Poppins',
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: AppColors.textDark,
+              color: AdminVisual.textDark,
             ),
           ),
         ],
@@ -192,7 +272,7 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
         if (!didPop) _intentarCerrar();
       },
       child: Dialog(
-        backgroundColor: AppColors.cardBackground,
+        backgroundColor: AdminVisual.cardBackground,
         insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
         child: ConstrainedBox(
@@ -210,29 +290,29 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryPinkSoft,
+                          color: AdminVisual.primaryPinkSoft,
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Icon(
                           _esEdicion ? Icons.edit_note_rounded : Icons.person_add_alt_1,
-                          color: AppColors.primaryPink,
+                          color: AdminVisual.primaryPink,
                           size: 23,
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          _esEdicion ? 'Editar empleado' : 'Registrar empleado',
-                          style: const TextStyle(
+                          _esEdicion ? AdminVisual.t('Editar empleado', 'Edit staff member') : AdminVisual.t('Registrar empleado', 'Add staff member'),
+                          style: TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 19,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.textDark,
+                            color: AdminVisual.textDark,
                           ),
                         ),
                       ),
                       IconButton(
-                        tooltip: 'Cerrar',
+                        tooltip: AdminVisual.t('Cerrar', 'Close'),
                         onPressed: _guardando
                             ? null
                             : _intentarCerrar,
@@ -241,11 +321,11 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Completa los datos del personal.',
+                  Text(
+                    AdminVisual.t('Completa los datos del personal.', 'Enter the staff member details.'),
                     style: TextStyle(
                       fontFamily: 'Poppins',
-                      color: AppColors.textMuted,
+                      color: AdminVisual.textMuted,
                       fontSize: 12,
                     ),
                   ),
@@ -293,17 +373,30 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
                       ? 'Introduce un correo válido.' : null,
                   ),
                   _espacio(),
-                  DropdownButtonFormField<int>(
-                    value: _puestoId,
-                    isExpanded: true,
-                    decoration: _decoracion('Puesto *', icono: Icons.work_outline_rounded),
-                    items: widget.puestos.map((p) => DropdownMenuItem(
-                      value: p.idPuesto,
-                      child: Text(p.nombre, overflow: TextOverflow.ellipsis),
-                    )).toList(),
-                    onChanged: _guardando ? null : (v) => setState(() => _puestoId = v),
-                    validator: (v) => v == null ? 'Selecciona un puesto.' : null,
-                  ),
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Expanded(child: DropdownButtonFormField<int>(
+                      key: ValueKey('puesto_$_puestoId'),
+                      value: _puestoId,
+                      isExpanded: true,
+                      decoration: _decoracion('Puesto *', icono: Icons.work_outline_rounded),
+                      items: _puestosDisponibles.map((p) => DropdownMenuItem<int>(
+                        value: p.idPuesto,
+                        child: Text(p.nombre, overflow: TextOverflow.ellipsis),
+                      )).toList(),
+                      onChanged: _guardando || _creandoPuesto ? null
+                          : (v) => setState(() => _puestoId = v),
+                      validator: (v) => v == null ? 'Selecciona un puesto.' : null,
+                    )),
+                    const SizedBox(width: 8),
+                    IconButton.filledTonal(
+                      tooltip: 'Agregar puesto',
+                      onPressed: _guardando || _creandoPuesto ? null : _crearPuesto,
+                      icon: _creandoPuesto
+                          ? const SizedBox(width: 18, height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.add_rounded),
+                    ),
+                  ]),
                   if (!_esEdicion) ...[
                     _espacio(),
                     TextFormField(
@@ -322,8 +415,8 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
                         ? 'Usa entre 12 caracteres y 72 bytes.' : null,
                     ),
                     const SizedBox(height: 6),
-                    const Text('Por seguridad, la contraseña no volverá a mostrarse después del registro.',
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                    Text(AdminVisual.t('Por seguridad, la contraseña no volverá a mostrarse después del registro.', 'For security, the password will not be shown again after registration.'),
+                      style: TextStyle(color: AdminVisual.textMuted, fontSize: 11)),
                   ],
                   if (_error != null) ...[
                     const SizedBox(height: 12),
@@ -335,14 +428,14 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
                       Expanded(
                         child: OutlinedButton(
                           onPressed: _guardando ? null : _intentarCerrar,
-                          child: const Text('Cancelar'),
+                          child: const AdminTranslatedText('Cancelar', 'Cancel'),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: FilledButton.icon(
                           style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.primaryPink,
+                            backgroundColor: AdminVisual.primaryPink,
                             padding: const EdgeInsets.symmetric(vertical: 13),
                           ),
                           onPressed: _guardando ? null : _guardar,

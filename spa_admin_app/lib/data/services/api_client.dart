@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'api_config.dart';
@@ -37,6 +38,18 @@ class ApiClient {
           Uri.parse('${ApiConfig.baseUrl}$path'),
           headers: _headers,
           body: jsonEncode(body),
+        ),
+      );
+
+  /// Envía una imagen real en el cuerpo de la solicitud, sin convertirla en JSON.
+  Future<dynamic> postImagen(String path, {
+    required Uint8List bytes,
+    required String mimeType,
+  }) => _request(
+        () => _httpClient.post(
+          Uri.parse('${ApiConfig.baseUrl}$path'),
+          headers: {..._headers, 'Content-Type': mimeType},
+          body: bytes,
         ),
       );
 
