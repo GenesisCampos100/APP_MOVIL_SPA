@@ -12,6 +12,7 @@ import '../../auth/auth_flow.dart';
 import '../../auth/widgets/auth_widgets.dart';
 import '../../../data/models/servicio.dart';
 import '../../booking/screens/agendar_cita_screen.dart';
+import '../widgets/acciones_cita.dart';
 
 const String _titulo = 'Sin registro de actividad';
 const String _mensajeSinSesion =
@@ -378,10 +379,12 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 class _CitaCard extends StatefulWidget {
   final Cita cita;
   final Future<void> Function() onActualizada;
+  final VoidCallback? onCambio;
 
   const _CitaCard({
     required this.cita,
     required this.onActualizada,
+    this.onCambio,
   });
 
   @override
@@ -556,17 +559,6 @@ class _CitaCardState extends State<_CitaCard> {
   }
 
   Widget _acciones(BuildContext context) {
-    ButtonStyle contorno() => OutlinedButton.styleFrom(
-          foregroundColor: AppColors.gris,
-          side: const BorderSide(
-            color: Colors.black26,
-          ),
-          minimumSize: const Size.fromHeight(40),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        );
-
     ButtonStyle negro() => FilledButton.styleFrom(
           backgroundColor: Colors.black,
           minimumSize: const Size.fromHeight(40),
