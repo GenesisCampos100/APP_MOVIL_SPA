@@ -95,7 +95,9 @@ class _PerfilConSesion extends StatelessWidget {
           ),
         ),
       );
-      if (confirmar == true) AuthState.instance.cerrarSesion();
+      if (confirmar == true) {
+        await AuthState.instance.cerrarSesion();
+      }
     }
 
     return Scaffold(

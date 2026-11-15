@@ -8,7 +8,9 @@ const {
     apartarHorario,
     confirmarApartado,
     cancelarApartado,
-    obtenerDisponibilidad
+    obtenerDisponibilidad,
+    cancelarCita,
+    reagendarCita
 } = require('../controllers/citas.controller');
 
 const verificarToken = require('../middlewares/verificarToken');
@@ -19,6 +21,18 @@ router.get('/cliente/:id_cliente', verificarToken, obtenerCitasCliente);
 router.post('/apartar', verificarToken, apartarHorario);
 router.post('/confirmar-apartado', verificarToken, confirmarApartado);
 router.delete('/apartar/:id_reserva', verificarToken, cancelarApartado);
-router.get('/disponibilidad', obtenerDisponibilidad);
+router.get(
+    '/disponibilidad',
+    (req, res, next) => {
+        if (req.query.id_cita) {
+            return verificarToken(req, res, next);
+        }
+
+        next();
+    },
+    obtenerDisponibilidad
+);
+router.patch('/:id_cita/cancelar', verificarToken, cancelarCita);
+router.patch('/:id_cita/reagendar', verificarToken, reagendarCita);
 
 module.exports = router;
