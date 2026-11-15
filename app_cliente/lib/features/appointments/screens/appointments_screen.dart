@@ -10,6 +10,7 @@ import '../../../data/services/sesion_service.dart';
 import '../../auth/auth_state.dart';
 import '../../auth/auth_flow.dart';
 import '../../auth/widgets/auth_widgets.dart';
+import '../widgets/acciones_cita.dart';
 
 const String _titulo = 'Sin registro de actividad';
 const String _mensajeSinSesion =
@@ -307,7 +308,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
             )
           else
             for (final c in visibles) ...[
-              _CitaCard(cita: c),
+              _CitaCard(cita: c, onCambio: _cargarCitas),
               const SizedBox(height: 12),
             ],
         ],
@@ -318,9 +319,11 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
 class _CitaCard extends StatelessWidget {
   final Cita cita;
+  final VoidCallback? onCambio;
 
   const _CitaCard({
     required this.cita,
+    this.onCambio,
   });
 
   void _proximamente(
@@ -382,17 +385,6 @@ class _CitaCard extends StatelessWidget {
   }
 
   Widget _acciones(BuildContext context) {
-    ButtonStyle contorno() => OutlinedButton.styleFrom(
-          foregroundColor: AppColors.gris,
-          side: const BorderSide(
-            color: Colors.black26,
-          ),
-          minimumSize: const Size.fromHeight(40),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        );
-
     ButtonStyle negro() => FilledButton.styleFrom(
           backgroundColor: Colors.black,
           minimumSize: const Size.fromHeight(40),
@@ -424,31 +416,8 @@ class _CitaCard extends StatelessWidget {
         );
 
       default:
-        return Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                style: contorno(),
-                onPressed: () => _proximamente(
-                  context,
-                  'Reagendar',
-                ),
-                child: const Text('Reagendar'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton(
-                style: contorno(),
-                onPressed: () => _proximamente(
-                  context,
-                  'Cancelar cita',
-                ),
-                child: const Text('Cancelar'),
-              ),
-            ),
-          ],
-        );
+        // Confirmada: Reagendar / Cancelar (se desactivan a 24 h o menos).
+        return AccionesCita(cita: cita, onCambio: onCambio);
     }
   }
 }
