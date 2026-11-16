@@ -28,6 +28,7 @@ class NotificacionesRepository extends ChangeNotifier {
         titulo: 'Confirma tu cita',
         mensaje:
             'Tu cita de Facial hidratante es mañana a las 2:30 pm. Confírmala o se cancelará automáticamente.',
+        datos: {'servicio': 'Facial hidratante', 'hora': '14:30'},
         fechaEnvio: ahora.subtract(const Duration(hours: 2)),
       ),
       Notificacion(
@@ -36,6 +37,7 @@ class NotificacionesRepository extends ChangeNotifier {
         tipo: Notificacion.citaConfirmada,
         titulo: 'Cita confirmada',
         mensaje: 'Tu cita de Masaje relajante quedó confirmada. ¡Te esperamos en Aura Spa!',
+        datos: {'servicio': 'Masaje relajante'},
         fechaEnvio: ahora.subtract(const Duration(days: 1)),
         leida: true,
       ),
@@ -46,6 +48,7 @@ class NotificacionesRepository extends ChangeNotifier {
         titulo: 'Cita registrada',
         mensaje:
             'Tu cita de Masaje relajante quedó registrada. Recuerda confirmarla 24 horas antes.',
+        datos: {'servicio': 'Masaje relajante'},
         fechaEnvio: ahora.subtract(const Duration(days: 2)),
         leida: true,
       ),
@@ -56,6 +59,7 @@ class NotificacionesRepository extends ChangeNotifier {
         titulo: 'Cita cancelada',
         mensaje:
             'Tu cita de Pedicure Spa se canceló porque no la confirmaste a tiempo. El horario quedó libre.',
+        datos: {'servicio': 'Pedicure Spa'},
         fechaEnvio: ahora.subtract(const Duration(days: 4)),
         leida: true,
       ),
@@ -65,6 +69,7 @@ class NotificacionesRepository extends ChangeNotifier {
         tipo: Notificacion.resena,
         titulo: '¿Cómo estuvo tu servicio?',
         mensaje: 'Cuéntanos tu experiencia con tu Masaje relajante escribiendo una reseña.',
+        datos: {'servicio': 'Masaje relajante'},
         fechaEnvio: ahora.subtract(const Duration(days: 5)),
         leida: true,
       ),
@@ -128,6 +133,7 @@ class NotificacionesRepository extends ChangeNotifier {
       tipo: Notificacion.citaConfirmada,
       titulo: 'Cita confirmada',
       mensaje: 'Confirmaste tu cita. ¡Te esperamos en Aura Spa!',
+      datos: {'variante': 'manual'},
       fechaEnvio: DateTime.now(),
     ));
     notifyListeners();

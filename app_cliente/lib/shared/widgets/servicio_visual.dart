@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../core/i18n/textos.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_colores.dart';
 
 /// Imagen del servicio. Si [imagen] es una ruta de assets (assets/images/...)
 /// o una URL (http...), muestra la foto. Si no hay imagen o no se puede
@@ -104,11 +106,17 @@ class CategoriaBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.rosaSuave,
+        color: context.aura.rosaSuave,
         border: Border.all(color: AppColors.rosaFuerte),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Text(texto, style: const TextStyle(fontSize: 10, color: AppColors.rosaFuerte)),
+      // El nombre de la categoría viene de la BD; si hay traducción se usa.
+      child: Text(
+        context.tOr('cat.$texto', texto),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 10, color: AppColors.rosaFuerte),
+      ),
     );
   }
 }
