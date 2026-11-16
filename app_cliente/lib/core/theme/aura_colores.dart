@@ -14,6 +14,10 @@ class AuraColores extends ThemeExtension<AuraColores> {
   final Color rosaSuave; //        fondos rosa suave
   final Color campoBloqueado; //   campos de texto deshabilitados
 
+  /// Borde de campos de texto (gris medio en claro, gris suave en oscuro).
+  Color get bordeCampo =>
+      fondo.computeLuminance() < 0.5 ? textoSecundario : Colors.black54;
+
   const AuraColores({
     required this.fondo,
     required this.superficie,

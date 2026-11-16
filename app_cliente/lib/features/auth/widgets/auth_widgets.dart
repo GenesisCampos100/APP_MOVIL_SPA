@@ -194,7 +194,7 @@ class AuthBoton extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: cargando
-          ? const SizedBox(
+          ? SizedBox(
               height: 20,
               width: 20,
               child: CircularProgressIndicator(strokeWidth: 2, color: c.textoBoton),
