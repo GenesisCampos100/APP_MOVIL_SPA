@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/aura_colores.dart';
 
 /// Pantalla de éxito con palomita verde animada. Se usa para: cuenta creada,
 /// teléfono registrado, cita confirmada. Continúa sola tras unos segundos.
@@ -51,6 +52,7 @@ class _PantallaExitoState extends State<PantallaExito>
 
   @override
   Widget build(BuildContext context) {
+    final c = context.aura;
     return PopScope(
       canPop: false,
       child: Scaffold(
@@ -81,7 +83,7 @@ class _PantallaExitoState extends State<PantallaExito>
                       Text(
                         widget.mensaje,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.black54),
+                        style: TextStyle(color: c.textoSecundario),
                       ),
                     ],
                   ),
@@ -90,7 +92,8 @@ class _PantallaExitoState extends State<PantallaExito>
                 FilledButton(
                   onPressed: _continuar,
                   style: FilledButton.styleFrom(
-                    backgroundColor: Colors.black,
+                    backgroundColor: c.boton,
+                    foregroundColor: c.textoBoton,
                     minimumSize: const Size.fromHeight(46),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),

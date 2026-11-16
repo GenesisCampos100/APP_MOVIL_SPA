@@ -80,3 +80,11 @@ String tiempoRelativo(DateTime fecha) {
   final m = d.inDays ~/ 30;
   return m == 1 ? 'hace 1 mes' : 'hace $m meses';
 }
+
+/// "Enero" / "January" (mes = 1 a 12)
+String nombreMes(int mes) => (_en ? _mesesLargosEn : _mesesLargosEs)[mes - 1];
+
+/// Iniciales de la semana empezando en domingo: D L M M J V S  /  S M T W T F S
+List<String> inicialesSemana() => _en
+    ? const ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+    : const ['D', 'L', 'M', 'M', 'J', 'V', 'S'];

@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../../core/i18n/textos.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../auth/auth_state.dart';
 
@@ -110,20 +111,20 @@ void _entrarAplicacion() {
                       size: 30,
                     ),
                     const SizedBox(height: 10),
-                    const Text(
-                      'No pudimos conectar con AuraSpa',
+                    Text(
+                      context.t('splash.error_titulo'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
-                      'Comprueba tu conexión a Internet e inténtalo nuevamente.',
+                    Text(
+                      context.t('splash.error_msg'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 13,
                       ),
@@ -136,7 +137,7 @@ void _entrarAplicacion() {
                         });
                         _comprobarSesion();
                       },
-                      child: const Text('Reintentar'),
+                      child: Text(context.t('comun.reintentar')),
                     ),
                   ],
                 ),

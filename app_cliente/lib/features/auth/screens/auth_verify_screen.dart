@@ -1,7 +1,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/i18n/textos.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/theme/aura_colores.dart';
+import '../../../core/utils/errores.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../widgets/auth_widgets.dart';
 
@@ -9,7 +12,7 @@ class AuthVerifyScreen extends StatefulWidget {
   final String correo;
 
   // Personalización opcional para otros procesos de verificación.
-  final String titulo;
+  final String? titulo;
   final String? subtitulo;
 
   // Permite utilizar otro endpoint sin modificar el diseño.
@@ -21,7 +24,7 @@ class AuthVerifyScreen extends StatefulWidget {
   const AuthVerifyScreen({
     super.key,
     required this.correo,
-    this.titulo = 'Verifica tu cuenta',
+    this.titulo,
     this.subtitulo,
     this.onVerificar,
     this.onVerificacionExitosa,
@@ -85,7 +88,7 @@ class _AuthVerifyScreenState extends State<AuthVerifyScreen> {
 
       if (!correcto) {
         setState(() {
-          _error = 'Código incorrecto o inválido';
+          _error = context.t('auth.err_codigo');
         });
         return;
       }
@@ -102,7 +105,7 @@ class _AuthVerifyScreenState extends State<AuthVerifyScreen> {
       if (!mounted) return;
 
       setState(() {
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _error = textoError(context, e);
       });
     } finally {
       if (mounted) {
@@ -115,6 +118,7 @@ class _AuthVerifyScreenState extends State<AuthVerifyScreen> {
 
   Widget _casillas() {
     final texto = _codigo.text;
+    final ac = context.aura;
 
     return GestureDetector(
       onTap: () => _foco.requestFocus(),
@@ -131,11 +135,12 @@ class _AuthVerifyScreenState extends State<AuthVerifyScreen> {
                 height: 52,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
+                  color: ac.superficie,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: _error != null
                         ? Colors.red
-                        : (lleno || activa ? Colors.black : Colors.black38),
+                        : (lleno || activa ? ac.texto : ac.borde),
                     width: activa ? 2 : 1,
                   ),
                 ),
@@ -173,9 +178,9 @@ class _AuthVerifyScreenState extends State<AuthVerifyScreen> {
   @override
   Widget build(BuildContext context) {
     return AuthPagina(
-      titulo: widget.titulo,
+      titulo: widget.titulo ?? context.t('auth.ver_titulo'),
       subtitulo: widget.subtitulo ??
-          'Te enviamos un código a tu correo, ingrésalo aquí\n${widget.correo}',
+          context.t('auth.ver_sub', {'correo': widget.correo}),
       hijos: [
         const SizedBox(height: 10),
         _casillas(),
@@ -192,7 +197,7 @@ class _AuthVerifyScreenState extends State<AuthVerifyScreen> {
           ),
         const SizedBox(height: 24),
         AuthBoton(
-          texto: 'Confirmar',
+          texto: context.t('comun.confirmar'),
           cargando: _cargando,
           onPressed: _codigo.text.length == 6 ? _confirmar : null,
         ),
@@ -200,14 +205,14 @@ class _AuthVerifyScreenState extends State<AuthVerifyScreen> {
           child: TextButton(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('La opción de reenviar código está pendiente'),
+                SnackBar(
+                  content: Text(context.t('auth.reenviar_pend')),
                 ),
               );
             },
-            child: const Text(
-              'Reenviar código',
-              style: TextStyle(fontSize: 12),
+            child: Text(
+              context.t('auth.reenviar'),
+              style: const TextStyle(fontSize: 12),
             ),
           ),
         ),

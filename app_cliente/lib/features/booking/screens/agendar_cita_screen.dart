@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../../core/i18n/textos.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aura_colores.dart';
+import '../../../core/utils/errores.dart';
 import '../../../core/utils/formato.dart';
 import '../../../data/models/servicio.dart';
 import '../../auth/auth_flow.dart';
@@ -100,7 +103,7 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
       }
 
       setState(() {
-        _errorHorarios = e.toString().replaceFirst('Exception: ', '');
+        _errorHorarios = textoError(context, e);
       });
     } finally {
       if (mounted && solicitud == _solicitudDisponibilidad) {
@@ -113,6 +116,7 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.aura;
     final listo = _dia != null &&
       _hora != null &&
       !_cargandoHorarios &&
@@ -124,12 +128,12 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Center(
-              child: Text('Agendar cita',
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700)),
+            Center(
+              child: Text(context.t('agendar.titulo'),
+                  style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700)),
             ),
             const SizedBox(height: 6),
-            const Center(child: Text('Fecha y hora disponible')),
+            Center(child: Text(context.t('agendar.subtitulo'))),
             const SizedBox(height: 24),
             Row(
               children: [
@@ -154,10 +158,10 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
             const SizedBox(height: 8),
             Row(
               children: [
-                for (final d in const ['D', 'L', 'M', 'M', 'J', 'V', 'S'])
+                for (final d in inicialesSemana())
                   Expanded(
                     child: Center(
-                      child: Text(d, style: const TextStyle(fontSize: 13, color: AppColors.gris)),
+                      child: Text(d, style: TextStyle(fontSize: 13, color: c.textoSecundario)),
                     ),
                   ),
               ],
@@ -172,7 +176,7 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-          child: AuthBoton(texto: 'Continuar', onPressed: listo ? _continuar : null),
+          child: AuthBoton(texto: context.t('comun.continuar'), onPressed: listo ? _continuar : null),
         ),
       ),
     );
@@ -195,6 +199,7 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
   }
 
   Widget _celdaDia(DateTime d) {
+    final c = context.aura;
     final habil = Disponibilidad.diaHabil(d);
     final seleccionado = _dia != null &&
         _dia!.year == d.year &&
@@ -217,7 +222,7 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: seleccionado ? FontWeight.w700 : FontWeight.w400,
-              color: !habil ? Colors.black26 : Colors.black87,
+              color: !habil ? c.textoSecundario.withValues(alpha: 0.4) : c.texto,
             ),
           ),
         ),
@@ -226,12 +231,13 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
   }
 
   Widget _horarios() {
+    final c = context.aura;
     if (_dia == null) {
-      return const Center(
+      return Center(
         child: Text(
-          'Selecciona una fecha para ver los horarios.',
+          context.t('agendar.elige_fecha'),
           style: TextStyle(
-            color: AppColors.gris,
+            color: c.textoSecundario,
             fontSize: 13,
           ),
         ),
@@ -256,14 +262,14 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
             Text(
               _errorHorarios!,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.gris,
+              style: TextStyle(
+                color: c.textoSecundario,
                 fontSize: 13,
               ),
             ),
             TextButton(
               onPressed: () => _seleccionarDia(_dia!),
-              child: const Text('Intentar nuevamente'),
+              child: Text(context.t('agendar.reintentar')),
             ),
           ],
         ),
@@ -271,11 +277,11 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
     }
 
     if (_horariosDisponibles.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
-          'No hay horarios disponibles para este día.',
+          context.t('agendar.sin_horarios'),
           style: TextStyle(
-            color: AppColors.gris,
+            color: c.textoSecundario,
             fontSize: 13,
           ),
         ),
@@ -297,13 +303,13 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: h == _hora
-                    ? AppColors.rosaSuave
-                    : Colors.white,
+                    ? c.rosaSuave
+                    : c.superficie,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: h == _hora
                       ? AppColors.rosaFuerte
-                      : Colors.black87,
+                      : c.texto,
                 ),
               ),
               child: Text(
@@ -313,7 +319,7 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
                   fontWeight: FontWeight.w600,
                   color: h == _hora
                       ? AppColors.rosaFuerte
-                      : Colors.black87,
+                      : c.texto,
                 ),
               ),
             ),

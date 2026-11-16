@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_colores.dart';
 
 /// Pantalla provisional: título + descripción de lo que irá ahí.
 class PantallaPendiente extends StatelessWidget {
@@ -32,7 +33,7 @@ class PantallaPendiente extends StatelessWidget {
               const SizedBox(height: 8),
               Text(descripcion,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.gris)),
+                  style: TextStyle(color: context.aura.textoSecundario)),
               const SizedBox(height: 16),
               ...acciones,
             ],

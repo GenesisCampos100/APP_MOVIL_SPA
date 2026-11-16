@@ -93,4 +93,8 @@ class AuraColores extends ThemeExtension<AuraColores> {
 
 extension AuraContext on BuildContext {
   AuraColores get aura => Theme.of(this).extension<AuraColores>() ?? AuraColores.claro;
+
+  /// Color del borde de los campos de texto (gris medio en claro, gris suave en oscuro).
+  Color get bordeCampo =>
+      Theme.of(this).brightness == Brightness.dark ? aura.textoSecundario : Colors.black54;
 }

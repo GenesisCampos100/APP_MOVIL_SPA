@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../../core/i18n/textos.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/theme/aura_colores.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../widgets/auth_widgets.dart';
 
@@ -28,7 +30,7 @@ class _AuthEmailScreenState extends State<AuthEmailScreen> {
   Future<void> _continuar() async {
     final correo = _correo.text.trim();
     if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(correo)) {
-      setState(() => _error = 'Ingresa un correo válido');
+      setState(() => _error = context.t('auth.err_correo'));
       return;
     }
     setState(() {
@@ -48,7 +50,7 @@ class _AuthEmailScreenState extends State<AuthEmailScreen> {
       if (!mounted) return;
       setState(() {
         _cargando = false;
-        _error = 'No se pudo conectar. Intenta de nuevo.';
+        _error = context.t('auth.err_conexion');
       });
     }
   }
@@ -56,12 +58,12 @@ class _AuthEmailScreenState extends State<AuthEmailScreen> {
   @override
   Widget build(BuildContext context) {
     return AuthPagina(
-      titulo: 'Ingresa a Aura Spa',
-      subtitulo: 'Usa tu correo para verificar y continuar.',
+      titulo: context.t('auth.titulo_acceso'),
+      subtitulo: context.t('auth.sub_acceso'),
       conAtras: !widget.embebido,
       hijos: [
         AuthCampo(
-          label: 'Correo electronico',
+          label: context.t('auth.correo'),
           controller: _correo,
           errorText: _error,
           keyboardType: TextInputType.emailAddress,
@@ -72,29 +74,32 @@ class _AuthEmailScreenState extends State<AuthEmailScreen> {
           onSubmitted: (_) => _continuar(),
         ),
         const SizedBox(height: 24),
-        AuthBoton(texto: 'Continuar', cargando: _cargando, onPressed: _continuar),
+        AuthBoton(texto: context.t('comun.continuar'), cargando: _cargando, onPressed: _continuar),
         const SizedBox(height: 20),
-        const Row(
+        Row(
           children: [
-            Expanded(child: Divider()),
+            const Expanded(child: Divider()),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Text('o', style: TextStyle(color: Colors.black54)),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(context.t('auth.o'), style: TextStyle(color: context.aura.textoSecundario)),
             ),
-            Expanded(child: Divider()),
+            const Expanded(child: Divider()),
           ],
         ),
         const SizedBox(height: 20),
         OutlinedButton.icon(
           onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Acceso con Google: próximamente')),
+            SnackBar(
+              content: Text(context.t('comun.proximamente',
+                  {'que': context.t('auth.google_q')})),
+            ),
           ),
           icon: const Icon(Icons.g_mobiledata, size: 30),
-          label: const Text('Continuar con Google'),
+          label: Text(context.t('auth.google')),
           style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.black,
+            foregroundColor: context.aura.texto,
             minimumSize: const Size.fromHeight(46),
-            side: const BorderSide(color: Colors.black54),
+            side: BorderSide(color: context.aura.bordeCampo),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         ),

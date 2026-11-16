@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/i18n/textos.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aura_colores.dart';
+import '../../../core/utils/errores.dart';
 import '../../../data/models/empleado.dart';
 import '../../../data/repositories/empleados_repository.dart';
 import '../../../data/repositories/citas_repository.dart';
@@ -94,9 +97,7 @@ class _ElegirEspecialistaScreenState
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
-          ),
+          content: Text(textoError(context, e)),
           backgroundColor: Colors.red,
         ),
       );
@@ -115,8 +116,8 @@ class _ElegirEspecialistaScreenState
         future: _futuro,
         builder: (context, snap) {
           if (snap.hasError) {
-            return const Center(
-              child: Text('No se pudo cargar el personal'),
+            return Center(
+              child: Text(context.t('esp.error')),
             );
           }
 
@@ -131,10 +132,10 @@ class _ElegirEspecialistaScreenState
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             children: [
-              const Center(
+              Center(
                 child: Text(
-                  'Elige a tu especialista',
-                  style: TextStyle(
+                  context.t('esp.titulo'),
+                  style: const TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w700,
                   ),
@@ -169,7 +170,7 @@ class _ElegirEspecialistaScreenState
                   ),
                 )
               : AuthBoton(
-                  texto: 'Continuar',
+                  texto: context.t('comun.continuar'),
                   onPressed: _continuar,
                 ),
         ),
@@ -193,6 +194,7 @@ class _TarjetaEmpleado extends StatelessWidget {
   Widget build(BuildContext context) {
     final e = empleado;
     final foto = e.foto;
+    final c = context.aura;
 
     return InkWell(
       onTap: onTap,
@@ -201,11 +203,11 @@ class _TarjetaEmpleado extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: seleccionado
-              ? AppColors.rosaSuave.withValues(alpha: 0.5)
-              : Colors.white,
+              ? c.rosaSuave.withValues(alpha: 0.7)
+              : c.superficie,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: seleccionado ? Colors.black : Colors.black12,
+            color: seleccionado ? c.texto : c.borde,
             width: seleccionado ? 1.5 : 1,
           ),
         ),
@@ -214,7 +216,7 @@ class _TarjetaEmpleado extends StatelessWidget {
             CircleAvatar(
               radius: 24,
               backgroundColor: e.esCualquiera
-                  ? AppColors.rosaSuave
+                  ? c.rosaSuave
                   : AppColors.rosa,
               backgroundImage:
                   (!e.esCualquiera && foto != null)
@@ -242,7 +244,7 @@ class _TarjetaEmpleado extends StatelessWidget {
                 children: [
                   Text(
                     e.esCualquiera
-                        ? 'Cualquier disponible'
+                        ? context.t('esp.cualquiera')
                         : e.nombreCompleto,
                     style: const TextStyle(
                       fontSize: 14,
@@ -252,11 +254,11 @@ class _TarjetaEmpleado extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     e.esCualquiera
-                        ? 'Te asignamos al primero disponible'
+                        ? context.t('esp.cualquiera_sub')
                         : e.puesto,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.gris,
+                      color: c.textoSecundario,
                     ),
                   ),
                 ],

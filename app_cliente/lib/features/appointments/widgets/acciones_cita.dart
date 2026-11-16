@@ -1,19 +1,13 @@
 import 'package:flutter/material.dart';
+import '../../../core/i18n/textos.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aura_colores.dart';
+import '../../../core/utils/errores.dart';
 import '../../../core/utils/formato.dart';
 import '../../../data/models/cita.dart';
 import '../../../data/repositories/citas_repository.dart';
 
 const Color _rojo = Color(0xFFE5174D);
-
-// Botones activos.
-const Color _fondoReagendar = Colors.black;
-const Color _fondoCancelar = Color(0xFFE6E6E6);
-
-// Botones desactivados (gris muy pálido, claramente distinto de los activos).
-const Color _fondoDesactivado = Color(0xFFF7F7F7);
-const Color _bordeDesactivado = Color(0xFFE3E3E3);
-const Color _textoDesactivado = Color(0xFFB8B8B8);
 
 /// Hora de inicio de la cita como fecha y hora completas.
 DateTime inicioDeCita(Cita c) {
@@ -37,6 +31,7 @@ class AccionesCita extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final habilitado = citaModificable(cita);
+    final c = context.aura;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -44,39 +39,42 @@ class AccionesCita extends StatelessWidget {
           children: [
             Expanded(
               child: _Boton(
-                texto: 'Reagendar',
+                texto: context.t('citas.reagendar'),
                 habilitado: habilitado,
-                fondo: _fondoReagendar,
-                textoColor: Colors.white,
+                fondo: c.boton,
+                textoColor: c.textoBoton,
                 onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Reagendar: próximamente')),
+                  SnackBar(
+                    content: Text(context.t('comun.proximamente',
+                        {'que': context.t('citas.reagendar')})),
+                  ),
                 ),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _Boton(
-                texto: 'Cancelar',
+                texto: context.t('citas.cancelar'),
                 habilitado: habilitado,
-                fondo: _fondoCancelar,
-                textoColor: Colors.black87,
+                fondo: c.campoBloqueado,
+                textoColor: c.texto,
                 onPressed: () => confirmarCancelacion(context, cita, onCambio: onCambio),
               ),
             ),
           ],
         ),
         if (!habilitado)
-          const Padding(
-            padding: EdgeInsets.only(top: 8),
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.info_outline, size: 14, color: AppColors.gris),
-                SizedBox(width: 6),
+                Icon(Icons.info_outline, size: 14, color: c.textoSecundario),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Solo puedes cancelar o reagendar hasta 24 horas antes de tu cita.',
-                    style: TextStyle(fontSize: 11, color: AppColors.gris),
+                    context.t('citas.nota_24h'),
+                    style: TextStyle(fontSize: 11, color: c.textoSecundario),
                   ),
                 ),
               ],
@@ -104,18 +102,19 @@ class _Boton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.aura;
     return FilledButton(
       onPressed: habilitado ? onPressed : null,
       style: FilledButton.styleFrom(
         backgroundColor: fondo,
         foregroundColor: textoColor,
-        disabledBackgroundColor: _fondoDesactivado,
-        disabledForegroundColor: _textoDesactivado,
+        disabledBackgroundColor: c.superficie,
+        disabledForegroundColor: c.textoSecundario.withValues(alpha: 0.5),
         elevation: 0,
         minimumSize: const Size.fromHeight(40),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: habilitado ? Colors.transparent : _bordeDesactivado),
+          side: BorderSide(color: habilitado ? Colors.transparent : c.borde),
         ),
       ),
       child: Text(texto),
@@ -131,8 +130,10 @@ Future<void> confirmarCancelacion(
 }) async {
   final confirmar = await showDialog<bool>(
     context: context,
-    builder: (ctx) => Dialog(
-      backgroundColor: Colors.white,
+    builder: (ctx) {
+     final ac = ctx.aura;
+     return Dialog(
+      backgroundColor: ac.superficie,
       surfaceTintColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 32),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -141,41 +142,45 @@ Future<void> confirmarCancelacion(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              '¿Cancelar tu cita?',
+            Text(
+              ctx.t('citas.cancelar_pregunta'),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 16),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.rosaSuave.withValues(alpha: 0.6),
+                color: ac.rosaSuave.withValues(alpha: 0.8),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(c.servicioNombre.isEmpty ? 'Servicio' : c.servicioNombre,
-                      style: const TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black)),
+                  Text(c.servicioNombre.isEmpty ? ctx.t('citas.servicio') : c.servicioNombre,
+                      style: TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w700, color: ac.texto)),
                   const SizedBox(height: 4),
                   Text('${fechaCorta(c.fecha)} - ${hora12(c.horaInicio)}',
-                      style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                      style: TextStyle(fontSize: 12, color: ac.texto)),
                   const SizedBox(height: 2),
                   Text(
-                    'Con ${c.empleadoNombre.isEmpty ? 'Empleado asignado' : c.empleadoNombre}',
-                    style: const TextStyle(fontSize: 12, color: Colors.black87),
+                    ctx.t('citas.con', {
+                      'nombre': c.empleadoNombre.isEmpty
+                          ? ctx.t('citas.empleado_asignado')
+                          : c.empleadoNombre
+                    }),
+                    style: TextStyle(fontSize: 12, color: ac.texto),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Esta acción no se puede deshacer y el horario quedará libre para otra persona.',
+            Text(
+              ctx.t('citas.cancelar_aviso'),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: AppColors.gris),
+              style: TextStyle(fontSize: 12, color: ac.textoSecundario),
             ),
             const SizedBox(height: 22),
             Row(
@@ -184,12 +189,12 @@ Future<void> confirmarCancelacion(
                   child: FilledButton(
                     onPressed: () => Navigator.pop(ctx, false),
                     style: FilledButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
+                      backgroundColor: ac.boton,
+                      foregroundColor: ac.textoBoton,
                       minimumSize: const Size.fromHeight(44),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('Volver'),
+                    child: Text(ctx.t('comun.volver')),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -202,7 +207,7 @@ Future<void> confirmarCancelacion(
                       minimumSize: const Size.fromHeight(44),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('Sí, cancelar'),
+                    child: Text(ctx.t('citas.si_cancelar')),
                   ),
                 ),
               ],
@@ -210,7 +215,8 @@ Future<void> confirmarCancelacion(
           ],
         ),
       ),
-    ),
+    );
+    },
   );
 
   if (confirmar != true || !context.mounted) return;
@@ -222,12 +228,12 @@ Future<void> confirmarCancelacion(
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
             children: [
-              Icon(Icons.event_busy_outlined, size: 18, color: AppColors.rosa),
-              SizedBox(width: 10),
-              Expanded(child: Text('Cita cancelada')),
+              const Icon(Icons.event_busy_outlined, size: 18, color: AppColors.rosa),
+              const SizedBox(width: 10),
+              Expanded(child: Text(context.t('citas.cancelada'))),
             ],
           ),
         ),
@@ -236,7 +242,7 @@ Future<void> confirmarCancelacion(
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        SnackBar(content: Text(textoError(context, e))),
       );
   }
 }
