@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
+import '../../../core/i18n/textos.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aura_colores.dart';
+import '../../../core/utils/formato.dart';
 import '../../../data/models/servicio.dart';
 import '../../../data/repositories/servicios_repository.dart';
 import '../../../shared/widgets/servicio_visual.dart';
 import '../../notifications/screens/notifications_screen.dart';
+
+// ---------------------------------------------------------------
+// Imágenes del Inicio: cambia aquí los nombres si tus archivos
 // se llaman distinto (deben estar en assets/images/).
+// ---------------------------------------------------------------
 const String kBannerImagen = 'assets/images/banner_home.jpg';
 const String kPromo1Imagen = 'assets/images/promo1.jpg';
 const String kPromo2Imagen = 'assets/images/promo2.jpg';
@@ -34,21 +41,21 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           children: [
-            _buscador(),
+            _buscador(context),
             const SizedBox(height: 14),
             _banner(),
-            //const SizedBox(height: 16),
-            //_titulo('Promociones'),
+            const SizedBox(height: 16),
+            _titulo(context.t('home.promociones')),
             const SizedBox(height: 8),
             const Row(
-              children: [   // imagenes para la promocion hacia la propia app.
+              children: [
                 Expanded(child: _Promo(imagen: kPromo1Imagen, icono: Icons.spa)),
                 SizedBox(width: 12),
                 Expanded(child: _Promo(imagen: kPromo2Imagen, icono: Icons.local_florist)),
               ],
             ),
             const SizedBox(height: 16),
-            Center(child: _titulo('Categorías')),
+            Center(child: _titulo(context.t('home.categorias'))),
             const SizedBox(height: 10),
             // Categorías: se desliza hacia la izquierda para ver las demás.
             SizedBox(
@@ -69,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               Icon(ServicioThumb.iconoDe(c), size: 42, color: AppColors.rosaFuerte),
                               const SizedBox(height: 4),
                               Text(
-                                c,
+                                context.tOr('cat.$c', c),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
@@ -83,13 +90,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            _titulo('Servicios Destacados'),
+            _titulo(context.t('home.destacados')),
             const SizedBox(height: 8),
             FutureBuilder<List<Servicio>>(
               future: _futuro,
               builder: (context, snap) {
                 if (snap.hasError) {
-                  return const Text('No se pudieron cargar los servicios');
+                  return Text(context.t('home.error'));
                 }
                 if (!snap.hasData) {
                   return const Padding(
@@ -117,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _titulo(String t) =>
       Text(t, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500));
 
-  Widget _buscador() {
+  Widget _buscador(BuildContext context) {
     return Row(
       children: [
         Expanded(
@@ -125,7 +132,8 @@ class _HomeScreenState extends State<HomeScreen> {
             readOnly: true,
             onTap: _irCatalogo,
             decoration: InputDecoration(
-              hintText: 'Buscar.....',
+              hintStyle: TextStyle(color: context.aura.textoSecundario),
+              hintText: context.t('home.buscar'),
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               border: OutlineInputBorder(
@@ -138,15 +146,14 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(width: 8),
         IconButton(onPressed: _irCatalogo, icon: const Icon(Icons.search, size: 28)),
         IconButton(
-        onPressed: () => abrirNotificaciones(context),
-        icon: const Icon(Icons.notifications_none, size: 28),
+          onPressed: () => abrirNotificaciones(context),
+          icon: const Icon(Icons.notifications_none, size: 28),
         ),
       ],
     );
   }
 
-  /// Banner superior con la imagen/logo de Aura Spa.
-  /// Si la imagen no existe, muestra el diseño anterior (degradado + texto).
+  /// Banner superior: tu imagen como fondo + el título "Aura Spa" encima.
   Widget _banner() {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
@@ -183,9 +190,9 @@ class _HomeScreenState extends State<HomeScreen> {
             const Padding(
               padding: EdgeInsets.only(left: 20),
               child: Align(
-                alignment: Alignment.center,
+                alignment: Alignment.centerLeft,
                 child: Text(
-                  'Aura Spa',
+                  'Aura Spa', // nombre de la marca: no se traduce
                   style: TextStyle(
                     fontFamily: 'serif',
                     fontStyle: FontStyle.italic,
@@ -200,7 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-}
+} // <-- esta llave cierra la clase _HomeScreenState
 
 /// Imagen de promoción (diseño propio). Si falta el archivo, muestra un
 /// recuadro de color con un ícono para que la app no se rompa.
@@ -221,7 +228,7 @@ class _Promo extends StatelessWidget {
         filterQuality: FilterQuality.high,
         errorBuilder: (context, error, stack) => Container(
           height: 100,
-          color: AppColors.rosaSuave,
+          color: context.aura.rosaSuave,
           child: Icon(icono, size: 44, color: AppColors.rosaFuerte),
         ),
       ),
@@ -234,49 +241,76 @@ class _DestacadoTile extends StatelessWidget {
   final VoidCallback onTap;
   const _DestacadoTile({required this.servicio, required this.onTap});
 
+  /// Cada dato va en su propia línea para que nada se encime, aunque la
+  /// categoría sea larga ("Tratamientos faciales") o el celular tenga el
+  /// texto agrandado:
+  ///   categoría
+  ///   nombre del servicio
+  ///   Desde $precio
+  ///   duración · estrella ............ [Reservar]
   @override
   Widget build(BuildContext context) {
     final s = servicio;
+    final a = context.aura;
     return InkWell(
       onTap: onTap,
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          //El inicio use la imagen del servicio
-          ServicioThumb(categoria: s.categoria, imagen: s.imagen, width: 120, height: 84),
+          ServicioThumb(categoria: s.categoria, imagen: s.imagen, width: 120, height: 120),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    CategoriaBadge(s.categoria),
-                    Text('Desde ${s.precioTexto}',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  ],
+                CategoriaBadge(s.categoria),
+                const SizedBox(height: 6),
+                Text(
+                  s.nombre,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 4),
-                Text(s.nombre, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
+                Text(
+                  context.t('home.desde', {'precio': s.precioTexto}),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
                 Row(
                   children: [
-                    Text(s.duracionTexto, style: const TextStyle(fontSize: 12, color: AppColors.gris)),
-                    if (s.rating > 0) ...[
-                      const SizedBox(width: 10),
-                      const Icon(Icons.star, size: 14, color: Colors.amber),
-                      Text(' ${s.rating}', style: const TextStyle(fontSize: 12, color: AppColors.gris)),
-                    ],
-                    const Spacer(),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              duracionLegible(s.minutos),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12, color: a.textoSecundario),
+                            ),
+                          ),
+                          if (s.rating > 0) ...[
+                            const SizedBox(width: 8),
+                            const Icon(Icons.star, size: 14, color: Colors.amber),
+                            Text(' ${s.rating}',
+                                style: TextStyle(fontSize: 12, color: a.textoSecundario)),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     FilledButton(
                       onPressed: onTap,
                       style: FilledButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        minimumSize: const Size(0, 28),
+                        backgroundColor: a.boton,
+                        foregroundColor: a.textoBoton,
+                        minimumSize: const Size(0, 30),
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                       ),
-                      child: const Text('Reservar', style: TextStyle(fontSize: 11)),
+                      child: Text(context.t('home.reservar'),
+                          style: const TextStyle(fontSize: 11)),
                     ),
                   ],
                 ),

@@ -1,3 +1,4 @@
+import '../../../shared/widgets/prefijo_telefono.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/app_theme.dart';
@@ -140,9 +141,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     final anioActual = DateTime.now().year;
     OutlineInputBorder borde(Color c) => OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: BorderSide(color: c),
-    );
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: c),
+        );
 
     return Scaffold(
       appBar: AppBar(
@@ -165,10 +166,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       backgroundImage: _orig.foto != null ? NetworkImage(_orig.foto!) : null,
                       child: _orig.foto == null
                           ? Text(
-                        _orig.inicial,
-                        style: const TextStyle(
-                            fontSize: 40, color: Colors.white, fontWeight: FontWeight.w500),
-                      )
+                              _orig.inicial,
+                              style: const TextStyle(
+                                  fontSize: 40, color: Colors.white, fontWeight: FontWeight.w500),
+                            )
                           : null,
                     ),
                     Positioned(
@@ -231,16 +232,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  height: 46,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.black54),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text('+52', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
+                const PrefijoTelefono(),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
@@ -252,7 +244,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       counterText: '',
                       isDense: true,
                       errorText: _errTel,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      contentPadding: PrefijoTelefono.relleno,
                       border: borde(Colors.black54),
                       enabledBorder: borde(Colors.black54),
                       focusedBorder: borde(Colors.black),
@@ -264,7 +256,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ],
             ),
             const SizedBox(height: 14),
-            const Text('Fecha de nacimiento',
+            const Text('Fecha de nacimiento (opcional)',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
             const SizedBox(height: 6),
             Row(

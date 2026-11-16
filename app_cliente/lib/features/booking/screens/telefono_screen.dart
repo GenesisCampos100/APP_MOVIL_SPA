@@ -1,3 +1,4 @@
+import '../../../shared/widgets/prefijo_telefono.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/routes/app_routes.dart';
@@ -100,16 +101,7 @@ class _TelefonoScreenState extends State<TelefonoScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    height: 46,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.black54),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text('+52', style: TextStyle(fontWeight: FontWeight.w600)),
-                  ),
+                  const PrefijoTelefono(),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
@@ -124,7 +116,7 @@ class _TelefonoScreenState extends State<TelefonoScreen> {
                         counterText: '',
                         isDense: true,
                         errorText: _error,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        contentPadding: PrefijoTelefono.relleno,
                         border: borde(Colors.black54),
                         enabledBorder: borde(Colors.black54),
                         focusedBorder: borde(Colors.black),
