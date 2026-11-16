@@ -65,7 +65,7 @@ const Map<String, Map<String, String>> _textos = {
     'config.cuenta_eliminada': 'Tu cuenta fue eliminada',
     'config.version': 'Aura Spa · versión 1.0.0',
     'config.texto_pendiente':
-        'Aquí se mostrará el texto completo de "{titulo}" de Aura Spa. Pendiente de redactar por el equipo.',
+    'Aquí se mostrará el texto completo de "{titulo}" de Aura Spa. Pendiente de redactar por el equipo.',
 
     // Idioma y tema
     'idioma.titulo': 'Idioma',
@@ -74,7 +74,7 @@ const Map<String, Map<String, String>> _textos = {
     'tema.oscuro': 'Oscuro',
     'tema.automatico': 'Automático',
     'tema.automatico_sub': 'Según la configuración de tu celular',
-  
+
     // Comunes (fase 2)
     'comun.deshacer': 'Deshacer',
     'comun.mxn': '{precio} MXN',
@@ -155,7 +155,7 @@ const Map<String, Map<String, String>> _textos = {
     'tiempo.dias': 'hace {n} días',
     'tiempo.mes': 'hace 1 mes',
     'tiempo.meses': 'hace {n} meses',
-  
+
     // ---- Fase 3 y 4 ----
     'comun.volver': 'Volver',
     'comun.continuar': 'Continuar',
@@ -331,6 +331,27 @@ const Map<String, Map<String, String>> _textos = {
     'err.solicitud': 'Error en la solicitud',
     'err.cancelar_no_disponible': 'Cancelar citas todavía no está disponible en el servidor.',
     'err.conexion': 'No se pudo conectar con el servidor',
+
+    // Recuperar contraseña
+    'rec.titulo': 'Recupera tu contraseña',
+    'rec.sub': 'Te enviamos un código a tu correo, ingrésalo aquí\n{correo}',
+    'rec.err_codigo': 'Código incorrecto o inválido',
+    'rec.err_generico': 'No se pudo completar la solicitud. Intenta de nuevo.',
+    'rec.confirmar': 'Confirmar',
+    'rec.reenviar': 'Reenviar código',
+    'rec.reenviar_en': 'Reenviar código en {s} s',
+    'rec.reenviado': 'Te enviamos un nuevo código',
+    'rec.nueva_titulo': 'Crea tu nueva contraseña',
+    'rec.nueva_sub': 'Elige una contraseña segura que no uses en otros sitios.',
+    'rec.nueva': 'Nueva contraseña',
+    'rec.confirmar_nueva': 'Confirmar nueva contraseña',
+    'rec.regla': 'Mínimo 8 caracteres, con letras y números.',
+    'rec.err_regla': 'Mínimo 8 caracteres, con letras y números',
+    'rec.err_no_coincide': 'Las contraseñas no coinciden',
+    'rec.guardar': 'Guardar contraseña',
+    'rec.ok_titulo': '¡Contraseña restablecida!',
+    'rec.ok_msg': 'Ya puedes iniciar sesión con tu nueva contraseña.',
+    'rec.ok_boton': 'Iniciar sesión',
   },
   'en': {
     // Bottom bar
@@ -371,7 +392,7 @@ const Map<String, Map<String, String>> _textos = {
     'config.cuenta_eliminada': 'Your account was deleted',
     'config.version': 'Aura Spa · version 1.0.0',
     'config.texto_pendiente':
-        'The full text of "{titulo}" for Aura Spa will be shown here. Pending to be written by the team.',
+    'The full text of "{titulo}" for Aura Spa will be shown here. Pending to be written by the team.',
 
     // Language and theme
     'idioma.titulo': 'Language',
@@ -644,5 +665,26 @@ const Map<String, Map<String, String>> _textos = {
     'err.solicitud': 'Request error',
     'err.cancelar_no_disponible': 'Cancelling appointments is not available on the server yet.',
     'err.conexion': 'Could not connect to the server',
+
+    // Recuperar contraseña
+    'rec.titulo': 'Recover your password',
+    'rec.sub': 'We sent a code to your email, enter it here\n{correo}',
+    'rec.err_codigo': 'Incorrect or invalid code',
+    'rec.err_generico': 'The request could not be completed. Please try again.',
+    'rec.confirmar': 'Confirm',
+    'rec.reenviar': 'Resend code',
+    'rec.reenviar_en': 'Resend code in {s} s',
+    'rec.reenviado': 'We sent you a new code',
+    'rec.nueva_titulo': 'Create your new password',
+    'rec.nueva_sub': 'Choose a strong password that you do not use elsewhere.',
+    'rec.nueva': 'New password',
+    'rec.confirmar_nueva': 'Confirm new password',
+    'rec.regla': 'At least 8 characters, with letters and numbers.',
+    'rec.err_regla': 'At least 8 characters, with letters and numbers',
+    'rec.err_no_coincide': 'Passwords do not match',
+    'rec.guardar': 'Save password',
+    'rec.ok_titulo': 'Password reset!',
+    'rec.ok_msg': 'You can now log in with your new password.',
+    'rec.ok_boton': 'Log in',
   },
 };

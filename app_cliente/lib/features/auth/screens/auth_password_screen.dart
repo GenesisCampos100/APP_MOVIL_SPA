@@ -3,7 +3,8 @@ import '../../../core/i18n/textos.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../auth_flow.dart';
 import '../widgets/auth_widgets.dart';
-
+import 'recuperar_codigo_screen.dart';
+import '../../../core/i18n/textos.dart';
 /// "Bienvenido de nuevo": el correo ya está verificado (campo bloqueado),
 /// solo se pide la contraseña.
 class AuthPasswordScreen extends StatefulWidget {
@@ -75,12 +76,7 @@ class _AuthPasswordScreenState extends State<AuthPasswordScreen> {
         Align(
           alignment: Alignment.centerRight,
           child: TextButton(
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(context.t('comun.proximamente',
-                    {'que': context.t('auth.recuperar_q')})),
-              ),
-            ),
+            onPressed: () => abrirRecuperarContrasena(context, widget.correo),
             child: Text(context.t('auth.olvidaste'), style: const TextStyle(fontSize: 12)),
           ),
         ),
