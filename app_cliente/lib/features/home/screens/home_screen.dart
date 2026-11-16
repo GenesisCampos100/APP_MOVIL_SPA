@@ -5,6 +5,7 @@ import '../../../data/models/servicio.dart';
 import '../../../data/repositories/servicios_repository.dart';
 import '../../../shared/widgets/servicio_visual.dart';
 import '../../notifications/screens/notifications_screen.dart';
+
 // se llaman distinto (deben estar en assets/images/).
 const String kBannerImagen = 'assets/images/banner_home.jpg';
 const String kPromo1Imagen = 'assets/images/promo1.jpg';
@@ -19,7 +20,11 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _repo = ServiciosRepository();
-  late final Future<List<Servicio>> _futuro = _repo.obtenerServicios();
+  late final Future<List<Servicio>> _futuro =
+      _repo.obtenerServiciosDestacados();
+
+  late final Future<List<Servicio>> _futuroCategorias =
+      _repo.obtenerServicios();
 
   void _irCatalogo([String? categoria]) =>
       Navigator.pushNamed(context, AppRoutes.catalogo, arguments: categoria);
@@ -50,38 +55,75 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             Center(child: _titulo('Categorías')),
             const SizedBox(height: 10),
-            // Categorías: se desliza hacia la izquierda para ver las demás.
-            SizedBox(
-              height: 76,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: [
-                  for (final c in const ['Facial', 'Corporal', 'Manicure', 'Aromaterapia', 'Pedicure'])
-                    SizedBox(
-                      width: 84,
-                      child: InkWell(
-                        onTap: () => _irCatalogo(c),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                          child: Column(
-                            children: [
-                              Icon(ServicioThumb.iconoDe(c), size: 42, color: AppColors.rosaFuerte),
-                              const SizedBox(height: 4),
-                              Text(
-                                c,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+            // Categorías: se desliza hacia la izquierda para ver las demás.  
+            FutureBuilder<List<Servicio>>(
+              future: _futuroCategorias,
+              builder: (context, snap) {
+                if (snap.hasError) {
+                  return const Text('No se pudieron cargar las categorías');
+                }
+
+                if (!snap.hasData) {
+                  return const SizedBox(
+                    height: 76,
+                    child: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+
+                final categorias = snap.data!
+                    .map((s) => s.categoria.trim())
+                    .where((c) => c.isNotEmpty)
+                    .toSet()
+                    .toList()
+                  ..sort();
+
+                return SizedBox(
+                  height: 76,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      for (final c in categorias)
+                        SizedBox(
+                          width: 94,
+                          child: InkWell(
+                            onTap: () => _irCatalogo(c),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 2,
+                                vertical: 4,
                               ),
-                            ],
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    ServicioThumb.iconoDe(c),
+                                    size: 36,
+                                    color: AppColors.rosaFuerte,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    c,
+                                    maxLines: 2,
+                                    textAlign: TextAlign.center,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                ],
-              ),
+                    ],
+                  ),
+                );
+              },
             ),
+
             const SizedBox(height: 16),
             _titulo('Servicios Destacados'),
             const SizedBox(height: 8),
@@ -89,25 +131,48 @@ class _HomeScreenState extends State<HomeScreen> {
               future: _futuro,
               builder: (context, snap) {
                 if (snap.hasError) {
-                  return const Text('No se pudieron cargar los servicios');
-                }
-                if (!snap.hasData) {
-                  return const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Center(child: CircularProgressIndicator()),
+                  return const Text(
+                    'No se pudieron cargar los servicios destacados',
                   );
                 }
-                final destacados = snap.data!.where((s) => s.destacado);
+
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+
+                final destacados = snap.data ?? [];
+
+                if (destacados.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(
+                      child: Text(
+                        'Aún no hay servicios populares este mes.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                }
+
                 return Column(
                   children: [
                     for (final s in destacados) ...[
-                      _DestacadoTile(servicio: s, onTap: () => _irDetalle(s)),
+                      _DestacadoTile(
+                        servicio: s,
+                        onTap: () => _irDetalle(s),
+                      ),
                       const SizedBox(height: 12),
                     ],
                   ],
                 );
               },
             ),
+
           ],
         ),
       ),

@@ -35,6 +35,58 @@ const obtenerServicios = async (req, res) => {
     }
 };
 
+// CONSULTAR SERVICIOS MÁS POPULARES DEL MES
+
+const obtenerServiciosDestacados = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT
+                s.id_servicio,
+                s.id_categoria,
+                cat.nombre AS categoria,
+                s.nombre,
+                s.descripcion,
+                s.duracion,
+                s.precio,
+                s.imagen,
+                s.estado,
+                COUNT(c.id_cita)::int AS total_citas
+             FROM servicios s
+             INNER JOIN categorias cat
+                ON cat.id_categoria = s.id_categoria
+             INNER JOIN citas c
+                ON c.id_servicio = s.id_servicio
+             WHERE s.estado = true
+               AND c.estado IN ('Confirmada', 'Completada')
+               AND c.fecha >= DATE_TRUNC('month', CURRENT_DATE)::date
+               AND c.fecha < (
+                   DATE_TRUNC('month', CURRENT_DATE)
+                   + INTERVAL '1 month'
+               )::date
+             GROUP BY
+                s.id_servicio,
+                s.id_categoria,
+                cat.nombre
+             ORDER BY
+                total_citas DESC,
+                s.nombre ASC
+             LIMIT 6`
+        );
+
+        return res.json(result.rows);
+
+    } catch (error) {
+        console.error(
+            'Error al obtener servicios destacados:',
+            error.message
+        );
+
+        return res.status(500).json({
+            error: 'Error al obtener los servicios destacados'
+        });
+    }
+};
+
 
 // CONSULTAR UN SERVICIO POR ID
 
@@ -77,6 +129,8 @@ const obtenerServicioPorId = async (req, res) => {
         });
     }
 };
+
+
 
 
 
@@ -548,6 +602,7 @@ module.exports = {
     actualizarServicio,
     eliminarServicio,
     obtenerEmpleadosPorServicio,
-    obtenerResenasPorServicio
+    obtenerResenasPorServicio,
+    obtenerServiciosDestacados
 };
 

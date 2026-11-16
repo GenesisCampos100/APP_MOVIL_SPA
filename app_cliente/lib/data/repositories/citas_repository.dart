@@ -266,13 +266,5 @@ class CitasRepository extends ChangeNotifier {
     return cita;
   }
 
-  /// TEMPORAL: todavía no existe un endpoint para cancelar una cita ya
-  /// confirmada, así que la ventana "¿Cancelar tu cita?" muestra este aviso.
-  /// Pendiente de Vanessa: PUT /api/citas/:id/cancelar, que cambie el estado
-  /// a "Cancelada", libere el horario y valide la regla de 24 horas.
-  Future<void> cancelarCita(int idCita) async {
-    throw Exception(
-      'Cancelar citas todavía no está disponible en el servidor.',
-    );
-  }
+
 }

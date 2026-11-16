@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../../shell/shell_controller.dart';
@@ -5,12 +6,12 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formato.dart';
 import '../../../data/models/cita.dart';
+import '../../../data/models/servicio.dart';
 import '../../../data/repositories/citas_repository.dart';
 import '../../../data/services/sesion_service.dart';
 import '../../auth/auth_state.dart';
 import '../../auth/auth_flow.dart';
 import '../../auth/widgets/auth_widgets.dart';
-import '../../../data/models/servicio.dart';
 import '../../booking/screens/agendar_cita_screen.dart';
 import '../widgets/acciones_cita.dart';
 
@@ -33,7 +34,8 @@ class AppointmentsScreen extends StatefulWidget {
   });
 
   @override
-  State<AppointmentsScreen> createState() => _AppointmentsScreenState();
+  State<AppointmentsScreen> createState() =>
+      _AppointmentsScreenState();
 }
 
 class _AppointmentsScreenState extends State<AppointmentsScreen> {
@@ -125,7 +127,8 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     });
 
     try {
-      final citas = await CitasRepository.instance.obtenerMisCitas();
+      final citas =
+          await CitasRepository.instance.obtenerMisCitas();
 
       if (!mounted) return;
 
@@ -319,10 +322,13 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   child: GestureDetector(
                     onTap: () => setState(() => _filtro = f),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 9),
+                      padding:
+                          const EdgeInsets.symmetric(vertical: 9),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: f == _filtro ? Colors.black : Colors.white,
+                        color: f == _filtro
+                            ? Colors.black
+                            : Colors.white,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: f == _filtro
@@ -365,7 +371,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
             for (final c in visibles) ...[
               _CitaCard(
                 cita: c,
-                onActualizada: _cargarCitas,
+                onCambio: _cargarCitas,
               ),
               const SizedBox(height: 12),
             ],
@@ -375,97 +381,16 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   }
 }
 
-
-class _CitaCard extends StatefulWidget {
+class _CitaCard extends StatelessWidget {
   final Cita cita;
-  final Future<void> Function() onActualizada;
   final VoidCallback? onCambio;
 
   const _CitaCard({
     required this.cita,
-    required this.onActualizada,
     this.onCambio,
   });
 
-  @override
-  State<_CitaCard> createState() => _CitaCardState();
-}
-
-class _CitaCardState extends State<_CitaCard> {
-  bool _cancelando = false;
-
-  void _proximamente(
-    BuildContext context,
-    String que,
-  ) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$que: próximamente'),
-      ),
-    );
-  }
-
-  Future<void> _confirmarCancelacion() async {
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Cancelar cita'),
-        content: const Text(
-          '¿Estás seguro de que deseas cancelar esta cita? '
-          'Esta acción no se puede deshacer.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Volver'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.rosaFuerte,
-            ),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Sí, cancelar'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmar != true || !mounted) return;
-
-    setState(() => _cancelando = true);
-
-    try {
-      await CitasRepository.instance.cancelarCita(widget.cita.id);
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('La cita se canceló correctamente.'),
-        ),
-      );
-
-      await widget.onActualizada();
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _cancelando = false);
-      }
-    }
-  }
-
-  Future<void> _reagendar(BuildContext context) async {
-    final cita = widget.cita;
-
+  Future<void> _reservarDeNuevo(BuildContext context) async {
     final servicio = Servicio(
       id: cita.idServicio,
       nombre: cita.servicioNombre,
@@ -479,41 +404,15 @@ class _CitaCardState extends State<_CitaCard> {
       MaterialPageRoute(
         builder: (_) => AgendarCitaScreen(
           servicio: servicio,
-          idCitaReagendar: cita.id,
         ),
       ),
     );
 
-    if (!mounted) return;
-
-    await widget.onActualizada();
-  }
-
-  void _reservarDeNuevo(BuildContext context) {
-    final cita = widget.cita;
-
-    final servicio = Servicio(
-      id: cita.idServicio,
-      nombre: cita.servicioNombre,
-      minutos: cita.duracionAplicada,
-      precio: cita.precioAplicado,
-      categoria: cita.servicioCategoria,
-    );
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => AgendarCitaScreen(
-          servicio: servicio,
-        ),
-      ),
-    );
+    onCambio?.call();
   }
 
   @override
   Widget build(BuildContext context) {
-    final c = widget.cita;
-
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -529,23 +428,23 @@ class _CitaCardState extends State<_CitaCard> {
             children: [
               Expanded(
                 child: Text(
-                  c.servicioNombre.isEmpty
+                  cita.servicioNombre.isEmpty
                       ? 'Servicio'
-                      : c.servicioNombre,
+                      : cita.servicioNombre,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              _Estado(c.estado),
+              _Estado(cita.estado),
             ],
           ),
           const SizedBox(height: 4),
           Text(
-            '${fechaCorta(c.fecha)} - '
-            '${hora12(c.horaInicio)} - '
-            '${c.empleadoNombre.isEmpty ? 'Empleado asignado' : c.empleadoNombre}',
+            '${fechaCorta(cita.fecha)} - '
+            '${hora12(cita.horaInicio)} - '
+            '${cita.empleadoNombre.isEmpty ? 'Empleado asignado' : cita.empleadoNombre}',
             style: const TextStyle(
               fontSize: 12,
               color: AppColors.gris,
@@ -567,14 +466,14 @@ class _CitaCardState extends State<_CitaCard> {
           ),
         );
 
-    switch (widget.cita.estado) {
+    switch (cita.estado) {
       case Cita.completada:
         return FilledButton(
           style: negro(),
           onPressed: () => Navigator.pushNamed(
             context,
             AppRoutes.escribirResena,
-            arguments: widget.cita,
+            arguments: cita,
           ),
           child: const Text('Escribir reseña'),
         );
@@ -586,42 +485,13 @@ class _CitaCardState extends State<_CitaCard> {
           child: const Text('Reservar de nuevo'),
         );
 
-      case Cita.pendiente:
-      case Cita.confirmada:
-        return Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                style: contorno(),
-                onPressed: _cancelando
-                  ? null
-                  : () => _reagendar(context),
-                child: const Text('Reagendar'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton(
-                style: contorno(),
-                onPressed: _cancelando
-                    ? null
-                    : _confirmarCancelacion,
-                child: _cancelando
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text('Cancelar'),
-              ),
-            ),
-          ],
-        );
-
       default:
-        return const SizedBox.shrink();
+        // Reagendar y cancelar se gestionan desde AccionesCita.
+        // Este componente aplica las restricciones de tiempo.
+        return AccionesCita(
+          cita: cita,
+          onCambio: onCambio,
+        );
     }
   }
 }
