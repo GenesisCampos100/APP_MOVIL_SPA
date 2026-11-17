@@ -5,6 +5,7 @@ import '../../../core/i18n/textos.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../auth/auth_state.dart';
 
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 

@@ -14,6 +14,9 @@ const pruebaRoutes = require('./routes/prueba.routes');
 // Rutas de Vanessa
 const usuariosRoutes = require('./routes/usuarios.routes');
 const notificacionesRoutes = require('./routes/notificaciones.routes');
+const iniciarRecordatorios = require('./jobs/recordatorios.job');
+const iniciarCancelacionCitas = require('./jobs/cancelarCitas.job');
+const favoritosRoutes = require('./routes/favoritos.routes');
 
 // Rutas administrativas de GENESIS
 const adminServiciosRoutes = require('./routes/admin_servicios.routes');
@@ -29,10 +32,14 @@ app.use('/api/prueba', pruebaRoutes);
 // Registrar rutas de usuarios
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/notificaciones', notificacionesRoutes);
+app.use('/api/favoritos', favoritosRoutes);
 
 // Registrar rutas administrativas
 app.use('/api/admin/servicios', adminServiciosRoutes);
 app.use('/api/admin/empleados', adminEmpleadosRoutes);
 app.use('/api/admin/horarios', adminHorariosRoutes);
+
+iniciarRecordatorios();
+iniciarCancelacionCitas();
 
 module.exports = app;

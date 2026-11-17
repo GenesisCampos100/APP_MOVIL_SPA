@@ -6,6 +6,8 @@ import '../../../core/utils/errores.dart';
 import '../../../core/utils/formato.dart';
 import '../../../data/models/cita.dart';
 import '../../../data/repositories/citas_repository.dart';
+import '../../../data/models/servicio.dart';
+import '../../booking/screens/agendar_cita_screen.dart';
 
 const Color _rojo = Color(0xFFE5174D);
 
@@ -28,8 +30,78 @@ class AccionesCita extends StatelessWidget {
   final VoidCallback? onCambio;
   const AccionesCita({super.key, required this.cita, this.onCambio});
 
+  Future<void> _reagendar(BuildContext context) async {
+    final servicio = Servicio(
+      id: cita.idServicio,
+      nombre: cita.servicioNombre,
+      minutos: cita.duracionAplicada,
+      precio: cita.precioAplicado,
+      categoria: cita.servicioCategoria,
+    );
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AgendarCitaScreen(
+          servicio: servicio,
+          idCitaReagendar: cita.id,
+        ),
+      ),
+    );
+
+    if (!context.mounted) return;
+
+    onCambio?.call();
+  }
+
+  Future<void> _reservarDeNuevo(BuildContext context) async {
+    final servicio = Servicio(
+      id: cita.idServicio,
+      nombre: cita.servicioNombre,
+      minutos: cita.duracionAplicada,
+      precio: cita.precioAplicado,
+      categoria: cita.servicioCategoria,
+    );
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AgendarCitaScreen(
+          servicio: servicio,
+        ),
+      ),
+    );
+
+    if (!context.mounted) return;
+
+    onCambio?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final cancelada = cita.estado == Cita.cancelada;
+
+    final puedeReservarDeNuevo =
+        cancelada && inicioDeCita(cita).isAfter(DateTime.now());
+
+    if (cancelada) {
+      if (!puedeReservarDeNuevo) {
+        return const SizedBox.shrink();
+      }
+
+      final c = context.aura;
+
+      return SizedBox(
+        width: double.infinity,
+        child: _Boton(
+          texto: 'Reservar de nuevo',
+          habilitado: true,
+          fondo: c.boton,
+          textoColor: c.textoBoton,
+          onPressed: () => _reservarDeNuevo(context),
+        ),
+      );
+    }
     final habilitado = citaModificable(cita);
     final c = context.aura;
     return Column(
@@ -43,12 +115,7 @@ class AccionesCita extends StatelessWidget {
                 habilitado: habilitado,
                 fondo: c.boton,
                 textoColor: c.textoBoton,
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(context.t('comun.proximamente',
-                        {'que': context.t('citas.reagendar')})),
-                  ),
-                ),
+                onPressed: () => _reagendar(context),
               ),
             ),
             const SizedBox(width: 12),

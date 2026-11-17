@@ -1,5 +1,6 @@
 
 import 'package:flutter/foundation.dart';
+
 import '../models/notificacion.dart';
 import '../services/api_service.dart';
 import '../services/sesion_service.dart';
@@ -25,8 +26,10 @@ class NotificacionesRepository extends ChangeNotifier {
     return copia;
   }
 
+  // Cantidad de notificaciones no leídas.
   int get noLeidas => _items.where((n) => !n.leida).length;
 
+  // Indica si hay alguna notificación que requiere acción.
   bool get hayPendientes => _items.any((n) => n.requiereAccion);
 
   // Obtener notificaciones reales del usuario autenticado.
@@ -34,7 +37,9 @@ class NotificacionesRepository extends ChangeNotifier {
     final sesion = SesionService.instance;
 
     if (!sesion.estaIniciada || sesion.token == null) {
-      throw Exception('Debes iniciar sesión para ver tus notificaciones.');
+      throw Exception(
+        'Debes iniciar sesión para ver tus notificaciones.',
+      );
     }
 
     _cargando = true;
@@ -71,7 +76,7 @@ class NotificacionesRepository extends ChangeNotifier {
     }
   }
 
-  // Acciones locales temporales: después se conectarán al backend.
+  // Marcar una notificación como leída en el backend.
   Future<void> marcarLeida(int id) async {
     final i = _items.indexWhere((n) => n.id == id);
 
@@ -93,6 +98,7 @@ class NotificacionesRepository extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Marcar todas las notificaciones como leídas en el backend.
   Future<void> marcarTodasLeidas() async {
     if (_items.every((n) => n.leida)) return;
 
@@ -114,22 +120,27 @@ class NotificacionesRepository extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Eliminar una notificación localmente.
   void eliminar(int id) {
     _items.removeWhere((n) => n.id == id);
     notifyListeners();
   }
 
+  // Restaurar una notificación eliminada.
   void restaurar(Notificacion n) {
+    if (_items.any((item) => item.id == n.id)) return;
+
     _items.add(n);
     notifyListeners();
   }
 
+  // Limpiar todas, excepto las que todavía requieren acción.
   void limpiarTodo() {
     _items.removeWhere((n) => !n.requiereAccion);
     notifyListeners();
   }
 
-  
+  // Confirmar asistencia desde una notificación.
   Future<void> confirmarAsistencia(int id) async {
     final i = _items.indexWhere((n) => n.id == id);
 
@@ -140,37 +151,28 @@ class NotificacionesRepository extends ChangeNotifier {
     final notificacion = _items[i];
 
     if (!notificacion.requiereAccion) {
-      throw Exception('Esta notificación ya no requiere confirmación.');
+      throw Exception(
+        'Esta notificación ya no requiere confirmación.',
+      );
     }
 
     final idCita = notificacion.idCita;
 
     if (idCita == null) {
-      throw Exception('La notificación no tiene una cita asociada.');
+      throw Exception(
+        'La notificación no tiene una cita asociada.',
+      );
     }
 
     // Confirmar la cita realmente en el backend.
     await CitasRepository.instance.confirmarCita(idCita);
 
-    // Actualizar la notificación en memoria.
+    // Actualizar el estado local después de confirmar correctamente.
     _items[i] = notificacion.copyWith(
       leida: true,
       atendida: true,
     );
 
-    if (i == -1) return;
-    final original = _items[i];
-    _items[i] = original.copyWith(leida: true, atendida: true);
-    _items.add(Notificacion(
-      id: _siguienteId++,
-      idCita: original.idCita,
-      tipo: Notificacion.citaConfirmada,
-      titulo: 'Cita confirmada',
-      mensaje: 'Confirmaste tu cita. ¡Te esperamos en Aura Spa!',
-      datos: {'variante': 'manual'},
-      fechaEnvio: DateTime.now(),
-    ));
     notifyListeners();
   }
-
 }

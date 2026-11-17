@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
-import '../../../core/i18n/textos.dart';
+
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/theme/aura_colores.dart';
-import '../../../core/utils/formato.dart';
 import '../../../data/models/servicio.dart';
 import '../../../data/repositories/servicios_repository.dart';
 import '../../../shared/widgets/servicio_visual.dart';
 import '../../notifications/screens/notifications_screen.dart';
 
-// se llaman distinto (deben estar en assets/images/).
-// ---------------------------------------------------------------
+// Rutas de las imágenes en assets/images/
 const String kBannerImagen = 'assets/images/banner_home.jpg';
 const String kPromo1Imagen = 'assets/images/promo1.jpg';
 const String kPromo2Imagen = 'assets/images/promo2.jpg';
@@ -24,6 +21,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _repo = ServiciosRepository();
+  
   late final Future<List<Servicio>> _futuro =
       _repo.obtenerServiciosDestacados();
 
@@ -43,23 +41,23 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           children: [
-            _buscador(context),
+            _buscador(),
             const SizedBox(height: 14),
             _banner(),
-            const SizedBox(height: 16),
-            _titulo(context.t('home.promociones')),
             const SizedBox(height: 8),
             const Row(
               children: [
+                // Imágenes para la promoción hacia la propia app.
                 Expanded(child: _Promo(imagen: kPromo1Imagen, icono: Icons.spa)),
                 SizedBox(width: 12),
                 Expanded(child: _Promo(imagen: kPromo2Imagen, icono: Icons.local_florist)),
               ],
             ),
             const SizedBox(height: 16),
-            Center(child: _titulo(context.t('home.categorias'))),
+            Center(child: _titulo('Categorías')),
             const SizedBox(height: 10),
-            // Categorías: se desliza hacia la izquierda para ver las demás.  
+            
+            // Categorías: se desliza hacia la izquierda para ver las demás.
             FutureBuilder<List<Servicio>>(
               future: _futuroCategorias,
               builder: (context, snap) {
@@ -129,8 +127,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             const SizedBox(height: 16),
-            _titulo(context.t('home.destacados')),
+            _titulo('Servicios Destacados'),
             const SizedBox(height: 8),
+            
             FutureBuilder<List<Servicio>>(
               future: _futuro,
               builder: (context, snap) {
@@ -176,7 +175,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
-
           ],
         ),
       ),
@@ -186,7 +184,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _titulo(String t) =>
       Text(t, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500));
 
-  Widget _buscador(BuildContext context) {
+  Widget _buscador() {
     return Row(
       children: [
         Expanded(
@@ -194,8 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
             readOnly: true,
             onTap: _irCatalogo,
             decoration: InputDecoration(
-              hintStyle: TextStyle(color: context.aura.textoSecundario),
-              hintText: context.t('home.buscar'),
+              hintText: 'Buscar.....',
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               border: OutlineInputBorder(
@@ -215,7 +212,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Banner superior: tu imagen como fondo + el título "Aura Spa" encima.
+  /// Banner superior con la imagen/logo de Aura Spa.
+  /// Si la imagen no existe, muestra el diseño anterior (degradado + texto).
   Widget _banner() {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
@@ -252,9 +250,9 @@ class _HomeScreenState extends State<HomeScreen> {
             const Padding(
               padding: EdgeInsets.only(left: 20),
               child: Align(
-                alignment: Alignment.centerLeft,
+                alignment: Alignment.center,
                 child: Text(
-                  'Aura Spa', // nombre de la marca: no se traduce
+                  'Aura Spa',
                   style: TextStyle(
                     fontFamily: 'serif',
                     fontStyle: FontStyle.italic,
@@ -269,13 +267,14 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-} // <-- esta llave cierra la clase _HomeScreenState
+}
 
 /// Imagen de promoción (diseño propio). Si falta el archivo, muestra un
 /// recuadro de color con un ícono para que la app no se rompa.
 class _Promo extends StatelessWidget {
   final String imagen;
   final IconData icono;
+  
   const _Promo({required this.imagen, required this.icono});
 
   @override
@@ -290,7 +289,7 @@ class _Promo extends StatelessWidget {
         filterQuality: FilterQuality.high,
         errorBuilder: (context, error, stack) => Container(
           height: 100,
-          color: context.aura.rosaSuave,
+          color: AppColors.rosaSuave,
           child: Icon(icono, size: 44, color: AppColors.rosaFuerte),
         ),
       ),
@@ -301,78 +300,63 @@ class _Promo extends StatelessWidget {
 class _DestacadoTile extends StatelessWidget {
   final Servicio servicio;
   final VoidCallback onTap;
+  
   const _DestacadoTile({required this.servicio, required this.onTap});
 
-  /// Cada dato va en su propia línea para que nada se encime, aunque la
-  /// categoría sea larga ("Tratamientos faciales") o el celular tenga el
-  /// texto agrandado:
-  ///   categoría
-  ///   nombre del servicio
-  ///   Desde $precio
-  ///   duración · estrella ............ [Reservar]
   @override
   Widget build(BuildContext context) {
     final s = servicio;
-    final a = context.aura;
     return InkWell(
       onTap: onTap,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ServicioThumb(categoria: s.categoria, imagen: s.imagen, width: 120, height: 120),
+          // Al inicio usa la imagen del servicio
+          ServicioThumb(categoria: s.categoria, imagen: s.imagen, width: 120, height: 84),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CategoriaBadge(s.categoria),
-                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    CategoriaBadge(s.categoria),
+                    Text(
+                      'Desde ${s.precioTexto}',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
                 Text(
                   s.nombre,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  context.t('home.desde', {'precio': s.precioTexto}),
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Row(
                   children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              duracionLegible(s.minutos),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 12, color: a.textoSecundario),
-                            ),
-                          ),
-                          if (s.rating > 0) ...[
-                            const SizedBox(width: 8),
-                            const Icon(Icons.star, size: 14, color: Colors.amber),
-                            Text(' ${s.rating}',
-                                style: TextStyle(fontSize: 12, color: a.textoSecundario)),
-                          ],
-                        ],
-                      ),
+                    Text(
+                      s.duracionTexto,
+                      style: const TextStyle(fontSize: 12, color: AppColors.gris),
                     ),
-                    const SizedBox(width: 8),
+                    if (s.rating > 0) ...[
+                      const SizedBox(width: 10),
+                      const Icon(Icons.star, size: 14, color: Colors.amber),
+                      Text(
+                        ' ${s.rating}',
+                        style: const TextStyle(fontSize: 12, color: AppColors.gris),
+                      ),
+                    ],
+                    const Spacer(),
                     FilledButton(
                       onPressed: onTap,
                       style: FilledButton.styleFrom(
-                        backgroundColor: a.boton,
-                        foregroundColor: a.textoBoton,
-                        minimumSize: const Size(0, 30),
+                        backgroundColor: Colors.black,
+                        minimumSize: const Size(0, 28),
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                       ),
-                      child: Text(context.t('home.reservar'),
-                          style: const TextStyle(fontSize: 11)),
+                      child: const Text('Reservar', style: TextStyle(fontSize: 11)),
                     ),
                   ],
                 ),

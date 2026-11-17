@@ -44,26 +44,67 @@ void _aviso(BuildContext context, {required bool agregado, SnackBarAction? accio
     );
 }
 
-/// Corazón de un servicio. Si no hay sesión, pide iniciar sesión primero
-/// y después lo agrega.
-Future<void> alternarFavoritoServicio(BuildContext context, Servicio s) async {
+
+Future<void> alternarFavoritoServicio(
+  BuildContext context,
+  Servicio s,
+) async {
   if (!AuthState.instance.isLoggedIn) {
     final ok = await AuthFlow.iniciar(context);
     if (!ok || !context.mounted) return;
   }
-  final queda = FavoritosRepository.instance.alternarServicio(s);
-  _aviso(context, agregado: queda);
+
+  try {
+    final queda =
+        await FavoritosRepository.instance.alternarServicio(s);
+
+    if (!context.mounted) return;
+
+    _aviso(context, agregado: queda);
+  } catch (e) {
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          e.toString().replaceFirst('Exception: ', ''),
+        ),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
 }
 
-/// Corazón de un especialista.
-Future<void> alternarFavoritoEmpleado(BuildContext context, Empleado e) async {
+Future<void> alternarFavoritoEmpleado(
+  BuildContext context,
+  Empleado e,
+) async {
   if (!AuthState.instance.isLoggedIn) {
     final ok = await AuthFlow.iniciar(context);
     if (!ok || !context.mounted) return;
   }
-  final queda = FavoritosRepository.instance.alternarEmpleado(e);
-  _aviso(context, agregado: queda);
+
+  try {
+    final queda =
+        await FavoritosRepository.instance.alternarEmpleado(e);
+
+    if (!context.mounted) return;
+
+    _aviso(context, agregado: queda);
+  } catch (e) {
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          e.toString().replaceFirst('Exception: ', ''),
+        ),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
 }
+
 
 /// Favoritos: dos listas, Servicios y Especialistas. El corazón lleno de cada
 /// fila los quita (con "Deshacer").
@@ -77,6 +118,34 @@ class FavoritesScreen extends StatefulWidget {
 class _FavoritesScreenState extends State<FavoritesScreen> {
   static const _tabs = ['servicios', 'especialistas'];
   String _tab = 'servicios';
+  String? _errorCarga;
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _cargarFavoritos();
+    });
+  }
+
+  Future<void> _cargarFavoritos() async {
+    if (!mounted) return;
+
+    setState(() {
+      _errorCarga = null;
+    });
+
+    try {
+      await FavoritosRepository.instance.cargarFavoritos();
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _errorCarga = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +163,37 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             title: Text(context.t('fav.titulo'),
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           ),
-          body: Column(
+          body: _errorCarga != null
+    ? Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.wifi_off_rounded,
+                size: 42,
+                color: Colors.redAccent,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _errorCarga!,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _cargarFavoritos,
+                child: Text(context.t('comun.reintentar')),
+              ),
+            ],
+          ),
+        ),
+      )
+    : repo.cargando
+        ? const Center(
+            child: CircularProgressIndicator(),
+          )
+        : Column(
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
@@ -110,7 +209,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                             decoration: BoxDecoration(
                               color: f == _tab ? a.boton : a.superficie,
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: f == _tab ? a.boton : a.borde),
+                              border: Border.all(
+                                color: f == _tab ? a.boton : a.borde,
+                              ),
                             ),
                             child: Text(
                               cantidades[f]! > 0
@@ -119,13 +220,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: f == _tab ? a.textoBoton : a.textoSecundario,
+                                color: f == _tab
+                                    ? a.textoBoton
+                                    : a.textoSecundario,
                               ),
                             ),
                           ),
                         ),
                       ),
-                      if (f != _tabs.last) const SizedBox(width: 10),
+                      if (f != _tabs.last)
+                        const SizedBox(width: 10),
                     ],
                   ],
                 ),

@@ -3,8 +3,6 @@ require('dotenv').config();
 
 const app = require('./src/app');
 
-const iniciarRecordatorios = require('./src/jobs/recordatorios.job');
-
 const PORT = process.env.PORT || 3000;
 
 const supabase = require('./src/config/supabase');
@@ -34,5 +32,4 @@ app.get('/', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor ejecutándose en el puerto ${PORT}`);
 
-    iniciarRecordatorios();
 });

@@ -1,10 +1,8 @@
+
 import 'package:flutter/material.dart';
 
-import '../../../core/i18n/textos.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/theme/aura_colores.dart';
-import '../../../core/utils/errores.dart';
 import '../../../data/models/empleado.dart';
 import '../../../data/repositories/empleados_repository.dart';
 import '../../../data/repositories/citas_repository.dart';
@@ -42,98 +40,105 @@ class _ElegirEspecialistaScreenState
 
   bool _apartando = false;
 
-  /// Los especialistas favoritos aparecen primero (solo al abrir la pantalla).
+  /// Los especialistas favoritos aparecen primero.
   List<Empleado> _favoritosPrimero(List<Empleado> lista) {
     final repo = FavoritosRepository.instance;
+
     return [
       ...lista.where((e) => repo.esFavoritoEmpleado(e.id)),
       ...lista.where((e) => !repo.esFavoritoEmpleado(e.id)),
     ];
   }
 
-  /// Crea el apartado temporal y después abre la confirmación.
+  /// Reagenda una cita existente o crea un apartado temporal
+  /// para una reserva nueva.
   Future<void> _continuar() async {
     if (_apartando) return;
 
     setState(() => _apartando = true);
 
-    
-  try {
-    // Si es un reagendamiento, actualizar la cita directamente.
-    if (widget.borrador.esReagendamiento) {
-      await CitasRepository.instance.reagendarCita(
-        idCita: widget.borrador.idCitaReagendar!,
-        idEmpleado: _seleccion.id,
+    try {
+      // Si es un reagendamiento, actualizar la cita directamente.
+      if (widget.borrador.esReagendamiento) {
+        await CitasRepository.instance.reagendarCita(
+          idCita: widget.borrador.idCitaReagendar!,
+          idEmpleado: _seleccion.id,
+          fecha: widget.borrador.fecha,
+          hora: widget.borrador.hora,
+        );
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cita reagendada correctamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        final navigator = Navigator.of(context);
+
+        navigator.pop();
+        navigator.pop();
+
+        return;
+      }
+
+      // Si es una reserva nueva, utilizar el apartado temporal.
+      final respuesta =
+          await CitasRepository.instance.apartarHorario(
+        servicio: widget.borrador.servicio,
+        empleado: _seleccion,
         fecha: widget.borrador.fecha,
         hora: widget.borrador.hora,
       );
 
+      final reservaJson =
+          respuesta['reserva'] as Map<String, dynamic>;
+
+      final empleadoJson =
+          respuesta['empleado'] as Map<String, dynamic>;
+
+      final idReserva =
+          (reservaJson['id_reserva'] as num).toInt();
+
+      final fechaExpiracion = DateTime.parse(
+        reservaJson['fecha_expiracion'].toString(),
+      );
+
+      // El backend devuelve el empleado real asignado.
+      final empleadoAsignado =
+          Empleado.fromJson(empleadoJson);
+
+      final nuevoBorrador = widget.borrador.conApartado(
+        idReserva: idReserva,
+        fechaExpiracion: fechaExpiracion,
+        empleado: empleadoAsignado,
+      );
+
+      if (!mounted) return;
+
+      Navigator.pushNamed(
+        context,
+        AppRoutes.confirmarCita,
+        arguments: nuevoBorrador,
+      );
+    } catch (e) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cita reagendada correctamente'),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: Text(
+            e.toString().replaceFirst('Exception: ', ''),
+          ),
+          backgroundColor: Colors.red,
         ),
       );
-
-      Navigator.pop(context); // Cierra ElegirEspecialistaScreen
-      Navigator.pop(context); // Cierra AgendarCitaScreen
-
-      return;
+    } finally {
+      if (mounted) {
+        setState(() => _apartando = false);
+      }
     }
-
-    // Si es una reserva nueva, utilizar el apartado temporal.
-    final respuesta = await CitasRepository.instance.apartarHorario(
-      servicio: widget.borrador.servicio,
-      empleado: _seleccion,
-      fecha: widget.borrador.fecha,
-      hora: widget.borrador.hora,
-    );
-
-    final reservaJson =
-        respuesta['reserva'] as Map<String, dynamic>;
-
-    final empleadoJson =
-        respuesta['empleado'] as Map<String, dynamic>;
-
-    final idReserva = (reservaJson['id_reserva'] as num).toInt();
-
-    final fechaExpiracion =
-        DateTime.parse(reservaJson['fecha_expiracion'].toString());
-
-    final empleadoAsignado = Empleado.fromJson(empleadoJson);
-
-    final nuevoBorrador = widget.borrador.conApartado(
-      idReserva: idReserva,
-      fechaExpiracion: fechaExpiracion,
-      empleado: empleadoAsignado,
-    );
-
-    if (!mounted) return;
-
-    Navigator.pushNamed(
-      context,
-      AppRoutes.confirmarCita,
-      arguments: nuevoBorrador,
-    );
-  } catch (e) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          e.toString().replaceFirst('Exception: ', ''),
-        ),
-        backgroundColor: Colors.red,
-      ),
-    );
-  } finally {
-    if (mounted) {
-      setState(() => _apartando = false);
-    }
-  }
-
   }
 
   @override
@@ -144,8 +149,8 @@ class _ElegirEspecialistaScreenState
         future: _futuro,
         builder: (context, snap) {
           if (snap.hasError) {
-            return Center(
-              child: Text(context.t('esp.error')),
+            return const Center(
+              child: Text('No se pudo cargar el personal'),
             );
           }
 
@@ -155,15 +160,18 @@ class _ElegirEspecialistaScreenState
             );
           }
 
-          final lista = [Empleado.cualquiera, ...snap.data!];
+          final lista = [
+            Empleado.cualquiera,
+            ...snap.data!,
+          ];
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             children: [
-              Center(
+              const Center(
                 child: Text(
-                  context.t('esp.titulo'),
-                  style: const TextStyle(
+                  'Elige a tu especialista',
+                  style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w700,
                   ),
@@ -198,7 +206,7 @@ class _ElegirEspecialistaScreenState
                   ),
                 )
               : AuthBoton(
-                  texto: context.t('comun.continuar'),
+                  texto: 'Continuar',
                   onPressed: _continuar,
                 ),
         ),
@@ -222,7 +230,6 @@ class _TarjetaEmpleado extends StatelessWidget {
   Widget build(BuildContext context) {
     final e = empleado;
     final foto = e.foto;
-    final c = context.aura;
 
     return InkWell(
       onTap: onTap,
@@ -231,11 +238,11 @@ class _TarjetaEmpleado extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: seleccionado
-              ? c.rosaSuave.withValues(alpha: 0.7)
-              : c.superficie,
+              ? AppColors.rosaSuave.withValues(alpha: 0.5)
+              : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: seleccionado ? c.texto : c.borde,
+            color: seleccionado ? Colors.black : Colors.black12,
             width: seleccionado ? 1.5 : 1,
           ),
         ),
@@ -244,7 +251,7 @@ class _TarjetaEmpleado extends StatelessWidget {
             CircleAvatar(
               radius: 24,
               backgroundColor: e.esCualquiera
-                  ? c.rosaSuave
+                  ? AppColors.rosaSuave
                   : AppColors.rosa,
               backgroundImage:
                   (!e.esCualquiera && foto != null)
@@ -272,7 +279,7 @@ class _TarjetaEmpleado extends StatelessWidget {
                 children: [
                   Text(
                     e.esCualquiera
-                        ? context.t('esp.cualquiera')
+                        ? 'Cualquier disponible'
                         : e.nombreCompleto,
                     style: const TextStyle(
                       fontSize: 14,
@@ -282,11 +289,11 @@ class _TarjetaEmpleado extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     e.esCualquiera
-                        ? context.t('esp.cualquiera_sub')
+                        ? 'Te asignamos al primero disponible'
                         : e.puesto,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 12,
-                      color: c.textoSecundario,
+                      color: AppColors.gris,
                     ),
                   ),
                 ],
@@ -311,10 +318,11 @@ class _TarjetaEmpleado extends StatelessWidget {
               ListenableBuilder(
                 listenable: FavoritosRepository.instance,
                 builder: (context, _) => BotonFavorito(
-                  esFavorito:
-                      FavoritosRepository.instance.esFavoritoEmpleado(e.id),
+                  esFavorito: FavoritosRepository.instance
+                      .esFavoritoEmpleado(e.id),
                   size: 34,
-                  onPressed: () => alternarFavoritoEmpleado(context, e),
+                  onPressed: () =>
+                      alternarFavoritoEmpleado(context, e),
                 ),
               ),
             ],

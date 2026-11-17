@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "320642716448",
+    "project_id": "auraspa-945f5",
+    "storage_bucket": "auraspa-945f5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:320642716448:android:a343f2d2ca97686315bd45",
+        "android_client_info": {
+          "package_name": "com.example.aura_spa"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCK-kdhCGA0U-tkKW4X71oCQ0mEGA-CNt0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

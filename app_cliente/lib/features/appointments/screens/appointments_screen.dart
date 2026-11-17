@@ -1,12 +1,8 @@
-
 import 'package:flutter/material.dart';
 
 import '../../shell/shell_controller.dart';
-import '../../../core/i18n/textos.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/theme/aura_colores.dart';
-import '../../../core/utils/errores.dart';
 import '../../../core/utils/formato.dart';
 import '../../../data/models/cita.dart';
 import '../../../data/models/servicio.dart';
@@ -18,33 +14,36 @@ import '../../auth/widgets/auth_widgets.dart';
 import '../../booking/screens/agendar_cita_screen.dart';
 import '../widgets/acciones_cita.dart';
 
+const String _titulo = 'Sin registro de actividad';
+const String _mensajeSinSesion =
+    'Inicia sesión para poder ver y gestionar tus citas.';
+const String _mensajeConSesion =
+    'Aquí se llevará el registro de tus citas realizadas.';
+
 /// Sin sesión: mensaje + botón "Inicio de sesión".
 /// Con sesión y sin citas: mensaje de registro vacío.
 /// Con citas: lista con filtros Todas / Próximas / Anteriores.
 /// [conAtras] = true cuando se abre desde el Perfil.
 class AppointmentsScreen extends StatefulWidget {
   final bool conAtras;
-
+  
   const AppointmentsScreen({
     super.key,
     this.conAtras = false,
   });
 
   @override
-  State<AppointmentsScreen> createState() =>
-      _AppointmentsScreenState();
+  State<AppointmentsScreen> createState() => _AppointmentsScreenState();
 }
 
 class _AppointmentsScreenState extends State<AppointmentsScreen> {
-  // Clave interna -> clave de traducción.
-  static const _filtros = {
-    'todas': 'citas.f_todas',
-    'proximas': 'citas.f_proximas',
-    'anteriores': 'citas.f_anteriores',
-  };
+  static const _filtros = [
+    'Todas',
+    'Próximas',
+    'Anteriores',
+  ];
 
-  String _filtro = 'todas';
-
+  String _filtro = 'Todas';
   List<Cita> _citas = [];
   bool _cargando = false;
   String? _error;
@@ -53,34 +52,26 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   @override
   void initState() {
     super.initState();
-
     _idClienteSesion = SesionService.instance.idCliente;
-
     AuthState.instance.addListener(_alCambiarSesion);
     ShellController.tab.addListener(_alCambiarPestana);
-
     _cargarCitas();
   }
 
   void _alCambiarSesion() {
     final sesion = SesionService.instance;
-
-    final nuevoId = sesion.estaIniciada
-        ? sesion.idCliente
-        : null;
-
+    final nuevoId = sesion.estaIniciada ? sesion.idCliente : null;
     if (nuevoId == _idClienteSesion) return;
-
+    
     _idClienteSesion = nuevoId;
-
     if (!mounted) return;
-
+    
     setState(() {
       _citas = [];
       _error = null;
       _cargando = false;
     });
-
+    
     if (nuevoId != null) {
       _cargarCitas();
     }
@@ -101,33 +92,27 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
   Future<void> _cargarCitas() async {
     final sesion = SesionService.instance;
-
     if (!sesion.estaIniciada || sesion.idCliente == null) {
       if (!mounted) return;
-
       setState(() {
         _citas = [];
         _cargando = false;
         _error = null;
       });
-
       return;
     }
 
     // Evitar solicitudes duplicadas mientras se carga.
     if (_cargando) return;
-
     final idCliente = sesion.idCliente;
-
+    
     setState(() {
       _cargando = true;
       _error = null;
     });
 
     try {
-      final citas =
-          await CitasRepository.instance.obtenerMisCitas();
-
+      final citas = await CitasRepository.instance.obtenerMisCitas();
       if (!mounted) return;
 
       // Evitar mostrar citas de una sesión anterior.
@@ -142,15 +127,13 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-
       if (!SesionService.instance.estaIniciada ||
           SesionService.instance.idCliente != idCliente) {
         return;
       }
-
       setState(() {
         _cargando = false;
-        _error = textoError(context, e);
+        _error = e.toString().replaceFirst('Exception: ', '');
       });
     }
   }
@@ -191,26 +174,26 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               color: AppColors.rosaFuerte,
             ),
             const SizedBox(height: 16),
-            Text(
-              context.t('citas.error_titulo'),
+            const Text(
+              'No se pudieron cargar tus citas',
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 10),
             Text(
-              _error ?? context.t('citas.error_generico'),
+              _error ?? 'Ocurrió un error inesperado.',
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
-                color: context.aura.textoSecundario,
+                color: AppColors.gris,
               ),
             ),
             const SizedBox(height: 24),
             AuthBoton(
-              texto: context.t('comun.reintentar'),
+              texto: 'Reintentar',
               onPressed: _cargarCitas,
             ),
           ],
@@ -229,8 +212,8 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
             Container(
               width: 120,
               height: 120,
-              decoration: BoxDecoration(
-                color: context.aura.rosaSuave,
+              decoration: const BoxDecoration(
+                color: AppColors.rosaSuave,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -240,34 +223,30 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            Text(
-              context.t('citas.vacio_titulo'),
+            const Text(
+              _titulo,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 10),
             Text(
-              conSesion
-                  ? context.t('citas.con_sesion')
-                  : context.t('citas.sin_sesion'),
+              conSesion ? _mensajeConSesion : _mensajeSinSesion,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
-                color: context.aura.textoSecundario,
+                color: AppColors.gris,
               ),
             ),
             if (!conSesion) ...[
               const SizedBox(height: 28),
               AuthBoton(
-                texto: context.t('citas.iniciar'),
+                texto: 'Inicio de sesión',
                 onPressed: () async {
                   await AuthFlow.iniciar(context);
-
                   if (!mounted) return;
-
                   await _cargarCitas();
                 },
               ),
@@ -280,37 +259,31 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
   Widget _lista(List<Cita> todas) {
     final visibles = todas.where((c) {
-      if (_filtro == 'proximas') {
+      if (_filtro == 'Próximas') {
         return c.esProxima;
       }
-
-      if (_filtro == 'anteriores') {
+      if (_filtro == 'Anteriores') {
         return !c.esProxima;
       }
-
       return true;
     }).toList()
       ..sort((a, b) {
         final fechaComparacion = b.fecha.compareTo(a.fecha);
-
         if (fechaComparacion != 0) {
           return fechaComparacion;
         }
-
         return b.horaInicio.compareTo(a.horaInicio);
       });
-
-    final ac = context.aura;
 
     return RefreshIndicator(
       onRefresh: _cargarCitas,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         children: [
-          Center(
+          const Center(
             child: Text(
-              context.t('citas.titulo'),
-              style: const TextStyle(
+              'Mis citas',
+              style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w700,
               ),
@@ -319,50 +292,44 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
           const SizedBox(height: 18),
           Row(
             children: [
-              for (final f in _filtros.keys) ...[
+              for (final f in _filtros) ...[
                 Expanded(
                   child: GestureDetector(
                     onTap: () => setState(() => _filtro = f),
                     child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(vertical: 9),
+                      padding: const EdgeInsets.symmetric(vertical: 9),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: f == _filtro
-                            ? Colors.black
-                            : Colors.white,
+                        color: f == _filtro ? Colors.black : Colors.white,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: f == _filtro ? ac.boton : ac.borde,
+                          color: f == _filtro ? Colors.black : Colors.black26,
                         ),
                       ),
                       child: Text(
-                        context.t(_filtros[f]!),
+                        f,
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: f == _filtro
-                              ? ac.textoBoton
-                              : ac.textoSecundario,
+                          color: f == _filtro ? Colors.white : AppColors.gris,
                         ),
                       ),
                     ),
                   ),
                 ),
-                if (f != _filtros.keys.last)
-                  const SizedBox(width: 10),
+                if (f != _filtros.last) const SizedBox(width: 10),
               ],
             ],
           ),
           const SizedBox(height: 16),
           if (visibles.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 40),
+            const Padding(
+              padding: EdgeInsets.only(top: 40),
               child: Center(
                 child: Text(
-                  context.t('citas.sin_categoria'),
+                  'No hay citas en esta categoría',
                   style: TextStyle(
-                    color: ac.textoSecundario,
+                    color: AppColors.gris,
                   ),
                 ),
               ),
@@ -398,7 +365,7 @@ class _CitaCard extends StatelessWidget {
       precio: cita.precioAplicado,
       categoria: cita.servicioCategoria,
     );
-
+    
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -407,10 +374,6 @@ class _CitaCard extends StatelessWidget {
         ),
       ),
     );
-
-    onCambio?.call();
-  }
-
     onCambio?.call();
   }
 
@@ -419,9 +382,8 @@ class _CitaCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: ac.superficie,
         border: Border.all(
-          color: ac.borde,
+          color: const Color(0xFFE3E3E3),
         ),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -446,12 +408,10 @@ class _CitaCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${fechaCorta(cita.fecha)} - '
-            '${hora12(cita.horaInicio)} - '
-            '${cita.empleadoNombre.isEmpty ? 'Empleado asignado' : cita.empleadoNombre}',
+            '${fechaCorta(cita.fecha)} • ${hora12(cita.horaInicio)} — ${cita.empleadoNombre.isEmpty ? 'Empleado asignado' : cita.empleadoNombre}',
             style: const TextStyle(
               fontSize: 12,
-              color: ac.textoSecundario,
+              color: AppColors.gris,
             ),
           ),
           const SizedBox(height: 12),
@@ -462,10 +422,8 @@ class _CitaCard extends StatelessWidget {
   }
 
   Widget _acciones(BuildContext context) {
-    final ac = context.aura;
     ButtonStyle negro() => FilledButton.styleFrom(
-          backgroundColor: ac.boton,
-          foregroundColor: ac.textoBoton,
+          backgroundColor: Colors.black,
           minimumSize: const Size.fromHeight(40),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
@@ -481,16 +439,14 @@ class _CitaCard extends StatelessWidget {
             AppRoutes.escribirResena,
             arguments: cita,
           ),
-          child: Text(context.t('citas.escribir_resena')),
+          child: const Text('Escribir reseña'),
         );
-
       case Cita.cancelada:
         return FilledButton(
           style: negro(),
           onPressed: () => _reservarDeNuevo(context),
           child: const Text('Reservar de nuevo'),
         );
-
       default:
         // Reagendar y cancelar se gestionan desde AccionesCita.
         // Este componente aplica las restricciones de tiempo.
@@ -509,24 +465,21 @@ class _Estado extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ac = context.aura;
     Color fondo;
     Color texto;
-
+    
     switch (estado) {
       case Cita.confirmada:
-        fondo = ac.boton;
-        texto = ac.textoBoton;
+        fondo = Colors.black;
+        texto = Colors.white;
         break;
-
       case Cita.cancelada:
-        fondo = ac.rosaSuave;
+        fondo = AppColors.rosaSuave;
         texto = AppColors.rosaFuerte;
         break;
-
       default:
-        fondo = ac.campoBloqueado;
-        texto = ac.textoSecundario;
+        fondo = const Color(0xFFEDEDED);
+        texto = AppColors.gris;
     }
 
     return Container(
@@ -539,7 +492,7 @@ class _Estado extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        context.tOr('estado.$estado', estado),
+        estado,
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,

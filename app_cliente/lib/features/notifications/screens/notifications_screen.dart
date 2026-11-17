@@ -377,7 +377,7 @@ class _Tarjeta extends StatelessWidget {
                       SizedBox(
                         height: 36,
                         child: FilledButton(
-                          onPressed: () async => await _confirmar(context),
+                          onPressed: () async => _confirmar(context),
                           style: FilledButton.styleFrom(
                             backgroundColor: a.boton,
                             foregroundColor: a.textoBoton,

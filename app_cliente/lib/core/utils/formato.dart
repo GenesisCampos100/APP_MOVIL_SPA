@@ -61,25 +61,36 @@ String duracionLegible(int minutos) {
 
 /// Tiempo transcurrido corto para notificaciones:
 /// "ahora", "hace 10 min", "hace 3 h", "ayer"... / "now", "10 min ago"...
+
 String tiempoRelativo(DateTime fecha) {
   final d = DateTime.now().difference(fecha);
+
+  // Evitar mostrar "ahora" cuando la fecha está en el futuro.
+  if (d.isNegative) {
+    return _en ? 'now' : 'ahora';
+  }
+
   if (_en) {
     if (d.inMinutes < 1) return 'now';
     if (d.inMinutes < 60) return '${d.inMinutes} min ago';
     if (d.inHours < 24) return '${d.inHours} h ago';
     if (d.inDays == 1) return 'yesterday';
     if (d.inDays < 30) return '${d.inDays} days ago';
+
     final m = d.inDays ~/ 30;
     return m == 1 ? '1 month ago' : '$m months ago';
   }
+
   if (d.inMinutes < 1) return 'ahora';
   if (d.inMinutes < 60) return 'hace ${d.inMinutes} min';
   if (d.inHours < 24) return 'hace ${d.inHours} h';
   if (d.inDays == 1) return 'ayer';
   if (d.inDays < 30) return 'hace ${d.inDays} días';
+
   final m = d.inDays ~/ 30;
   return m == 1 ? 'hace 1 mes' : 'hace $m meses';
 }
+
 
 /// "Enero" / "January" (mes = 1 a 12)
 String nombreMes(int mes) => (_en ? _mesesLargosEn : _mesesLargosEs)[mes - 1];

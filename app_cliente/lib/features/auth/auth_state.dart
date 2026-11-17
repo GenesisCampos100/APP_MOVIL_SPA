@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 
 import '../../data/models/usuario_sesion.dart';
 import '../../data/services/sesion_service.dart';
+import '../../data/repositories/favoritos_repository.dart';
+
 
 /// Estado de sesión de toda la aplicación.
 class AuthState extends ChangeNotifier {
@@ -98,6 +100,9 @@ class AuthState extends ChangeNotifier {
   /// Cierra la sesión y elimina los datos almacenados.
   Future<void> cerrarSesion() async {
     await SesionService.instance.cerrarSesion();
+
+    // Limpiar los favoritos del usuario anterior.
+    FavoritosRepository.instance.limpiar();
 
     _usuario = null;
     _errorConexion = false;

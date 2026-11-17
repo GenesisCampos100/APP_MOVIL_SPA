@@ -217,7 +217,20 @@ const registrarCita = async (req, res) => {
             });
         }
 
-        // 11. Registrar la cita
+        // Verificar anticipación mínima de una hora.
+        const anticipacion = await client.query(
+            `SELECT
+                ($1::date + $2::time) >=
+                timezone('America/Mexico_City', NOW()) + INTERVAL '1 hour'
+                AS valida`,
+            [fecha, hora_inicio]
+        );
+
+        if (!anticipacion.rows[0].valida) {
+            return res.status(409).json({
+                error: 'Debes reservar con al menos una hora de anticipación'
+            });
+        }
         
         // 11. Iniciar transacción y registrar la cita.
         await client.query('BEGIN');
@@ -233,11 +246,22 @@ const registrarCita = async (req, res) => {
                 duracion_aplicada,
                 precio_aplicado,
                 estado,
-                observaciones
+                observaciones,
+                fecha_limite
             )
             VALUES (
                 $1, $2, $3, $4, $5,
-                $6, $7, 'Pendiente', $8
+                $6, $7, 'Pendiente', $8,
+                CASE
+                    WHEN ($4::date + $5::time) >
+                        timezone('America/Mexico_City', NOW()) + INTERVAL '48 hours'
+                    THEN
+                        (($4::date + $5::time) - INTERVAL '24 hours')
+                        AT TIME ZONE 'America/Mexico_City'
+                    ELSE
+                        (($4::date + $5::time) - INTERVAL '1 hour')
+                        AT TIME ZONE 'America/Mexico_City'
+                END
             )
             RETURNING *`,
             [
@@ -267,7 +291,7 @@ const registrarCita = async (req, res) => {
             VALUES (
                 $1,
                 'cita_creada',
-                NOW(),
+                timezone('America/Mexico_City', NOW()),
                 $2,
                 'Cita registrada',
                 'Tu cita ha sido registrada correctamente. Está pendiente de confirmación.'
@@ -275,6 +299,29 @@ const registrarCita = async (req, res) => {
             [cita.id_cita, id_usuario]
         );
 
+        // Solicitar confirmación inmediatamente si faltan 48 horas o menos.
+        await client.query(
+            `INSERT INTO notificaciones (
+                id_cita,
+                tipo,
+                fecha_envio,
+                id_usuario,
+                titulo,
+                mensaje
+            )
+            SELECT
+                $1,
+                'confirmar_cita',
+                timezone('America/Mexico_City', NOW()),
+                $4,
+                'Confirma tu asistencia',
+                'Tu cita está próxima. Confirma tu asistencia antes de la fecha límite.'
+            WHERE ($2::date + $3::time) <=
+                timezone('America/Mexico_City', NOW()) + INTERVAL '48 hours'`,
+            [cita.id_cita, fecha, hora_inicio, id_usuario]
+        );
+
+        
         // 13. Confirmar ambas operaciones.
         await client.query('COMMIT');
         transaccionIniciada = false;
@@ -995,6 +1042,24 @@ const confirmarApartado = async (req, res) => {
 
         const reserva = apartado.rows[0];
 
+        // Verificar que la cita tenga al menos una hora de anticipación.
+        const anticipacion = await client.query(
+            `SELECT
+                ($1::date + $2::time) >=
+                timezone('America/Mexico_City', NOW()) + INTERVAL '1 hour'
+                AS valida`,
+            [reserva.fecha, reserva.hora_inicio]
+        );
+
+        if (!anticipacion.rows[0].valida) {
+            await client.query('ROLLBACK');
+            transaccionIniciada = false;
+
+            return res.status(409).json({
+                error: 'Debes reservar con al menos una hora de anticipación'
+            });
+        }
+
         // Verificar que el apartado siga vigente.
         const vigencia = await client.query(
             `SELECT fecha_expiracion > NOW() AS vigente
@@ -1095,9 +1160,22 @@ const confirmarApartado = async (req, res) => {
                 duracion_aplicada,
                 precio_aplicado,
                 estado,
-                observaciones
+                observaciones,
+                fecha_limite
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, 'Pendiente', $8)
+            VALUES (
+                $1, $2, $3, $4, $5, $6, $7, 'Pendiente', $8,
+                CASE
+                    WHEN ($4::date + $5::time) >
+                        timezone('America/Mexico_City', NOW()) + INTERVAL '48 hours'
+                    THEN
+                        (($4::date + $5::time) - INTERVAL '24 hours')
+                        AT TIME ZONE 'America/Mexico_City'
+                    ELSE
+                        (($4::date + $5::time) - INTERVAL '1 hour')
+                        AT TIME ZONE 'America/Mexico_City'
+                END
+            )
             RETURNING *`,
             [
                 id_cliente,
@@ -1108,6 +1186,34 @@ const confirmarApartado = async (req, res) => {
                 reserva.duracion,
                 servicio.rows[0].precio,
                 observaciones
+            ]
+        );
+
+
+        // Si faltan 48 horas o menos, solicitar confirmación inmediatamente.
+        await client.query(
+            `INSERT INTO notificaciones (
+                id_cita,
+                tipo,
+                fecha_envio,
+                id_usuario,
+                titulo,
+                mensaje
+            )
+            SELECT
+                $1,
+                'confirmar_cita',
+                timezone('America/Mexico_City', NOW()),
+                $4,
+                'Confirma tu asistencia',
+                'Tu cita está próxima. Confirma tu asistencia antes de la fecha límite.'
+            WHERE ($2::date + $3::time) <=
+                timezone('America/Mexico_City', NOW()) + INTERVAL '48 hours'`,
+            [
+                nuevaCita.rows[0].id_cita,
+                reserva.fecha,
+                reserva.hora_inicio,
+                id_usuario
             ]
         );
 
@@ -1131,7 +1237,7 @@ const confirmarApartado = async (req, res) => {
             VALUES (
                 $1,
                 'cita_creada',
-                NOW(),
+                timezone('America/Mexico_City', NOW()),
                 $2,
                 'Cita registrada',
                 'Tu cita ha sido registrada correctamente. Está pendiente de confirmación.'
@@ -1551,7 +1657,7 @@ const cancelarCita = async (req, res) => {
             VALUES (
                 $1,
                 'cita_cancelada',
-                NOW(),
+                timezone('America/Mexico_City', NOW()),
                 $2,
                 'Cita cancelada',
                 'Tu cita ha sido cancelada correctamente.'
@@ -1676,7 +1782,7 @@ const confirmarCita = async (req, res) => {
              VALUES (
                 $1,
                 'cita_confirmada',
-                NOW(),
+                timezone('America/Mexico_City', NOW()),
                 $2,
                 'Cita confirmada',
                 'Tu cita ha sido confirmada correctamente.'

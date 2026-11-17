@@ -642,15 +642,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
+  
   void _abrirOpcionesFoto() {
     final tieneFoto = _fotoSeleccionada != null ||
-    (_orig.foto != null && !_eliminarFotoPendiente);
-    void proximamente(BuildContext ctx, String que) {
-      Navigator.pop(ctx);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.t('comun.proximamente', {'que': que}))),
-      );
-    }
+        (_orig.foto != null && !_eliminarFotoPendiente);
 
     showModalBottomSheet<void>(
       context: context,
@@ -667,26 +662,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Foto de perfil',
-                style: TextStyle(
+              Text(
+                ctx.t('edit.foto'),
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              Text(ctx.t('edit.foto'),
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
 
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.photo_library_outlined),
-                title: Text(_orig.foto == null ? ctx.t('edit.foto_subir') : ctx.t('edit.foto_cambiar')),
-                onTap: () => proximamente(ctx, ctx.t('edit.q_subir')),
                 title: Text(
                   tieneFoto
                       ? 'Cambiar desde la galería'
-                      : 'Subir desde la galería',
+                      : ctx.t('edit.foto_subir'),
                 ),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -698,8 +689,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.photo_camera_outlined),
                 title: Text(ctx.t('edit.foto_tomar')),
-                onTap: () => proximamente(ctx, ctx.t('edit.q_tomar')),
-                title: const Text('Tomar una foto'),
                 onTap: () {
                   Navigator.pop(ctx);
                   _seleccionarFoto(ImageSource.camera);

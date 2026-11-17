@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/routes/app_routes.dart';
 import 'auth_state.dart';
+import '../../data/repositories/favoritos_repository.dart';
 
 /// Ayudas para entrar y salir del flujo de autenticación.
 class AuthFlow {
@@ -9,7 +10,18 @@ class AuthFlow {
   /// true si el usuario quedó con sesión iniciada.
   static Future<bool> iniciar(BuildContext context) async {
     await Navigator.pushNamed(context, AppRoutes.authCorreo);
-    return AuthState.instance.isLoggedIn;
+
+    final sesionIniciada = AuthState.instance.isLoggedIn;
+
+    if (sesionIniciada) {
+      try {
+        await FavoritosRepository.instance.cargarIds();
+      } catch (e) {
+        debugPrint('Error al cargar favoritos: $e');
+      }
+    }
+
+    return sesionIniciada;
   }
 
   /// Cierra todas las pantallas de autenticación (rutas '/auth/...') y

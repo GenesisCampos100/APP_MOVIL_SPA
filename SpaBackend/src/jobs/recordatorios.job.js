@@ -2,7 +2,7 @@
 const cron = require('node-cron');
 const pool = require('../db');
 
-// Buscar citas que necesitan un recordatorio.
+// Buscar citas que necesitan una solicitud de confirmación.
 const generarRecordatorios = async () => {
     try {
         const resultado = await pool.query(
@@ -17,16 +17,27 @@ const generarRecordatorios = async () => {
             SELECT
                 c.id_cita,
                 'confirmar_cita',
-                NOW(),
+                timezone('America/Mexico_City', NOW()),
                 cl.id_usuario,
                 'Confirma tu asistencia',
-                'Tu cita está programada para dentro de 24 horas. Confirma tu asistencia.'
+                'Tu cita está programada para dentro de 48 horas. Confirma tu asistencia antes de la fecha límite.'
             FROM citas c
             INNER JOIN clientes cl
                 ON cl.id_cliente = c.id_cliente
             WHERE c.estado = 'Pendiente'
-              AND (c.fecha + c.hora_inicio) > NOW() + INTERVAL '23 hours 55 minutes'
-              AND (c.fecha + c.hora_inicio) <= NOW() + INTERVAL '24 hours'
+
+              -- La cita debe estar dentro de las próximas 48 horas.
+              AND (c.fecha + c.hora_inicio) <=
+                  timezone('America/Mexico_City', NOW()) + INTERVAL '48 hours'
+
+              -- La cita todavía no debe haber comenzado.
+              AND (c.fecha + c.hora_inicio) >
+                  timezone('America/Mexico_City', NOW())
+
+              -- El plazo de confirmación todavía debe estar vigente.
+              AND c.fecha_limite > NOW()
+
+              -- Evitar notificaciones duplicadas.
               AND NOT EXISTS (
                   SELECT 1
                   FROM notificaciones n
@@ -38,13 +49,16 @@ const generarRecordatorios = async () => {
 
         if (resultado.rowCount > 0) {
             console.log(
-                'Recordatorios creados:',
+                'Solicitudes de confirmación creadas:',
                 resultado.rows
             );
         }
 
     } catch (error) {
-        console.error('Error al generar recordatorios:', error);
+        console.error(
+            'Error al generar solicitudes de confirmación:',
+            error
+        );
     }
 };
 

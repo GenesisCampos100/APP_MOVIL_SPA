@@ -68,7 +68,7 @@ class Notificacion {
         tipo: (j['tipo'] ?? '') as String,
         titulo: (j['titulo'] ?? '') as String,
         mensaje: (j['mensaje'] ?? '') as String,
-        fechaEnvio: DateTime.parse(j['fecha_envio'].toString()).toLocal(),
+        fechaEnvio: DateTime.parse(j['fecha_envio'].toString()),
         leida: (j['leida'] as bool?) ?? false,
         atendida: (j['atendida'] as bool?) ?? false,
         datos: {
