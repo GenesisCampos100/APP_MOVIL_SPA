@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import '../../../core/i18n/textos.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../auth_flow.dart';
 import '../widgets/auth_widgets.dart';
-
+import 'recuperar_codigo_screen.dart';
+import '../../../core/i18n/textos.dart';
 /// "Bienvenido de nuevo": el correo ya está verificado (campo bloqueado),
 /// solo se pide la contraseña.
 class AuthPasswordScreen extends StatefulWidget {
@@ -27,7 +29,7 @@ class _AuthPasswordScreenState extends State<AuthPasswordScreen> {
 
   Future<void> _continuar() async {
     if (_password.text.isEmpty) {
-      setState(() => _error = 'Ingresa tu contraseña');
+      setState(() => _error = context.t('auth.err_password_vacia'));
       return;
     }
     setState(() {
@@ -40,7 +42,7 @@ class _AuthPasswordScreenState extends State<AuthPasswordScreen> {
       if (usuario == null) {
         setState(() {
           _cargando = false;
-          _error = 'Contraseña incorrecta';
+          _error = context.t('auth.err_password');
         });
         return;
       }
@@ -49,7 +51,7 @@ class _AuthPasswordScreenState extends State<AuthPasswordScreen> {
       if (!mounted) return;
       setState(() {
         _cargando = false;
-        _error = 'No se pudo conectar. Intenta de nuevo.';
+        _error = context.t('auth.err_conexion');
       });
     }
   }
@@ -57,11 +59,11 @@ class _AuthPasswordScreenState extends State<AuthPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return AuthPagina(
-      titulo: 'Bienvenido de nuevo',
-      subtitulo: 'Ingresa tu contraseña para continuar',
+      titulo: context.t('auth.bienvenido'),
+      subtitulo: context.t('auth.sub_bienvenido'),
       hijos: [
         AuthCampo(
-          label: 'Correo electronico',
+          label: context.t('auth.correo'),
           controller: TextEditingController(text: widget.correo),
           enabled: false,
         ),
@@ -74,14 +76,12 @@ class _AuthPasswordScreenState extends State<AuthPasswordScreen> {
         Align(
           alignment: Alignment.centerRight,
           child: TextButton(
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Recuperar contraseña: próximamente')),
-            ),
-            child: const Text('¿Olvidaste tu contraseña?', style: TextStyle(fontSize: 12)),
+            onPressed: () => abrirRecuperarContrasena(context, widget.correo),
+            child: Text(context.t('auth.olvidaste'), style: const TextStyle(fontSize: 12)),
           ),
         ),
         const SizedBox(height: 8),
-        AuthBoton(texto: 'Continuar', cargando: _cargando, onPressed: _continuar),
+        AuthBoton(texto: context.t('comun.continuar'), cargando: _cargando, onPressed: _continuar),
       ],
     );
   }

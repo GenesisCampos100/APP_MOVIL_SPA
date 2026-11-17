@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
+import '../../core/i18n/textos.dart';
+import '../../core/theme/aura_colores.dart';
+import '../../core/utils/formato.dart';
 import '../../data/models/servicio.dart';
 import 'servicio_visual.dart';
 
@@ -12,13 +14,15 @@ class ServicioCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = servicio;
+    final a = context.aura;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.black12),
+          color: a.superficie,
+          border: Border.all(color: a.borde),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -50,17 +54,17 @@ class ServicioCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Row(
                     children: [
-                      Text(s.duracionTexto, style: const TextStyle(fontSize: 11, color: AppColors.gris)),
+                      Text(duracionLegible(s.minutos), style: TextStyle(fontSize: 11, color: a.textoSecundario)),
                       const Spacer(),
                       // La estrella solo aparece si el servicio ya tiene reseñas.
                       if (s.rating > 0) ...[
                         const Icon(Icons.star, size: 12, color: Colors.amber),
-                        Text(' ${s.rating}', style: const TextStyle(fontSize: 11, color: AppColors.gris)),
+                        Text(' ${s.rating}', style: TextStyle(fontSize: 11, color: a.textoSecundario)),
                       ],
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text('${s.precioTexto} MXN',
+                  Text(context.t('comun.mxn', {'precio': s.precioTexto}),
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 ],
               ),

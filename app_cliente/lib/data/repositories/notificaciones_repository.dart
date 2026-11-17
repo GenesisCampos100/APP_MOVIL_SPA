@@ -158,6 +158,18 @@ class NotificacionesRepository extends ChangeNotifier {
       atendida: true,
     );
 
+    if (i == -1) return;
+    final original = _items[i];
+    _items[i] = original.copyWith(leida: true, atendida: true);
+    _items.add(Notificacion(
+      id: _siguienteId++,
+      idCita: original.idCita,
+      tipo: Notificacion.citaConfirmada,
+      titulo: 'Cita confirmada',
+      mensaje: 'Confirmaste tu cita. ¡Te esperamos en Aura Spa!',
+      datos: {'variante': 'manual'},
+      fechaEnvio: DateTime.now(),
+    ));
     notifyListeners();
   }
 
