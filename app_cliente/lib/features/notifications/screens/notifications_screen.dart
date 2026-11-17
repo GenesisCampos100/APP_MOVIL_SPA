@@ -25,25 +25,45 @@ Future<void> abrirNotificaciones(BuildContext context) async {
 
 /// Lista de notificaciones del ciclo de una cita:
 /// registrada -> confirma tu cita (24 h antes) -> confirmada / cancelada
-/// -> ¿cómo estuvo tu servicio?
-///
 ///  - Deslizar una hacia un lado la elimina (con "Deshacer").
 ///  - El ícono de basura limpia todas (con confirmación).
 ///  - "Confirma tu cita" no se puede borrar hasta que se confirme.
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
+  State<NotificationsScreen> createState() =>
+      _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  final repo = NotificacionesRepository.instance;
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      repo.cargar().catchError((_) {});
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final repo = NotificacionesRepository.instance;
     return ListenableBuilder(
       listenable: repo,
       builder: (context, _) {
         final items = repo.items;
+
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Notificaciones',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            title: const Text(
+              'Notificaciones',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             actions: [
               if (items.isNotEmpty)
                 IconButton(
@@ -54,13 +74,57 @@ class NotificationsScreen extends StatelessWidget {
               const SizedBox(width: 4),
             ],
           ),
-          body: items.isEmpty
-              ? const _Vacio()
-              : _Lista(items: items, noLeidas: repo.noLeidas),
+          body: _contenido(),
         );
       },
     );
   }
+
+  Widget _contenido() {
+    if (repo.cargando) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (repo.errorCarga != null && repo.items.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.cloud_off_outlined,
+                size: 48,
+                color: AppColors.gris,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'No se pudieron cargar las notificaciones.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () => repo.cargar().catchError((_) {}),
+                child: const Text('Reintentar'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (repo.items.isEmpty) {
+      return const _Vacio();
+    }
+
+    return _Lista(
+      items: repo.items,
+      noLeidas: repo.noLeidas,
+    );
+  }
+
 
   Future<void> _confirmarLimpiar(BuildContext context) async {
     final hayPendientes = NotificacionesRepository.instance.hayPendientes;
@@ -220,12 +284,38 @@ class _Tarjeta extends StatelessWidget {
     }
   }
 
-  void _confirmar(BuildContext context) {
-    NotificacionesRepository.instance.confirmarAsistencia(notificacion.id);
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Cita confirmada')));
+  
+  Future<void> _confirmar(BuildContext context) async {
+    try {
+      await NotificacionesRepository.instance.confirmarAsistencia(
+        notificacion.id,
+      );
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Tu cita se confirmó correctamente'),
+          ),
+        );
+    } catch (e) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              e.toString().replaceFirst('Exception: ', ''),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+    }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -298,7 +388,7 @@ class _Tarjeta extends StatelessWidget {
                       SizedBox(
                         height: 36,
                         child: FilledButton(
-                          onPressed: () => _confirmar(context),
+                          onPressed: () async => await _confirmar(context),
                           style: FilledButton.styleFrom(
                             backgroundColor: Colors.black,
                             padding: const EdgeInsets.symmetric(horizontal: 18),

@@ -1,6 +1,7 @@
 import '../models/usuario_sesion.dart';
 import '../services/api_service.dart';
 import '../../features/auth/auth_state.dart';
+import '../services/sesion_service.dart';
 
 class AuthRepository {
   // Se mantiene temporalmente porque la pantalla de
@@ -144,17 +145,29 @@ Future<UsuarioSesion?> iniciarSesion(
     // Temporalmente no hace nada.
   }
 
-  /// TEMPORAL: todavía no existe un endpoint para cambiar la contraseña.
-  /// Por ahora solo comprueba que la contraseña actual sea correcta (con el
-  /// login real) y NO cambia la contraseña en la base de datos.
+
   /// PUT /api/auth/cambiar-contrasena
-  /// (contrasena_actual, contrasena_nueva).
   Future<bool> cambiarContrasena(
     String correo,
     String actual,
     String nueva,
   ) async {
-    final usuario = await iniciarSesion(correo, actual);
-    return usuario != null;
+    final token = SesionService.instance.token;
+
+    if (token == null || token.isEmpty) {
+      throw Exception('No hay una sesión activa.');
+    }
+
+    final data = await ApiService.put(
+      '/api/auth/cambiar-contrasena',
+      {
+        'contrasena_actual': actual,
+        'contrasena_nueva': nueva,
+      },
+      token: token,
+    );
+
+    return data['actualizada'] == true;
   }
+
 }

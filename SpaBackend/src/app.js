@@ -13,6 +13,7 @@ const pruebaRoutes = require('./routes/prueba.routes');
 
 // Rutas de Vanessa
 const usuariosRoutes = require('./routes/usuarios.routes');
+const notificacionesRoutes = require('./routes/notificaciones.routes');
 
 // Rutas administrativas de GENESIS
 const adminServiciosRoutes = require('./routes/admin_servicios.routes');
@@ -27,6 +28,7 @@ app.use('/api/prueba', pruebaRoutes);
 
 // Registrar rutas de usuarios
 app.use('/api/usuarios', usuariosRoutes);
+app.use('/api/notificaciones', notificacionesRoutes);
 
 // Registrar rutas administrativas
 app.use('/api/admin/servicios', adminServiciosRoutes);

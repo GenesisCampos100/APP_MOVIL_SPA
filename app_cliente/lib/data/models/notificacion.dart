@@ -1,5 +1,6 @@
 import 'convertidores.dart';
 
+
 /// Notificación para el usuario. Tipos según el ciclo de vida de una cita:
 ///   cita_creada      -> "Cita registrada"
 ///   confirmar_cita   -> "Confirma tu cita" (24 h antes; pide una acción)

@@ -68,6 +68,28 @@ class CitasRepository extends ChangeNotifier {
   }
 
 
+  /// Confirma una cita pendiente del cliente.
+  Future<void> confirmarCita(int idCita) async {
+    final sesion = SesionService.instance;
+
+    if (!sesion.estaIniciada || sesion.token == null) {
+      throw Exception('Debes iniciar sesión para confirmar una cita.');
+    }
+
+    try {
+      await ApiService.patch(
+        '/api/citas/$idCita/confirmar',
+        token: sesion.token,
+      );
+
+      notifyListeners();
+    } catch (e) {
+      throw Exception('No se pudo confirmar la cita: $e');
+    }
+  }
+
+
+
   /// Actualiza el horario y especialista de una cita existente.
   Future<Cita> reagendarCita({
     required int idCita,

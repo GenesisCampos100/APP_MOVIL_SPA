@@ -10,7 +10,8 @@ const {
     cancelarApartado,
     obtenerDisponibilidad,
     cancelarCita,
-    reagendarCita
+    reagendarCita,
+    confirmarCita
 } = require('../controllers/citas.controller');
 
 const verificarToken = require('../middlewares/verificarToken');
@@ -34,5 +35,6 @@ router.get(
 );
 router.patch('/:id_cita/cancelar', verificarToken, cancelarCita);
 router.patch('/:id_cita/reagendar', verificarToken, reagendarCita);
+router.patch('/:id_cita/confirmar', verificarToken, confirmarCita);
 
 module.exports = router;

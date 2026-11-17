@@ -5,6 +5,7 @@ const registrarCita = async (req, res) => {
 
     try {
         const { id_usuario, rol } = req.usuario;
+        let transaccionIniciada = false;
 
         // Solo los clientes pueden registrar citas
         if (Number(rol) !== 3) {
@@ -217,6 +218,11 @@ const registrarCita = async (req, res) => {
         }
 
         // 11. Registrar la cita
+        
+        // 11. Iniciar transacción y registrar la cita.
+        await client.query('BEGIN');
+        transaccionIniciada = true;
+
         const citaResult = await client.query(
             `INSERT INTO citas (
                 id_cliente,
@@ -246,12 +252,44 @@ const registrarCita = async (req, res) => {
             ]
         );
 
+        const cita = citaResult.rows[0];
+
+        // 12. Crear notificación para el cliente.
+        await client.query(
+            `INSERT INTO notificaciones (
+                id_cita,
+                tipo,
+                fecha_envio,
+                id_usuario,
+                titulo,
+                mensaje
+            )
+            VALUES (
+                $1,
+                'cita_creada',
+                NOW(),
+                $2,
+                'Cita registrada',
+                'Tu cita ha sido registrada correctamente. Está pendiente de confirmación.'
+            )`,
+            [cita.id_cita, id_usuario]
+        );
+
+        // 13. Confirmar ambas operaciones.
+        await client.query('COMMIT');
+        transaccionIniciada = false;
+
         return res.status(201).json({
             mensaje: 'Cita registrada correctamente',
-            cita: citaResult.rows[0]
+            cita
         });
 
+
     } catch (error) {
+        if (transaccionIniciada) {
+            await client.query('ROLLBACK');
+        }
+
         console.error('Error al registrar cita:', error.message);
 
         return res.status(500).json({
@@ -261,6 +299,7 @@ const registrarCita = async (req, res) => {
     } finally {
         client.release();
     }
+
 };
 
 
@@ -1079,6 +1118,28 @@ const confirmarApartado = async (req, res) => {
             [id_reserva]
         );
 
+        // Crear notificación de cita registrada.
+        await client.query(
+            `INSERT INTO notificaciones (
+                id_cita,
+                tipo,
+                fecha_envio,
+                id_usuario,
+                titulo,
+                mensaje
+            )
+            VALUES (
+                $1,
+                'cita_creada',
+                NOW(),
+                $2,
+                'Cita registrada',
+                'Tu cita ha sido registrada correctamente. Está pendiente de confirmación.'
+            )`,
+            [nuevaCita.rows[0].id_cita, id_usuario]
+        );
+
+
         await client.query('COMMIT');
         transaccionIniciada = false;
 
@@ -1468,6 +1529,36 @@ const cancelarCita = async (req, res) => {
             });
         }
 
+        // Obtener el usuario propietario de la cita.
+        const usuario = await pool.query(
+            `SELECT cl.id_usuario
+            FROM citas c
+            INNER JOIN clientes cl ON cl.id_cliente = c.id_cliente
+            WHERE c.id_cita = $1`,
+            [Number(id_cita)]
+        );
+
+        // Registrar notificación de cancelación.
+        await pool.query(
+            `INSERT INTO notificaciones (
+                id_cita,
+                tipo,
+                fecha_envio,
+                id_usuario,
+                titulo,
+                mensaje
+            )
+            VALUES (
+                $1,
+                'cita_cancelada',
+                NOW(),
+                $2,
+                'Cita cancelada',
+                'Tu cita ha sido cancelada correctamente.'
+            )`,
+            [Number(id_cita), usuario.rows[0].id_usuario]
+        );
+
         return res.status(200).json({
             mensaje: 'La cita se canceló correctamente.',
             cita: resultado.rows[0]
@@ -1479,6 +1570,141 @@ const cancelarCita = async (req, res) => {
         return res.status(500).json({
             mensaje: 'Ocurrió un error al cancelar la cita.'
         });
+    }
+};
+
+const confirmarCita = async (req, res) => {
+    const id_usuario = Number(req.usuario?.id_usuario);
+    const rol = Number(req.usuario?.rol);
+    const id_cita = Number(req.params.id_cita);
+
+    if (rol !== 3) {
+        return res.status(403).json({
+            error: 'Solo los clientes pueden confirmar sus citas'
+        });
+    }
+
+    if (
+        !Number.isInteger(id_cita) || id_cita <= 0 ||
+        !Number.isInteger(id_usuario) || id_usuario <= 0
+    ) {
+        return res.status(400).json({
+            error: 'El identificador de la cita no es válido'
+        });
+    }
+
+    const client = await pool.connect();
+    let transaccionIniciada = false;
+
+    try {
+        await client.query('BEGIN');
+        transaccionIniciada = true;
+
+        // Buscar y bloquear la cita del cliente autenticado.
+        const resultado = await client.query(
+            `SELECT
+                c.id_cita,
+                c.estado,
+                c.fecha,
+                c.hora_inicio
+             FROM citas c
+             INNER JOIN clientes cl
+                ON cl.id_cliente = c.id_cliente
+             WHERE c.id_cita = $1
+               AND cl.id_usuario = $2
+             FOR UPDATE OF c`,
+            [id_cita, id_usuario]
+        );
+
+        if (resultado.rows.length === 0) {
+            await client.query('ROLLBACK');
+            transaccionIniciada = false;
+
+            return res.status(404).json({
+                error: 'No se encontró una cita asociada a tu cuenta'
+            });
+        }
+
+        const cita = resultado.rows[0];
+
+        if (cita.estado !== 'Pendiente') {
+            await client.query('ROLLBACK');
+            transaccionIniciada = false;
+
+            return res.status(409).json({
+                error: 'Esta cita ya no está pendiente de confirmación'
+            });
+        }
+
+        // Comprobar que la cita todavía no haya comenzado.
+        const fechaFutura = await client.query(
+            `SELECT (
+                ($1::date + $2::time) > NOW()
+            ) AS es_futura`,
+            [cita.fecha, cita.hora_inicio]
+        );
+
+        if (!fechaFutura.rows[0].es_futura) {
+            await client.query('ROLLBACK');
+            transaccionIniciada = false;
+
+            return res.status(409).json({
+                error: 'Ya no puedes confirmar una cita que comenzó'
+            });
+        }
+
+        // Actualizar el estado de la cita.
+        const actualizacion = await client.query(
+            `UPDATE citas
+             SET estado = 'Confirmada'
+             WHERE id_cita = $1
+               AND estado = 'Pendiente'
+             RETURNING id_cita, estado`,
+            [id_cita]
+        );
+
+        // Crear una notificación de confirmación.
+        await client.query(
+            `INSERT INTO notificaciones (
+                id_cita,
+                tipo,
+                fecha_envio,
+                id_usuario,
+                titulo,
+                mensaje
+             )
+             VALUES (
+                $1,
+                'cita_confirmada',
+                NOW(),
+                $2,
+                'Cita confirmada',
+                'Tu cita ha sido confirmada correctamente.'
+             )`,
+            [id_cita, id_usuario]
+        );
+
+        await client.query('COMMIT');
+        transaccionIniciada = false;
+
+        return res.status(200).json({
+            mensaje: 'La cita se confirmó correctamente',
+            cita: actualizacion.rows[0]
+        });
+
+    } catch (error) {
+        if (transaccionIniciada) {
+            await client.query('ROLLBACK');
+        }
+
+        console.error('Error al confirmar cita:', error);
+
+        return res.status(500).json({
+            error: 'Error interno al confirmar la cita'
+        });
+
+    } finally {
+        client.release();
     }
 };
 
@@ -1847,5 +2073,6 @@ module.exports = {
     cancelarApartado,
     obtenerDisponibilidad,
     cancelarCita,
-    reagendarCita
+    reagendarCita,
+    confirmarCita
 };
