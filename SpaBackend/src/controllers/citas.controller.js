@@ -1,11 +1,17 @@
 const pool = require('../db');
 
+const {
+    enviarNotificacionAUsuario
+} = require('../services/notificaciones.service');
+
 const registrarCita = async (req, res) => {
     const client = await pool.connect();
 
     try {
         const { id_usuario, rol } = req.usuario;
         let transaccionIniciada = false;
+
+        const notificacionesParaEnviar = [];
 
         // Solo los clientes pueden registrar citas
         if (Number(rol) !== 3) {
@@ -279,7 +285,7 @@ const registrarCita = async (req, res) => {
         const cita = citaResult.rows[0];
 
         // 12. Crear notificación para el cliente.
-        await client.query(
+        const notificacionCreada = await client.query(
             `INSERT INTO notificaciones (
                 id_cita,
                 tipo,
@@ -295,12 +301,22 @@ const registrarCita = async (req, res) => {
                 $2,
                 'Cita registrada',
                 'Tu cita ha sido registrada correctamente. Está pendiente de confirmación.'
-            )`,
+            )
+            RETURNING id_notificacion`,
             [cita.id_cita, id_usuario]
         );
 
+        notificacionesParaEnviar.push({
+            id_notificacion: notificacionCreada.rows[0].id_notificacion,
+            id_usuario,
+            id_cita: cita.id_cita,
+            tipo: 'cita_creada',
+            titulo: 'Cita registrada',
+            mensaje: 'Tu cita ha sido registrada correctamente. Está pendiente de confirmación.'
+        });
+
         // Solicitar confirmación inmediatamente si faltan 48 horas o menos.
-        await client.query(
+        const confirmacionCreada = await client.query(
             `INSERT INTO notificaciones (
                 id_cita,
                 tipo,
@@ -317,14 +333,33 @@ const registrarCita = async (req, res) => {
                 'Confirma tu asistencia',
                 'Tu cita está próxima. Confirma tu asistencia antes de la fecha límite.'
             WHERE ($2::date + $3::time) <=
-                timezone('America/Mexico_City', NOW()) + INTERVAL '48 hours'`,
+                timezone('America/Mexico_City', NOW()) + INTERVAL '48 hours'
+            RETURNING id_notificacion`,
             [cita.id_cita, fecha, hora_inicio, id_usuario]
         );
+
+        if (confirmacionCreada.rows.length > 0) {
+            notificacionesParaEnviar.push({
+                id_notificacion: confirmacionCreada.rows[0].id_notificacion,
+                id_usuario,
+                id_cita: cita.id_cita,
+                tipo: 'confirmar_cita',
+                titulo: 'Confirma tu asistencia',
+                mensaje: 'Tu cita está próxima. Confirma tu asistencia antes de la fecha límite.'
+            });
+        }
 
         
         // 13. Confirmar ambas operaciones.
         await client.query('COMMIT');
         transaccionIniciada = false;
+
+        // Enviar las notificaciones mediante Firebase.
+        await Promise.all(
+            notificacionesParaEnviar.map(notificacion =>
+                enviarNotificacionAUsuario(notificacion)
+            )
+        );
 
         return res.status(201).json({
             mensaje: 'Cita registrada correctamente',
@@ -984,6 +1019,7 @@ const confirmarApartado = async (req, res) => {
     try {
         await client.query('BEGIN');
         transaccionIniciada = true;
+        const notificacionesParaEnviar = [];    
 
         // Obtener el cliente asociado al usuario autenticado.
         const cliente = await client.query(
@@ -1191,7 +1227,7 @@ const confirmarApartado = async (req, res) => {
 
 
         // Si faltan 48 horas o menos, solicitar confirmación inmediatamente.
-        await client.query(
+        const confirmacionCreada = await client.query(
             `INSERT INTO notificaciones (
                 id_cita,
                 tipo,
@@ -1207,8 +1243,12 @@ const confirmarApartado = async (req, res) => {
                 $4,
                 'Confirma tu asistencia',
                 'Tu cita está próxima. Confirma tu asistencia antes de la fecha límite.'
-            WHERE ($2::date + $3::time) <=
-                timezone('America/Mexico_City', NOW()) + INTERVAL '48 hours'`,
+            FROM (
+                SELECT $2::date + $3::time AS fecha_cita
+            ) AS fc
+            WHERE fc.fecha_cita <=
+                timezone('America/Mexico_City', NOW()) + INTERVAL '48 hours'
+            RETURNING id_notificacion`,
             [
                 nuevaCita.rows[0].id_cita,
                 reserva.fecha,
@@ -1216,6 +1256,17 @@ const confirmarApartado = async (req, res) => {
                 id_usuario
             ]
         );
+
+        if (confirmacionCreada.rows.length > 0) {
+            notificacionesParaEnviar.push({
+                id_notificacion: confirmacionCreada.rows[0].id_notificacion,
+                id_usuario,
+                id_cita: nuevaCita.rows[0].id_cita,
+                tipo: 'confirmar_cita',
+                titulo: 'Confirma tu asistencia',
+                mensaje: 'Tu cita está próxima. Confirma tu asistencia antes de la fecha límite.'
+            });
+        }
 
         // Eliminar el apartado temporal.
         await client.query(
@@ -1225,7 +1276,7 @@ const confirmarApartado = async (req, res) => {
         );
 
         // Crear notificación de cita registrada.
-        await client.query(
+        const notificacionCreada = await client.query(
             `INSERT INTO notificaciones (
                 id_cita,
                 tipo,
@@ -1241,13 +1292,30 @@ const confirmarApartado = async (req, res) => {
                 $2,
                 'Cita registrada',
                 'Tu cita ha sido registrada correctamente. Está pendiente de confirmación.'
-            )`,
+            )
+            RETURNING id_notificacion`,
             [nuevaCita.rows[0].id_cita, id_usuario]
         );
+
+        notificacionesParaEnviar.push({
+            id_notificacion: notificacionCreada.rows[0].id_notificacion,
+            id_usuario,
+            id_cita: nuevaCita.rows[0].id_cita,
+            tipo: 'cita_creada',
+            titulo: 'Cita registrada',
+            mensaje: 'Tu cita ha sido registrada correctamente. Está pendiente de confirmación.'
+        });
 
 
         await client.query('COMMIT');
         transaccionIniciada = false;
+
+        // Enviar las notificaciones mediante Firebase.
+        await Promise.all(
+            notificacionesParaEnviar.map(notificacion =>
+                enviarNotificacionAUsuario(notificacion)
+            )
+        );
 
         return res.status(201).json({
             mensaje: 'Cita confirmada correctamente',
@@ -1598,6 +1666,7 @@ const obtenerDisponibilidad = async (req, res) => {
 };
 
 
+
 const cancelarCita = async (req, res) => {
     try {
         const { id_usuario, rol } = req.usuario;
@@ -1638,14 +1707,14 @@ const cancelarCita = async (req, res) => {
         // Obtener el usuario propietario de la cita.
         const usuario = await pool.query(
             `SELECT cl.id_usuario
-            FROM citas c
-            INNER JOIN clientes cl ON cl.id_cliente = c.id_cliente
-            WHERE c.id_cita = $1`,
+             FROM citas c
+             INNER JOIN clientes cl ON cl.id_cliente = c.id_cliente
+             WHERE c.id_cita = $1`,
             [Number(id_cita)]
         );
 
         // Registrar notificación de cancelación.
-        await pool.query(
+        const notificacionCreada = await pool.query(
             `INSERT INTO notificaciones (
                 id_cita,
                 tipo,
@@ -1661,9 +1730,21 @@ const cancelarCita = async (req, res) => {
                 $2,
                 'Cita cancelada',
                 'Tu cita ha sido cancelada correctamente.'
-            )`,
+            )
+            RETURNING id_notificacion`,
             [Number(id_cita), usuario.rows[0].id_usuario]
         );
+
+        // Enviar notificación push al cliente.
+        await enviarNotificacionAUsuario({
+            id_notificacion:
+                notificacionCreada.rows[0].id_notificacion,
+            id_usuario: usuario.rows[0].id_usuario,
+            id_cita: Number(id_cita),
+            tipo: 'cita_cancelada',
+            titulo: 'Cita cancelada',
+            mensaje: 'Tu cita ha sido cancelada correctamente.'
+        });
 
         return res.status(200).json({
             mensaje: 'La cita se canceló correctamente.',
@@ -1678,6 +1759,7 @@ const cancelarCita = async (req, res) => {
         });
     }
 };
+
 
 const confirmarCita = async (req, res) => {
     const id_usuario = Number(req.usuario?.id_usuario);
@@ -1769,8 +1851,8 @@ const confirmarCita = async (req, res) => {
             [id_cita]
         );
 
-        // Crear una notificación de confirmación.
-        await client.query(
+        // Registrar notificación y obtener su identificador.
+        const notificacionCreada = await client.query(
             `INSERT INTO notificaciones (
                 id_cita,
                 tipo,
@@ -1786,12 +1868,25 @@ const confirmarCita = async (req, res) => {
                 $2,
                 'Cita confirmada',
                 'Tu cita ha sido confirmada correctamente.'
-             )`,
+             )
+             RETURNING id_notificacion`,
             [id_cita, id_usuario]
         );
 
+        // Confirmar los cambios en PostgreSQL.
         await client.query('COMMIT');
         transaccionIniciada = false;
+
+        // Enviar la notificación push después del COMMIT.
+        await enviarNotificacionAUsuario({
+            id_notificacion:
+                notificacionCreada.rows[0].id_notificacion,
+            id_usuario,
+            id_cita,
+            tipo: 'cita_confirmada',
+            titulo: 'Cita confirmada',
+            mensaje: 'Tu cita ha sido confirmada correctamente.'
+        });
 
         return res.status(200).json({
             mensaje: 'La cita se confirmó correctamente',
@@ -2141,8 +2236,41 @@ const reagendarCita = async (req, res) => {
             );
         }
 
+        // 8. Registrar notificación de reagendamiento.
+        const notificacionCreada = await client.query(
+            `INSERT INTO notificaciones (
+                id_cita,
+                tipo,
+                fecha_envio,
+                id_usuario,
+                titulo,
+                mensaje
+            )
+            VALUES (
+                $1,
+                'cita_reagendada',
+                timezone('America/Mexico_City', NOW()),
+                $2,
+                'Cita reagendada',
+                'Tu cita ha sido reagendada correctamente. Consulta los nuevos detalles en AuraSpa.'
+            )
+            RETURNING id_notificacion`,
+            [citaId, id_usuario]
+        );
+
         await client.query('COMMIT');
         transaccionIniciada = false;
+
+        // 9. Enviar notificación push al cliente.
+        await enviarNotificacionAUsuario({
+            id_notificacion:
+                notificacionCreada.rows[0].id_notificacion,
+            id_usuario,
+            id_cita: citaId,
+            tipo: 'cita_reagendada',
+            titulo: 'Cita reagendada',
+            mensaje: 'Tu cita ha sido reagendada correctamente. Consulta los nuevos detalles en AuraSpa.'
+        });
 
         return res.status(200).json({
             mensaje: 'La cita se reagendó correctamente',

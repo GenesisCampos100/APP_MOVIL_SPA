@@ -10,6 +10,7 @@ const authRoutes = require('./routes/auth.routes');
 const serviciosRoutes = require('./routes/servicios.routes');
 const citasRoutes = require('./routes/citas.routes');
 const pruebaRoutes = require('./routes/prueba.routes');
+const dispositivosRoutes = require('./routes/dispositivos.routes');
 
 // Rutas de Vanessa
 const usuariosRoutes = require('./routes/usuarios.routes');
@@ -28,6 +29,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/servicios', serviciosRoutes);
 app.use('/api/citas', citasRoutes);
 app.use('/api/prueba', pruebaRoutes);
+app.use('/api/dispositivos', dispositivosRoutes);
 
 // Registrar rutas de usuarios
 app.use('/api/usuarios', usuariosRoutes);

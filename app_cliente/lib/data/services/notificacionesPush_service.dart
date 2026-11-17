@@ -3,7 +3,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../../firebase_options.dart';
-
+import '../../data/services/api_service.dart';
+import '../../data/services/sesion_service.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 @pragma('vm:entry-point')
 Future<void> manejarMensajeSegundoPlano(RemoteMessage mensaje) async {
@@ -24,8 +26,39 @@ class NotificacionesPushService {
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
+  final FlutterLocalNotificationsPlugin _localNotifications =
+    FlutterLocalNotificationsPlugin();
+
+  String? _tokenActual;
+
+  Future<void> _inicializarNotificacionesLocales() async {
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
+
+    const settings = InitializationSettings(
+      android: androidSettings,
+    );
+
+    await _localNotifications.initialize(
+      settings: settings,
+    );
+
+    const canal = AndroidNotificationChannel(
+      'aura_spa_notificaciones',
+      'Notificaciones de AuraSpa',
+      description: 'Avisos de citas y novedades de AuraSpa.',
+      importance: Importance.max,
+    );
+
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(canal);
+  }
+
   Future<void> inicializar() async {
-    // Solicitar autorización para recibir notificaciones.
+    await _inicializarNotificacionesLocales();
     final configuracion = await _messaging.requestPermission(
       alert: true,
       badge: true,
@@ -36,27 +69,83 @@ class NotificacionesPushService {
       'Permiso de notificaciones: ${configuracion.authorizationStatus}',
     );
 
-    // Registrar el manejador de mensajes en segundo plano.
     FirebaseMessaging.onBackgroundMessage(
       manejarMensajeSegundoPlano,
     );
 
-    // Obtener el token FCM del dispositivo.
-    final token = await _messaging.getToken();
+    _tokenActual = await _messaging.getToken();
 
-    if (token != null) {
-      debugPrint('Token FCM: $token');
+    if (_tokenActual != null) {
+      debugPrint('Token FCM obtenido correctamente.');
+      await registrarTokenEnBackend();
     }
 
-    // Escuchar actualizaciones del token.
     _messaging.onTokenRefresh.listen((nuevoToken) {
-      debugPrint('Nuevo token FCM: $nuevoToken');
+      _tokenActual = nuevoToken;
+
+      debugPrint('Token FCM actualizado.');
+
+      registrarTokenEnBackend();
     });
 
-    // Escuchar notificaciones cuando la aplicación está abierta.
-    FirebaseMessaging.onMessage.listen((RemoteMessage mensaje) {
-      debugPrint('Notificación recibida: ${mensaje.notification?.title}');
-      debugPrint('Contenido: ${mensaje.notification?.body}');
+    FirebaseMessaging.onMessage.listen((RemoteMessage mensaje) async {
+      debugPrint(
+        'Notificación recibida: ${mensaje.notification?.title}',
+      );
+
+      final notificacion = mensaje.notification;
+
+      if (notificacion == null) return;
+
+      await _localNotifications.show(
+        id: mensaje.hashCode,
+        title: notificacion.title ?? 'AuraSpa',
+        body: notificacion.body ?? '',
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'aura_spa_notificaciones',
+            'Notificaciones de AuraSpa',
+            channelDescription:
+                'Avisos de citas y novedades de AuraSpa.',
+            importance: Importance.max,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+          ),
+        ),
+      );
     });
+  }
+
+  Future<void> registrarTokenEnBackend() async {
+    try {
+      final tokenSesion = SesionService.instance.token;
+
+      if (tokenSesion == null || tokenSesion.isEmpty) {
+        debugPrint(
+          'No se registra FCM: no hay una sesión autenticada.',
+        );
+        return;
+      }
+
+      _tokenActual ??= await _messaging.getToken();
+
+      if (_tokenActual == null || _tokenActual!.isEmpty) {
+        return;
+      }
+
+      await ApiService.post(
+        '/api/dispositivos',
+        {
+          'token_fcm': _tokenActual,
+          'plataforma': kIsWeb ? 'web' : 'android',
+        },
+        token: tokenSesion,
+      );
+
+      debugPrint('Dispositivo registrado para notificaciones push.');
+    } catch (e) {
+      // Un fallo de notificaciones no debe impedir iniciar sesión.
+      debugPrint('No se pudo registrar el dispositivo FCM: $e');
+    }
   }
 }

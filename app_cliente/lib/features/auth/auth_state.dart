@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../../data/models/usuario_sesion.dart';
 import '../../data/services/sesion_service.dart';
 import '../../data/repositories/favoritos_repository.dart';
+import '../../data/services/notificacionesPush_service.dart';
 
 
 /// Estado de sesión de toda la aplicación.
@@ -35,6 +36,8 @@ class AuthState extends ChangeNotifier {
     _usuario = usuario;
     _errorConexion = false;
     notifyListeners();
+
+    await NotificacionesPushService.instance.registrarTokenEnBackend();
   }
 
   /// Recupera la sesión guardada y valida el JWT.
@@ -48,6 +51,9 @@ class AuthState extends ChangeNotifier {
           await SesionService.instance.restaurarSesion();
 
       _usuario = usuario;
+      if (usuario != null) {
+        await NotificacionesPushService.instance.registrarTokenEnBackend();
+      }
     } catch (e) {
       // Error de conexión: conservar los datos almacenados.
       _errorConexion = true;
