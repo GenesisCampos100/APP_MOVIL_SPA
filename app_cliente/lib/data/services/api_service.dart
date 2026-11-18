@@ -3,9 +3,9 @@ import 'package:http/http.dart' as http;
 
 class ApiService {
 
-  static const String baseUrl = 'http://10.0.2.2:3000';
-  //static const String baseUrl = 'http://192.168.100.8:3000';
-
+  //static const String baseUrl = 'http://10.0.2.2:3000';
+  static const String baseUrl = 'http://192.168.100.10:3000';
+  //static const String baseUrl = 'http://10.34.5.8:3000';
   static Future<dynamic> get(
     String endpoint, {
     String? token,
@@ -51,6 +51,57 @@ class ApiService {
 
     return _procesarRespuesta(response);
   }
+
+
+  static Future<dynamic> put(
+  String endpoint,
+  Map<String, dynamic> body, {
+  String? token,
+}) async {
+  final headers = <String, String>{
+    'Content-Type': 'application/json',
+    if (token != null) 'Authorization': 'Bearer $token',
+  };
+
+  final url = '$baseUrl$endpoint';
+
+  print('>>> API PUT: $url');
+  print('>>> BODY: ${jsonEncode(body)}');
+
+  final response = await http.put(
+    Uri.parse(url),
+    headers: headers,
+    body: jsonEncode(body),
+  ).timeout(const Duration(seconds: 8));
+
+  return _procesarRespuesta(response);
+}
+
+
+
+  static Future<dynamic> patch(
+    String endpoint, {
+    Map<String, dynamic>? body,
+    String? token,
+  }) async {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+
+    final url = '$baseUrl$endpoint';
+
+    print('>>> API PATCH: $url');
+
+    final response = await http.patch(
+      Uri.parse(url),
+      headers: headers,
+      body: body != null ? jsonEncode(body) : null,
+    ).timeout(const Duration(seconds: 8));
+
+    return _procesarRespuesta(response);
+  }
+
 
 
   static Future<dynamic> delete(

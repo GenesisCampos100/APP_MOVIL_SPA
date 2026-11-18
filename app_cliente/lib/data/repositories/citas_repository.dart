@@ -47,6 +47,28 @@ class CitasRepository extends ChangeNotifier {
     }
   }
 
+
+
+  Future<void> cancelarCita(int idCita) async {
+    final sesion = SesionService.instance;
+
+    if (!sesion.estaIniciada || sesion.token == null) {
+      throw Exception('Debes iniciar sesión para cancelar una cita.');
+    }
+
+    try {
+      await ApiService.patch(
+        '/api/citas/$idCita/cancelar',
+        token: sesion.token,
+      );
+
+      notifyListeners();
+    } catch (e) {
+      throw Exception('No se pudo cancelar la cita: $e');
+    }
+  }
+
+
   /// Aparta temporalmente un horario durante cinco minutos.
   ///
   /// Devuelve la respuesta del backend, incluyendo:

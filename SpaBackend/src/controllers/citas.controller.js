@@ -600,11 +600,16 @@ const apartarHorario = async (req, res) => {
         id_servicio,
         id_empleado,
         fecha,
-        hora_inicio
+        hora_inicio,
+        id_cita
     } = req.body;
 
     const servicioId = Number(id_servicio);
     const empleadoId = id_empleado == null ? 0 : Number(id_empleado);
+
+    const idCitaReagendar = id_cita == null
+        ? null
+        : Number(id_cita);
 
     // Validar datos recibidos.
     if (
@@ -612,11 +617,13 @@ const apartarHorario = async (req, res) => {
         servicioId <= 0 ||
         !Number.isInteger(empleadoId) ||
         empleadoId < 0 ||
+        (idCitaReagendar !== null &&
+            (!Number.isInteger(idCitaReagendar) || idCitaReagendar <= 0)) ||
         !fecha ||
         !hora_inicio
     ) {
         return res.status(400).json({
-            error: 'Servicio, fecha y hora son obligatorios y válidos'
+            error: 'Los datos del servicio, fecha, hora o cita no son válidos'
         });
     }
 
@@ -654,6 +661,61 @@ const apartarHorario = async (req, res) => {
 
         const id_cliente = clienteResult.rows[0].id_cliente;
 
+        // 2. Si es un reagendamiento, validar la cita original.
+        let citaOriginal = null;
+
+        if (idCitaReagendar !== null) {
+            const citaResult = await client.query(
+                `SELECT
+                    c.id_cita,
+                    c.id_servicio,
+                    c.id_empleado,
+                    c.fecha,
+                    c.hora_inicio,
+                    c.duracion_aplicada,
+                    c.precio_aplicado,
+                    c.estado
+                FROM citas c
+                INNER JOIN clientes cl
+                    ON cl.id_cliente = c.id_cliente
+                WHERE c.id_cita = $1
+                AND cl.id_cliente = $2
+                AND c.estado IN ('Pendiente', 'Confirmada')
+                FOR UPDATE OF c`,
+                [idCitaReagendar, id_cliente]
+            );
+
+            if (citaResult.rows.length === 0) {
+                throw Object.assign(
+                    new Error('No se encontró una cita válida para reagendar'),
+                    { status: 404 }
+                );
+            }
+
+            citaOriginal = citaResult.rows[0];
+
+            if (Number(citaOriginal.id_servicio) !== servicioId) {
+                throw Object.assign(
+                    new Error('No puedes cambiar el servicio al reagendar una cita'),
+                    { status: 400 }
+                );
+            }
+
+            const citaFutura = await client.query(
+                `SELECT (
+                    ($1::date + $2::time) > NOW()
+                ) AS es_futura`,
+                [citaOriginal.fecha, citaOriginal.hora_inicio]
+            );
+
+            if (!citaFutura.rows[0].es_futura) {
+                throw Object.assign(
+                    new Error('No puedes reagendar una cita que ya comenzó'),
+                    { status: 400 }
+                );
+            }
+        }
+
         // 2. Validar que la fecha y hora sean futuras.
         const fechaValida = await client.query(
             `SELECT (
@@ -689,7 +751,11 @@ const apartarHorario = async (req, res) => {
             );
         }
 
-        const duracion = servicioResult.rows[0].duracion;
+        // Para una cita nueva se usa la duración actual del servicio.
+        // Para reagendar se conserva la duración original.
+        const duracion = citaOriginal
+            ? citaOriginal.duracion_aplicada
+            : servicioResult.rows[0].duracion;
 
         // 4. Eliminar apartados que ya vencieron.
         await client.query(
@@ -780,10 +846,13 @@ const apartarHorario = async (req, res) => {
             // Comprobar citas definitivas.
             const citasResult = await client.query(
                 `SELECT 1
-                 FROM citas
                  WHERE id_empleado = $1
-                   AND fecha = $2
-                   AND estado IN ('Pendiente', 'Confirmada')
+                    AND fecha = $2
+                    AND estado IN ('Pendiente', 'Confirmada')
+                    AND (
+                        $5::integer IS NULL
+                        OR id_cita <> $5
+                    )
                    AND (
                        $3::time <
                            hora_inicio +
@@ -801,7 +870,8 @@ const apartarHorario = async (req, res) => {
                     empleado.id_empleado,
                     fecha,
                     hora_inicio,
-                    duracion
+                    duracion,
+                    idCitaReagendar
                 ]
             );
 
@@ -1214,13 +1284,18 @@ const obtenerDisponibilidad = async (req, res) => {
     try {
         const servicioId = Number(req.query.id_servicio);
         const fecha = req.query.fecha;
+        const idCitaReagendar = req.query.id_cita == null
+            ? null
+            : Number(req.query.id_cita);
 
         // 1. Validar parámetros.
         if (
             !Number.isInteger(servicioId) ||
             servicioId <= 0 ||
             typeof fecha !== 'string' ||
-            !/^\d{4}-\d{2}-\d{2}$/.test(fecha)
+            !/^\d{4}-\d{2}-\d{2}$/.test(fecha) ||
+            (idCitaReagendar !== null &&
+            (!Number.isInteger(idCitaReagendar) || idCitaReagendar <= 0))
         ) {
             return res.status(400).json({
                 error: 'El servicio y la fecha son obligatorios y válidos'
@@ -1264,7 +1339,52 @@ const obtenerDisponibilidad = async (req, res) => {
             });
         }
 
-        const duracion = Number(servicioResult.rows[0].duracion);
+        let duracion;
+
+        if (idCitaReagendar !== null) {
+
+            if (Number(req.usuario?.rol) !== 3) {
+                return res.status(403).json({
+                    error: 'No tienes permiso para reagendar esta cita'
+                });
+            }
+
+            const citaResult = await pool.query(
+                `SELECT
+                    c.id_cita,
+                    c.id_servicio,
+                    c.duracion_aplicada
+                FROM citas c
+                INNER JOIN clientes cl
+                    ON cl.id_cliente = c.id_cliente
+                WHERE c.id_cita = $1
+                AND cl.id_usuario = $2
+                AND c.estado IN ('Pendiente', 'Confirmada')
+                AND (c.fecha + c.hora_inicio) > NOW()`,
+                [idCitaReagendar, req.usuario.id_usuario]
+            );
+
+            if (citaResult.rows.length === 0) {
+                return res.status(404).json({
+                    error: 'No se encontró una cita válida para reagendar'
+                });
+            }
+
+            const cita = citaResult.rows[0];
+
+            if (Number(cita.id_servicio) !== servicioId) {
+                return res.status(400).json({
+                    error: 'El servicio no coincide con la cita original'
+                });
+            }
+
+            duracion = Number(cita.duracion_aplicada);
+
+        } else {
+
+            duracion = Number(servicioResult.rows[0].duracion);
+
+        }
 
         if (!Number.isInteger(duracion) || duracion <= 0) {
             return res.status(500).json({
@@ -1389,6 +1509,370 @@ const obtenerDisponibilidad = async (req, res) => {
 };
 
 
+const cancelarCita = async (req, res) => {
+    try {
+        const { id_usuario, rol } = req.usuario;
+        const { id_cita } = req.params;
+
+        // Solo los clientes pueden cancelar sus propias citas.
+        if (Number(rol) !== 3) {
+            return res.status(403).json({
+                mensaje: 'No tienes permiso para cancelar citas.'
+            });
+        }
+
+        if (!Number.isInteger(Number(id_cita)) || Number(id_cita) <= 0) {
+            return res.status(400).json({
+                mensaje: 'El identificador de la cita no es válido.'
+            });
+        }
+
+        const resultado = await pool.query(
+            `UPDATE citas c
+             SET estado = 'Cancelada'
+             FROM clientes cl
+             WHERE c.id_cita = $1
+               AND c.id_cliente = cl.id_cliente
+               AND cl.id_usuario = $2
+               AND c.estado IN ('Pendiente', 'Confirmada')
+               AND (c.fecha + c.hora_inicio) > NOW()
+             RETURNING c.id_cita, c.estado`,
+            [Number(id_cita), id_usuario]
+        );
+
+        if (resultado.rowCount === 0) {
+            return res.status(404).json({
+                mensaje: 'No se encontró una cita cancelable asociada a tu cuenta.'
+            });
+        }
+
+        return res.status(200).json({
+            mensaje: 'La cita se canceló correctamente.',
+            cita: resultado.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error al cancelar cita:', error);
+
+        return res.status(500).json({
+            mensaje: 'Ocurrió un error al cancelar la cita.'
+        });
+    }
+};
+
+
+const reagendarCita = async (req, res) => {
+    const { id_usuario, rol } = req.usuario;
+    const citaId = Number(req.params.id_cita);
+
+    const { id_empleado, fecha, hora_inicio } = req.body;
+
+    if (Number(rol) !== 3) {
+        return res.status(403).json({
+            error: 'No tienes permiso para reagendar citas'
+        });
+    }
+
+    const empleadoId = Number(id_empleado);
+
+    // 1. Validar los datos recibidos.
+    if (
+        !Number.isInteger(citaId) || citaId <= 0 ||
+        !Number.isInteger(empleadoId) || empleadoId <= 0 ||
+        typeof fecha !== 'string' ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(fecha) ||
+        typeof hora_inicio !== 'string' ||
+        !/^([01]\d|2[0-3]):[0-5]\d$/.test(hora_inicio)
+    ) {
+        return res.status(400).json({
+            error: 'Los datos del nuevo horario no son válidos'
+        });
+    }
+
+    // 2. Validar que la fecha exista realmente.
+    const [anio, mes, dia] = fecha.split('-').map(Number);
+    const fechaComprobada = new Date(Date.UTC(anio, mes - 1, dia));
+
+    if (
+        fechaComprobada.getUTCFullYear() !== anio ||
+        fechaComprobada.getUTCMonth() !== mes - 1 ||
+        fechaComprobada.getUTCDate() !== dia
+    ) {
+        return res.status(400).json({
+            error: 'La fecha indicada no existe'
+        });
+    }
+
+    const client = await pool.connect();
+    let transaccionIniciada = false;
+
+    try {
+        await client.query('BEGIN');
+        transaccionIniciada = true;
+
+        // 3. Obtener el cliente autenticado.
+        const clienteResult = await client.query(
+            `SELECT id_cliente
+             FROM clientes
+             WHERE id_usuario = $1`,
+            [id_usuario]
+        );
+
+        if (clienteResult.rows.length === 0) {
+            throw Object.assign(
+                new Error('No se encontró el perfil del cliente'),
+                { status: 404 }
+            );
+        }
+
+        const id_cliente = clienteResult.rows[0].id_cliente;
+
+        // 4. Buscar y bloquear la cita original.
+        const citaResult = await client.query(
+            `SELECT
+                id_cita,
+                id_cliente,
+                id_servicio,
+                id_empleado,
+                fecha,
+                hora_inicio,
+                duracion_aplicada,
+                estado
+             FROM citas
+             WHERE id_cita = $1
+               AND id_cliente = $2
+               AND estado IN ('Pendiente', 'Confirmada')
+             FOR UPDATE`,
+            [citaId, id_cliente]
+        );
+
+        if (citaResult.rows.length === 0) {
+            throw Object.assign(
+                new Error('No se encontró una cita válida para reagendar'),
+                { status: 404 }
+            );
+        }
+
+        const cita = citaResult.rows[0];
+        const duracion = Number(cita.duracion_aplicada);
+
+        if (!Number.isInteger(duracion) || duracion <= 0) {
+            throw Object.assign(
+                new Error('La duración original de la cita no es válida'),
+                { status: 500 }
+            );
+        }
+
+        // 5. Comprobar que la cita original todavía no haya comenzado.
+        const citaFutura = await client.query(
+            `SELECT (
+                ($1::date + $2::time) > NOW()
+            ) AS es_futura`,
+            [cita.fecha, cita.hora_inicio]
+        );
+
+        if (!citaFutura.rows[0].es_futura) {
+            throw Object.assign(
+                new Error('No puedes reagendar una cita que ya comenzó'),
+                { status: 400 }
+            );
+        }
+
+        // 6. Comprobar que el nuevo horario sea futuro.
+        const nuevoHorarioFuturo = await client.query(
+            `SELECT (
+                ($1::date + $2::time) > NOW()
+            ) AS es_futuro`,
+            [fecha, hora_inicio]
+        );
+
+        if (!nuevoHorarioFuturo.rows[0].es_futuro) {
+            throw Object.assign(
+                new Error('El nuevo horario debe ser futuro'),
+                { status: 400 }
+            );
+        }
+
+        // 7. Bloquear y validar al especialista.
+        const empleadoResult = await client.query(
+            `SELECT e.id_empleado
+             FROM empleados e
+             INNER JOIN usuarios u
+                ON u.id_usuario = e.id_usuario
+             INNER JOIN empleado_servicios es
+                ON es.id_empleado = e.id_empleado
+             WHERE e.id_empleado = $1
+               AND es.id_servicio = $2
+               AND u.estado = true
+               AND EXISTS (
+                    SELECT 1
+                    FROM horarios h
+                    WHERE h.id_empleado = e.id_empleado
+                      AND h.dia_semana =
+                        CASE EXTRACT(DOW FROM $3::date)
+                            WHEN 0 THEN 'Domingo'
+                            WHEN 1 THEN 'Lunes'
+                            WHEN 2 THEN 'Martes'
+                            WHEN 3 THEN 'Miercoles'
+                            WHEN 4 THEN 'Jueves'
+                            WHEN 5 THEN 'Viernes'
+                            WHEN 6 THEN 'Sabado'
+                        END
+                      AND $4::time >= h.hora_inicio
+                      AND (
+                          $4::time +
+                          ($5::integer * INTERVAL '1 minute')
+                      ) <= h.hora_fin
+               )
+             FOR UPDATE OF e`,
+            [
+                empleadoId,
+                cita.id_servicio,
+                fecha,
+                hora_inicio,
+                duracion
+            ]
+        );
+
+        if (empleadoResult.rows.length === 0) {
+            throw Object.assign(
+                new Error(
+                    'El especialista no está disponible para ese servicio y horario'
+                ),
+                { status: 409 }
+            );
+        }
+
+        // 8. Comprobar conflictos con otras citas.
+        // La cita que estamos reagendando se excluye de esta consulta.
+        const conflictoCitas = await client.query(
+            `SELECT 1
+             FROM citas
+             WHERE id_empleado = $1
+               AND fecha = $2
+               AND id_cita <> $3
+               AND estado IN ('Pendiente', 'Confirmada')
+               AND (
+                    $4::time <
+                        hora_inicio +
+                        (duracion_aplicada * INTERVAL '1 minute')
+                    AND
+                    (
+                        $4::time +
+                        ($5::integer * INTERVAL '1 minute')
+                    ) > hora_inicio
+               )
+             LIMIT 1`,
+            [
+                empleadoId,
+                fecha,
+                citaId,
+                hora_inicio,
+                duracion
+            ]
+        );
+
+        if (conflictoCitas.rows.length > 0) {
+            throw Object.assign(
+                new Error('El nuevo horario entra en conflicto con otra cita'),
+                { status: 409 }
+            );
+        }
+
+        // 9. Comprobar conflictos con apartados temporales.
+        const conflictoReservas = await client.query(
+            `SELECT 1
+             FROM reservas_temporales
+             WHERE id_empleado = $1
+               AND fecha = $2
+               AND fecha_expiracion > NOW()
+               AND (
+                    $3::time <
+                        hora_inicio +
+                        (duracion * INTERVAL '1 minute')
+                    AND
+                    (
+                        $3::time +
+                        ($4::integer * INTERVAL '1 minute')
+                    ) > hora_inicio
+               )
+             LIMIT 1`,
+            [
+                empleadoId,
+                fecha,
+                hora_inicio,
+                duracion
+            ]
+        );
+
+        if (conflictoReservas.rows.length > 0) {
+            throw Object.assign(
+                new Error(
+                    'El nuevo horario acaba de ser apartado por otro cliente'
+                ),
+                { status: 409 }
+            );
+        }
+
+        // 10. Actualizar la cita original.
+        const actualizacion = await client.query(
+            `UPDATE citas
+             SET id_empleado = $1,
+                 fecha = $2,
+                 hora_inicio = $3
+             WHERE id_cita = $4
+               AND id_cliente = $5
+             RETURNING
+                 id_cita,
+                 id_empleado,
+                 id_servicio,
+                 fecha,
+                 hora_inicio,
+                 duracion_aplicada,
+                 precio_aplicado,
+                 estado`,
+            [
+                empleadoId,
+                fecha,
+                hora_inicio,
+                citaId,
+                id_cliente
+            ]
+        );
+
+        if (actualizacion.rows.length === 0) {
+            throw Object.assign(
+                new Error('No fue posible actualizar la cita'),
+                { status: 409 }
+            );
+        }
+
+        await client.query('COMMIT');
+        transaccionIniciada = false;
+
+        return res.status(200).json({
+            mensaje: 'La cita se reagendó correctamente',
+            cita: actualizacion.rows[0]
+        });
+
+    } catch (error) {
+        if (transaccionIniciada) {
+            await client.query('ROLLBACK');
+        }
+
+        console.error('Error al reagendar cita:', error.message);
+
+        return res.status(error.status || 500).json({
+            error: error.status
+                ? error.message
+                : 'Error interno al reagendar la cita'
+        });
+
+    } finally {
+        client.release();
+    }
+};
+
 
 module.exports = {
     cancelarCitaAdmin,
@@ -1399,5 +1883,7 @@ module.exports = {
     apartarHorario,
     confirmarApartado,
     cancelarApartado,
-    obtenerDisponibilidad
+    obtenerDisponibilidad,
+    cancelarCita,
+    reagendarCita
 };

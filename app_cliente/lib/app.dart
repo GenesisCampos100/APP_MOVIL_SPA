@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'core/routes/app_routes.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/dark_theme.dart';
+import 'core/theme/snackbar_theme.dart';
 import 'core/theme/tema_state.dart';
 
 class AuraSpaApp extends StatelessWidget {
@@ -15,8 +16,8 @@ class AuraSpaApp extends StatelessWidget {
       builder: (context, _) => MaterialApp(
         title: 'Aura Spa',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
-        darkTheme: crearTemaOscuro(),
+        theme: AppTheme.light.copyWith(snackBarTheme: temaAvisos),
+        darkTheme: crearTemaOscuro().copyWith(snackBarTheme: temaAvisos),
         themeMode: TemaState.instance.modo,
         initialRoute: AppRoutes.splash,
         onGenerateRoute: AppRoutes.generate,

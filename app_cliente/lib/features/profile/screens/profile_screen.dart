@@ -8,6 +8,7 @@ import '../../notifications/screens/notifications_screen.dart';
 import '../../settings/screens/settings_screen.dart';
 import 'edit_profile_screen.dart';
 import '../../settings/screens/tema_sheet.dart';
+import '../../favorites/screens/favorites_screen.dart';
 
 // Colores del mockup del perfil
 const Color _bordeTarjeta = Color(0xFFE3E3E3);
@@ -95,7 +96,9 @@ class _PerfilConSesion extends StatelessWidget {
           ),
         ),
       );
-      if (confirmar == true) AuthState.instance.cerrarSesion();
+      if (confirmar == true) {
+        await AuthState.instance.cerrarSesion();
+      }
     }
 
     return Scaffold(
@@ -123,7 +126,7 @@ class _PerfilConSesion extends StatelessWidget {
               _FilaMenu(
                 icono: Icons.favorite_border,
                 texto: 'Favoritos',
-                onTap: () => proximamente('Favoritos'),
+                onTap: () => abrirFavoritos(context),
               ),
               _FilaMenu(
                 icono: Icons.calendar_today_outlined,

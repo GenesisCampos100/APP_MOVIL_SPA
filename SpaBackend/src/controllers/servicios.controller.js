@@ -1,6 +1,22 @@
 
 const pool = require('../db');
 
+// Se aplica en PUT (estado=false) y DELETE para impedir desactivar servicios
+// con citas pendientes/confirmadas futuras o apartados temporales vigentes.
+const sinReservasVigentes = `
+    NOT EXISTS (
+        SELECT 1 FROM citas c
+        WHERE c.id_servicio = s.id_servicio
+          AND c.estado IN ('Pendiente', 'Confirmada')
+          AND (c.fecha + c.hora_inicio) > NOW()
+    )
+    AND NOT EXISTS (
+        SELECT 1 FROM reservas_temporales r
+        WHERE r.id_servicio = s.id_servicio
+          AND r.fecha_expiracion > NOW()
+    )
+`;
+
 
 // CONSULTAR TODOS LOS SERVICIOS
 
@@ -291,7 +307,7 @@ const actualizarServicio = async (req, res) => {
         }
 
         const result = await pool.query(
-            `UPDATE servicios
+            `UPDATE servicios s
              SET
                 id_categoria = $1,
                 nombre = $2,
@@ -299,8 +315,13 @@ const actualizarServicio = async (req, res) => {
                 duracion = $4,
                 precio = $5,
                 imagen = $6,
-                estado = COALESCE($7, estado)
-             WHERE id_servicio = $8
+                estado = COALESCE($7::boolean, s.estado)
+             WHERE s.id_servicio = $8
+               AND (
+                   s.estado = false
+                   OR COALESCE($7::boolean, s.estado) = true
+                   OR (${sinReservasVigentes})
+               )
              RETURNING
                 id_servicio,
                 id_categoria,
@@ -323,8 +344,14 @@ const actualizarServicio = async (req, res) => {
         );
 
         if (result.rows.length === 0) {
-            return res.status(404).json({
-                error: 'Servicio no encontrado'
+            const existe = await pool.query(
+                'SELECT 1 FROM servicios WHERE id_servicio = $1', [servicioId]
+            );
+            if (!existe.rowCount) {
+                return res.status(404).json({ error: 'Servicio no encontrado' });
+            }
+            return res.status(409).json({
+                error: 'No se puede desactivar este servicio: tiene citas futuras pendientes, confirmadas o apartados vigentes.'
             });
         }
 
@@ -381,14 +408,23 @@ const eliminarServicio = async (req, res) => {
             });
         }
 
-        // Desactivar servicio
+        // Desactivar solamente si NO tiene reservas activas; comprobación
+        // en el mismo UPDATE para evitar un chequeo separado y obsoleto.
         const result = await pool.query(
-            `UPDATE servicios
+            `UPDATE servicios s
              SET estado = false
-             WHERE id_servicio = $1
+             WHERE s.id_servicio = $1
+               AND s.estado = true
+               AND (${sinReservasVigentes})
              RETURNING id_servicio, nombre, estado`,
             [servicioId]
         );
+
+        if (!result.rowCount) {
+            return res.status(409).json({
+                error: 'No se puede desactivar este servicio: tiene citas futuras pendientes, confirmadas o apartados vigentes.'
+            });
+        }
 
         return res.json({
             mensaje: 'Servicio desactivado correctamente',
@@ -469,6 +505,77 @@ const obtenerEmpleadosPorServicio = async (req, res) => {
 };
 
 
+const obtenerResenasPorServicio = async (req, res) => {
+    try {
+        const servicioId = Number(req.params.id);
+
+        // Validar ID del servicio.
+        if (!Number.isInteger(servicioId) || servicioId <= 0) {
+            return res.status(400).json({
+                error: 'El ID del servicio no es válido'
+            });
+        }
+
+        // Comprobar que el servicio exista.
+        const servicioExiste = await pool.query(
+            `SELECT id_servicio
+             FROM servicios
+             WHERE id_servicio = $1`,
+            [servicioId]
+        );
+
+        if (!servicioExiste.rowCount) {
+            return res.status(404).json({
+                error: 'Servicio no encontrado'
+            });
+        }
+
+        // Obtener reseñas con los datos necesarios para mostrarlas.
+        const result = await pool.query(
+            `SELECT
+                r.id_resena,
+                r.id_cita,
+                r.calificacion_ser,
+                r.calificacion_emp,
+                r.comentario,
+                r.fecha,
+                CONCAT(cl.nombre, ' ', cl.apellido_p) AS autor,
+                CONCAT(e.nombre, ' ', e.apellido_p) AS empleado_nombre,
+                cat.nombre AS servicio_categoria
+             FROM resenas r
+             INNER JOIN citas c
+                ON c.id_cita = r.id_cita
+             INNER JOIN clientes cl
+                ON cl.id_cliente = c.id_cliente
+             INNER JOIN empleados e
+                ON e.id_empleado = c.id_empleado
+             INNER JOIN servicios s
+                ON s.id_servicio = c.id_servicio
+             INNER JOIN categorias cat
+                ON cat.id_categoria = s.id_categoria
+             WHERE c.id_servicio = $1
+             ORDER BY r.fecha DESC, r.id_resena DESC`,
+            [servicioId]
+        );
+
+        return res.json({
+            resenas: result.rows
+        });
+
+    } catch (error) {
+        console.error(
+            'Error al obtener reseñas del servicio:',
+            error.message
+        );
+
+        return res.status(500).json({
+            error: 'Error al obtener las reseñas del servicio'
+        });
+    }
+};
+
+
+
 
 module.exports = {
     obtenerServicios,
@@ -476,6 +583,7 @@ module.exports = {
     crearServicio,
     actualizarServicio,
     eliminarServicio,
-    obtenerEmpleadosPorServicio
+    obtenerEmpleadosPorServicio,
+    obtenerResenasPorServicio
 };
 

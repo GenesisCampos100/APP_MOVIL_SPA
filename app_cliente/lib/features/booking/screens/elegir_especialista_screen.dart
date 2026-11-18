@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../../../core/routes/app_routes.dart';
@@ -6,11 +5,15 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/empleado.dart';
 import '../../../data/repositories/empleados_repository.dart';
 import '../../../data/repositories/citas_repository.dart';
+import '../../../data/repositories/favoritos_repository.dart';
+import '../../../shared/widgets/boton_favorito.dart';
 import '../../auth/widgets/auth_widgets.dart';
+import '../../favorites/screens/favorites_screen.dart';
 import '../reserva_borrador.dart';
 
 /// "Elige a tu especialista": lista de empleados que hacen el servicio,
-/// más la opción "Cualquier disponible".
+/// más la opción "Cualquier disponible". Los favoritos salen primero y cada
+/// especialista tiene su corazón.
 class ElegirEspecialistaScreen extends StatefulWidget {
   final ReservaBorrador borrador;
 
@@ -28,12 +31,22 @@ class _ElegirEspecialistaScreenState
     extends State<ElegirEspecialistaScreen> {
   final _repo = EmpleadosRepository();
 
-  late final Future<List<Empleado>> _futuro =
-      _repo.obtenerParaServicio(widget.borrador.servicio.id);
+  late final Future<List<Empleado>> _futuro = _repo
+      .obtenerParaServicio(widget.borrador.servicio.id)
+      .then(_favoritosPrimero);
 
   Empleado _seleccion = Empleado.cualquiera;
 
   bool _apartando = false;
+
+  /// Los especialistas favoritos aparecen primero (solo al abrir la pantalla).
+  List<Empleado> _favoritosPrimero(List<Empleado> lista) {
+    final repo = FavoritosRepository.instance;
+    return [
+      ...lista.where((e) => repo.esFavoritoEmpleado(e.id)),
+      ...lista.where((e) => !repo.esFavoritoEmpleado(e.id)),
+    ];
+  }
 
   /// Crea el apartado temporal y después abre la confirmación.
   Future<void> _continuar() async {
@@ -263,6 +276,18 @@ class _TarjetaEmpleado extends StatelessWidget {
                   ),
                 ],
               ),
+            if (!e.esCualquiera) ...[
+              const SizedBox(width: 8),
+              ListenableBuilder(
+                listenable: FavoritosRepository.instance,
+                builder: (context, _) => BotonFavorito(
+                  esFavorito:
+                      FavoritosRepository.instance.esFavoritoEmpleado(e.id),
+                  size: 34,
+                  onPressed: () => alternarFavoritoEmpleado(context, e),
+                ),
+              ),
+            ],
           ],
         ),
       ),

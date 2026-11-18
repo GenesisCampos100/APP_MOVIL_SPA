@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../shell/shell_controller.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formato.dart';
@@ -44,19 +45,76 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   List<Cita> _citas = [];
   bool _cargando = false;
   String? _error;
+  int? _idClienteSesion;
 
   @override
   void initState() {
     super.initState();
+
+    _idClienteSesion = SesionService.instance.idCliente;
+
+    AuthState.instance.addListener(_alCambiarSesion);
+    ShellController.tab.addListener(_alCambiarPestana);
+
     _cargarCitas();
+  }
+
+  void _alCambiarSesion() {
+    final sesion = SesionService.instance;
+
+    final nuevoId = sesion.estaIniciada
+        ? sesion.idCliente
+        : null;
+
+    if (nuevoId == _idClienteSesion) return;
+
+    _idClienteSesion = nuevoId;
+
+    if (!mounted) return;
+
+    setState(() {
+      _citas = [];
+      _error = null;
+      _cargando = false;
+    });
+
+    if (nuevoId != null) {
+      _cargarCitas();
+    }
+  }
+
+  void _alCambiarPestana() {
+    if (ShellController.tab.value == 2) {
+      _cargarCitas();
+    }
+  }
+
+  @override
+  void dispose() {
+    AuthState.instance.removeListener(_alCambiarSesion);
+    ShellController.tab.removeListener(_alCambiarPestana);
+    super.dispose();
   }
 
   Future<void> _cargarCitas() async {
     final sesion = SesionService.instance;
 
-    if (!sesion.estaIniciada) {
+    if (!sesion.estaIniciada || sesion.idCliente == null) {
+      if (!mounted) return;
+
+      setState(() {
+        _citas = [];
+        _cargando = false;
+        _error = null;
+      });
+
       return;
     }
+
+    // Evitar solicitudes duplicadas mientras se carga.
+    if (_cargando) return;
+
+    final idCliente = sesion.idCliente;
 
     setState(() {
       _cargando = true;
@@ -68,12 +126,23 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
       if (!mounted) return;
 
+      // Evitar mostrar citas de una sesión anterior.
+      if (!SesionService.instance.estaIniciada ||
+          SesionService.instance.idCliente != idCliente) {
+        return;
+      }
+
       setState(() {
         _citas = citas;
         _cargando = false;
       });
     } catch (e) {
       if (!mounted) return;
+
+      if (!SesionService.instance.estaIniciada ||
+          SesionService.instance.idCliente != idCliente) {
+        return;
+      }
 
       setState(() {
         _cargando = false;
@@ -188,7 +257,13 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               const SizedBox(height: 28),
               AuthBoton(
                 texto: 'Inicio de sesión',
-                onPressed: () => AuthFlow.iniciar(context),
+                onPressed: () async {
+                  await AuthFlow.iniciar(context);
+
+                  if (!mounted) return;
+
+                  await _cargarCitas();
+                },
               ),
             ],
           ],
@@ -285,7 +360,10 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
             )
           else
             for (final c in visibles) ...[
-              _CitaCard(cita: c),
+              _CitaCard(
+                cita: c,
+                onActualizada: _cargarCitas,
+              ),
               const SizedBox(height: 12),
             ],
         ],
@@ -294,26 +372,95 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   }
 }
 
-class _CitaCard extends StatelessWidget {
+
+class _CitaCard extends StatefulWidget {
   final Cita cita;
+  final Future<void> Function() onActualizada;
 
   const _CitaCard({
     required this.cita,
+    required this.onActualizada,
   });
+
+  @override
+  State<_CitaCard> createState() => _CitaCardState();
+}
+
+class _CitaCardState extends State<_CitaCard> {
+  bool _cancelando = false;
 
   void _proximamente(
     BuildContext context,
     String que,
-  ) =>
+  ) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$que: próximamente'),
+      ),
+    );
+  }
+
+  Future<void> _confirmarCancelacion() async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cancelar cita'),
+        content: const Text(
+          '¿Estás seguro de que deseas cancelar esta cita? '
+          'Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.rosaFuerte,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Sí, cancelar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true || !mounted) return;
+
+    setState(() => _cancelando = true);
+
+    try {
+      await CitasRepository.instance.cancelarCita(widget.cita.id);
+
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$que: próximamente'),
+        const SnackBar(
+          content: Text('La cita se canceló correctamente.'),
         ),
       );
 
+      await widget.onActualizada();
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().replaceFirst('Exception: ', ''),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _cancelando = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final c = cita;
+    final c = widget.cita;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -379,14 +526,14 @@ class _CitaCard extends StatelessWidget {
           ),
         );
 
-    switch (cita.estado) {
+    switch (widget.cita.estado) {
       case Cita.completada:
         return FilledButton(
           style: negro(),
           onPressed: () => Navigator.pushNamed(
             context,
             AppRoutes.escribirResena,
-            arguments: cita,
+            arguments: widget.cita,
           ),
           child: const Text('Escribir reseña'),
         );
@@ -401,16 +548,19 @@ class _CitaCard extends StatelessWidget {
           child: const Text('Reservar de nuevo'),
         );
 
-      default:
+      case Cita.pendiente:
+      case Cita.confirmada:
         return Row(
           children: [
             Expanded(
               child: OutlinedButton(
                 style: contorno(),
-                onPressed: () => _proximamente(
-                  context,
-                  'Reagendar',
-                ),
+                onPressed: _cancelando
+                    ? null
+                    : () => _proximamente(
+                          context,
+                          'Reagendar',
+                        ),
                 child: const Text('Reagendar'),
               ),
             ),
@@ -418,15 +568,25 @@ class _CitaCard extends StatelessWidget {
             Expanded(
               child: OutlinedButton(
                 style: contorno(),
-                onPressed: () => _proximamente(
-                  context,
-                  'Cancelar cita',
-                ),
-                child: const Text('Cancelar'),
+                onPressed: _cancelando
+                    ? null
+                    : _confirmarCancelacion,
+                child: _cancelando
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text('Cancelar'),
               ),
             ),
           ],
         );
+
+      default:
+        return const SizedBox.shrink();
     }
   }
 }

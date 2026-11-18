@@ -5,12 +5,27 @@ import '../../../core/routes/app_routes.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../widgets/auth_widgets.dart';
 
-
-/// "Verifica tu cuenta": código de 6 dígitos enviado al correo.
-/// Un solo campo invisible recibe el teclado y se dibujan 6 casillas.
 class AuthVerifyScreen extends StatefulWidget {
   final String correo;
-  const AuthVerifyScreen({super.key, required this.correo});
+
+  // Personalización opcional para otros procesos de verificación.
+  final String titulo;
+  final String? subtitulo;
+
+  // Permite utilizar otro endpoint sin modificar el diseño.
+  final Future<bool> Function(String codigo)? onVerificar;
+
+  // Acción que se ejecuta cuando la verificación es exitosa.
+  final VoidCallback? onVerificacionExitosa;
+
+  const AuthVerifyScreen({
+    super.key,
+    required this.correo,
+    this.titulo = 'Verifica tu cuenta',
+    this.subtitulo,
+    this.onVerificar,
+    this.onVerificacionExitosa,
+  });
 
   @override
   State<AuthVerifyScreen> createState() => _AuthVerifyScreenState();
@@ -20,14 +35,19 @@ class _AuthVerifyScreenState extends State<AuthVerifyScreen> {
   final _repo = AuthRepository();
   final _codigo = TextEditingController();
   final _foco = FocusNode();
+
   String? _error;
   bool _cargando = false;
 
   @override
   void initState() {
     super.initState();
-    _codigo.addListener(() => setState(() => _error = null));
-    _foco.addListener(() => setState(() {}));
+    _codigo.addListener(() {
+      if (mounted) setState(() => _error = null);
+    });
+    _foco.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -46,25 +66,38 @@ class _AuthVerifyScreenState extends State<AuthVerifyScreen> {
     });
 
     try {
-      final usuario = await _repo.verificarCodigo(
-        widget.correo,
-        _codigo.text.trim(),
-      );
+      bool correcto;
+
+      if (widget.onVerificar != null) {
+        // Verificación personalizada, por ejemplo, cambio de correo.
+        correcto = await widget.onVerificar!(_codigo.text.trim());
+      } else {
+        // Verificación original del registro.
+        final usuario = await _repo.verificarCodigo(
+          widget.correo,
+          _codigo.text.trim(),
+        );
+
+        correcto = usuario != null;
+      }
 
       if (!mounted) return;
 
-      if (usuario == null) {
+      if (!correcto) {
         setState(() {
           _error = 'Código incorrecto o inválido';
         });
         return;
       }
 
-      // La sesión ya fue guardada por AuthRepository.
-      Navigator.pushReplacementNamed(
-        context,
-        AppRoutes.authExito,
-      );
+      if (widget.onVerificacionExitosa != null) {
+        widget.onVerificacionExitosa!();
+      } else {
+        Navigator.pushReplacementNamed(
+          context,
+          AppRoutes.authExito,
+        );
+      }
     } catch (e) {
       if (!mounted) return;
 
@@ -82,6 +115,7 @@ class _AuthVerifyScreenState extends State<AuthVerifyScreen> {
 
   Widget _casillas() {
     final texto = _codigo.text;
+
     return GestureDetector(
       onTap: () => _foco.requestFocus(),
       child: Stack(
@@ -91,6 +125,7 @@ class _AuthVerifyScreenState extends State<AuthVerifyScreen> {
             children: List.generate(6, (i) {
               final lleno = i < texto.length;
               final activa = _foco.hasFocus && i == texto.length;
+
               return Container(
                 width: 44,
                 height: 52,
@@ -106,12 +141,14 @@ class _AuthVerifyScreenState extends State<AuthVerifyScreen> {
                 ),
                 child: Text(
                   lleno ? texto[i] : '',
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               );
             }),
           ),
-          // Campo real, invisible, que recibe lo que se escribe.
           Positioned.fill(
             child: Opacity(
               opacity: 0,
@@ -121,7 +158,9 @@ class _AuthVerifyScreenState extends State<AuthVerifyScreen> {
                 autofocus: true,
                 keyboardType: TextInputType.number,
                 maxLength: 6,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                ],
                 decoration: const InputDecoration(counterText: ''),
               ),
             ),
@@ -134,15 +173,22 @@ class _AuthVerifyScreenState extends State<AuthVerifyScreen> {
   @override
   Widget build(BuildContext context) {
     return AuthPagina(
-      titulo: 'Verifica tu cuenta',
-      subtitulo: 'Te enviamos un código a tu correo, ingrésalo aquí\n${widget.correo}',
+      titulo: widget.titulo,
+      subtitulo: widget.subtitulo ??
+          'Te enviamos un código a tu correo, ingrésalo aquí\n${widget.correo}',
       hijos: [
         const SizedBox(height: 10),
         _casillas(),
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: Text(_error!, style: const TextStyle(fontSize: 12, color: Colors.red)),
+            child: Text(
+              _error!,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.red,
+              ),
+            ),
           ),
         const SizedBox(height: 24),
         AuthBoton(
@@ -152,13 +198,19 @@ class _AuthVerifyScreenState extends State<AuthVerifyScreen> {
         ),
         Center(
           child: TextButton(
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Código reenviado')),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('La opción de reenviar código está pendiente'),
+                ),
+              );
+            },
+            child: const Text(
+              'Reenviar código',
+              style: TextStyle(fontSize: 12),
             ),
-            child: const Text('Reenviar código', style: TextStyle(fontSize: 12)),
           ),
         ),
-
       ],
     );
   }
