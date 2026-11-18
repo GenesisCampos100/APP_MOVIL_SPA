@@ -22,12 +22,28 @@ const pool = require('../db');
 
 // Las fotografías de personal se almacenan en /uploads/perfiles.
 // Las de Cliente conservan la resolución mediante Supabase Storage.
+
 const resolverFotoPerfil = async (foto) => {
     if (typeof foto === 'string' && foto.startsWith('/uploads/perfiles/')) {
         return foto;
     }
-    return generarUrlFoto(foto);
+
+    if (!foto) {
+        return null;
+    }
+
+    try {
+        return await generarUrlFoto(foto);
+    } catch (error) {
+        console.warn(
+            'No se pudo generar la URL de la foto de perfil:',
+            error.message
+        );
+
+        return null;
+    }
 };
+
 
 // CONSULTAR PERFIL DEL USUARIO AUTENTICADO
 const obtenerPerfil = async (req, res) => {

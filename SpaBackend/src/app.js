@@ -1,7 +1,9 @@
 
 const express = require('express');
-
 const app = express();
+
+// Reconocer el proxy inverso de Railway.
+app.set('trust proxy', 1);
 
 app.use(express.json());
 

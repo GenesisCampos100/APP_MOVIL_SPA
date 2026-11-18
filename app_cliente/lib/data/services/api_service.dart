@@ -57,9 +57,6 @@ class ApiService {
 
     final url = '$baseUrl$endpoint';
 
-    print('>>> API POST: $url');
-    print('>>> BODY: ${jsonEncode(body)}');
-
     final response = await http.post(
       Uri.parse(url),
       headers: headers,
