@@ -4,6 +4,7 @@ import '../../shell/shell_controller.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formato.dart';
+import '../../../core/utils/errores.dart';
 import '../../../data/models/cita.dart';
 import '../../../data/models/servicio.dart';
 import '../../../data/repositories/citas_repository.dart';
@@ -133,7 +134,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       }
       setState(() {
         _cargando = false;
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _error = textoError(context, e);
       });
     }
   }
@@ -432,15 +433,23 @@ class _CitaCard extends StatelessWidget {
 
     switch (cita.estado) {
       case Cita.completada:
-        return FilledButton(
-          style: negro(),
-          onPressed: () => Navigator.pushNamed(
+      if (cita.tieneResena) {
+        return const SizedBox.shrink();
+      }
+      return FilledButton(
+        style: negro(),
+        onPressed: () async {
+          final publicada = await Navigator.pushNamed(
             context,
             AppRoutes.escribirResena,
             arguments: cita,
-          ),
-          child: const Text('Escribir reseña'),
-        );
+          );
+          if (publicada == true) {
+            onCambio?.call();
+          }
+        },
+        child: const Text('Escribir reseña'),
+      );
       case Cita.cancelada:
         return FilledButton(
           style: negro(),

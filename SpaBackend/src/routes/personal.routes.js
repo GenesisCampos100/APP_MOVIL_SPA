@@ -15,6 +15,8 @@ router.post('/citas-manuales', verificarToken, citasManuales.crearCitaManual);
 router.post('/citas-manuales/sin-cuenta', verificarToken, citasManuales.crearCitaManualSinCuenta);
 // Acciones explícitas del personal; no alteran las rutas /api/citas de app_cliente.
 router.patch('/citas-manuales/:id/confirmar', verificarToken, citasManuales.confirmarCitaPersonal);
+// Registra la asistencia comunicada realmente por el cliente, sin aceptar la reserva otra vez.
+router.patch('/citas-manuales/:id/confirmar-asistencia', verificarToken, citasManuales.registrarAsistenciaVerbal);
 router.patch('/citas-manuales/:id/cancelar', verificarToken, citasManuales.cancelarCitaPersonal);
 router.patch('/citas-manuales/:id/completar', verificarToken, citasManuales.completarCitaPersonal);
 

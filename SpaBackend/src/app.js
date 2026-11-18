@@ -86,15 +86,18 @@ app.use('/api/admin/resenas', adminResenasRoutes);
 
 
  // Procesos programados de Vanessa.
- // Se conservan para la integración definitiva.
- // Solo se activan cuando estén validadas las reglas de negocio.
- if (process.env.ENABLE_CITAS_CRON === 'true') {
+ // Se conservan para la integración definitiva, con activación independiente.
+ // Ambos permanecen desactivados si no se configuran sus variables como 'true'.
+ if (process.env.ENABLE_RECORDATORIOS_CRON === 'true') {
    iniciarRecordatorios();
+ } else {
+   console.log('Recordatorios automáticos desactivados.');
+ }
+
+ if (process.env.ENABLE_CANCELACION_CITAS_CRON === 'true') {
    iniciarCancelacionCitas();
  } else {
-   console.log(
-     'Procesos automáticos de citas desactivados durante las pruebas.'
-   );
+   console.log('Cancelaciones automáticas desactivadas.');
  }
 
  module.exports = app;

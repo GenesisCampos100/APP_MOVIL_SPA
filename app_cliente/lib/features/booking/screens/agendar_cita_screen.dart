@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../../../core/i18n/textos.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
@@ -39,6 +40,7 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
 
   // Evita que una respuesta anterior sobrescriba la fecha más reciente.
   int _solicitudDisponibilidad = 0;
+  Timer? _temporizadorDia;
 
 
 
@@ -47,6 +49,34 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
     super.initState();
     final n = DateTime.now();
     _mes = DateTime(n.year, n.month);
+    _temporizadorDia = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (!mounted) return;
+      final ahora = DateTime.now();
+      if (ahora.hour >= 20) {
+        final hoy = DateTime(ahora.year, ahora.month, ahora.day);
+        final diaSeleccionado = _dia == null
+            ? null
+            : DateTime(_dia!.year, _dia!.month, _dia!.day);
+
+        if (diaSeleccionado == hoy || _dia == null) {
+          setState(() {
+            if (diaSeleccionado == hoy) {
+              _dia = null;
+              _hora = null;
+              _horariosDisponibles = [];
+              _cargandoHorarios = false;
+              _errorHorarios = null;
+            }
+          });
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _temporizadorDia?.cancel();
+    super.dispose();
   }
 
   bool get _hayMesAnterior {
@@ -102,6 +132,17 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
 
 
   Future<void> _seleccionarDia(DateTime dia) async {
+    if (!Disponibilidad.diaHabil(dia)) {
+      setState(() {
+        _dia = null;
+        _hora = null;
+        _horariosDisponibles = [];
+        _cargandoHorarios = false;
+        _errorHorarios = null;
+      });
+      return;
+    }
+
     final solicitud = ++_solicitudDisponibilidad;
 
     setState(() {
@@ -124,7 +165,9 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
       }
 
       setState(() {
-        _horariosDisponibles = horarios;
+        _horariosDisponibles = horarios
+            .where((hora) => Disponibilidad.horaDisponible(dia, hora))
+            .toList();
       });
     } catch (e) {
       if (!mounted || solicitud != _solicitudDisponibilidad) {

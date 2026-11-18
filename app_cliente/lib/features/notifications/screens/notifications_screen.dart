@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/i18n/textos.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/aura_colores.dart';
+import '../../../core/utils/errores.dart';
 import '../../../core/utils/formato.dart';
 import '../../../data/models/notificacion.dart';
 import '../../../data/repositories/notificaciones_repository.dart';
@@ -35,8 +37,7 @@ class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  State<NotificationsScreen> createState() =>
-      _NotificationsScreenState();
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
@@ -60,8 +61,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(context.t('noti.titulo'),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            title: Text(
+              context.t('noti.titulo'),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
             actions: [
               if (items.isNotEmpty)
                 IconButton(
@@ -80,9 +83,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Widget _contenido() {
     if (repo.cargando) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (repo.errorCarga != null && repo.items.isEmpty) {
@@ -117,12 +118,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       return const _Vacio();
     }
 
-    return _Lista(
-      items: repo.items,
-      noLeidas: repo.noLeidas,
-    );
+    return _Lista(items: repo.items, noLeidas: repo.noLeidas);
   }
-
 
   Future<void> _confirmarLimpiar(BuildContext context) async {
     final hayPendientes = NotificacionesRepository.instance.hayPendientes;
@@ -141,14 +138,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               Text(
                 ctx.t('noti.limpiar_pregunta'),
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               if (hayPendientes) ...[
                 const SizedBox(height: 8),
                 Text(
                   ctx.t('noti.limpiar_conservan'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: ctx.aura.textoSecundario),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: ctx.aura.textoSecundario,
+                  ),
                 ),
               ],
               const SizedBox(height: 24),
@@ -161,7 +164,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         backgroundColor: ctx.aura.boton,
                         foregroundColor: ctx.aura.textoBoton,
                         minimumSize: const Size.fromHeight(44),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                       child: Text(ctx.t('comun.cancelar')),
                     ),
@@ -174,7 +179,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         backgroundColor: _rojo,
                         foregroundColor: Colors.white,
                         minimumSize: const Size.fromHeight(44),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                       child: Text(ctx.t('noti.limpiar')),
                     ),
@@ -186,7 +193,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
       ),
     );
-    if (confirmar == true) NotificacionesRepository.instance.limpiarTodo();
+    if (confirmar != true) return;
+
+    try {
+      await NotificacionesRepository.instance.limpiarTodo();
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(textoError(context, error))));
+    }
   }
 }
 
@@ -205,13 +221,21 @@ class _Lista extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 8, 12, 0),
             child: Row(
               children: [
-                Text(context.t('noti.sin_leer', {'n': '$noLeidas'}),
-                    style: TextStyle(fontSize: 12, color: context.aura.textoSecundario)),
+                Text(
+                  context.t('noti.sin_leer', {'n': '$noLeidas'}),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: context.aura.textoSecundario,
+                  ),
+                ),
                 const Spacer(),
                 TextButton(
-                  onPressed: NotificacionesRepository.instance.marcarTodasLeidas,
-                  child: Text(context.t('noti.marcar_leidas'),
-                      style: const TextStyle(fontSize: 12)),
+                  onPressed:
+                      NotificacionesRepository.instance.marcarTodasLeidas,
+                  child: Text(
+                    context.t('noti.marcar_leidas'),
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 ),
               ],
             ),
@@ -222,9 +246,16 @@ class _Lista extends StatelessWidget {
   }
 }
 
-class _Tarjeta extends StatelessWidget {
+class _Tarjeta extends StatefulWidget {
   final Notificacion notificacion;
   const _Tarjeta({required this.notificacion});
+
+  @override
+  State<_Tarjeta> createState() => _TarjetaState();
+}
+
+class _TarjetaState extends State<_Tarjeta> {
+  bool _confirmando = false;
 
   static IconData _icono(String tipo) {
     switch (tipo) {
@@ -270,7 +301,8 @@ class _Tarjeta extends StatelessWidget {
   static String _mensaje(BuildContext context, Notificacion n) {
     if (n.datos.isEmpty) return n.mensaje;
     final variante = n.datos['variante'];
-    final clave = (n.tipo == Notificacion.citaConfirmada && variante == 'manual')
+    final clave =
+        (n.tipo == Notificacion.citaConfirmada && variante == 'manual')
         ? 'noti.m.cita_confirmada_manual'
         : 'noti.m.${n.tipo}';
     final hora = n.datos['hora'];
@@ -281,14 +313,14 @@ class _Tarjeta extends StatelessWidget {
   }
 
   Widget _fondoBorrar(AlignmentGeometry alineacion) => Container(
-        color: _rojo,
-        alignment: alineacion,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: const Icon(Icons.delete_outline, color: Colors.white),
-      );
+    color: _rojo,
+    alignment: alineacion,
+    padding: const EdgeInsets.symmetric(horizontal: 24),
+    child: const Icon(Icons.delete_outline, color: Colors.white),
+  );
 
   void _abrir(BuildContext context) {
-    final n = notificacion;
+    final n = widget.notificacion;
     NotificacionesRepository.instance.marcarLeida(n.id);
     if (n.idCita != null) {
       // Las notificaciones de citas llevan a la pestaña "Citas".
@@ -297,17 +329,35 @@ class _Tarjeta extends StatelessWidget {
     }
   }
 
-  void _confirmar(BuildContext context) {
-    NotificacionesRepository.instance.confirmarAsistencia(notificacion.id);
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(context.t('noti.cita_confirmada'))));
-  }
+  Future<void> _confirmar() async {
+    if (_confirmando) return;
+    setState(() => _confirmando = true);
 
+    try {
+      await NotificacionesRepository.instance.confirmarAsistencia(
+        widget.notificacion.id,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text(context.t('noti.cita_confirmada'))),
+        );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text(textoError(context, error))),
+        );
+    } finally {
+      if (mounted) setState(() => _confirmando = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final n = notificacion;
+    final n = widget.notificacion;
     final repo = NotificacionesRepository.instance;
     final color = _color(n.tipo);
     final pendiente = n.requiereAccion;
@@ -316,22 +366,26 @@ class _Tarjeta extends StatelessWidget {
     return Dismissible(
       key: ValueKey(n.id),
       // Una "Confirma tu cita" pendiente no se puede borrar deslizando.
-      direction: pendiente ? DismissDirection.none : DismissDirection.horizontal,
+      direction: pendiente
+          ? DismissDirection.none
+          : DismissDirection.horizontal,
       background: _fondoBorrar(Alignment.centerLeft),
       secondaryBackground: _fondoBorrar(Alignment.centerRight),
-      onDismissed: (_) {
-        repo.eliminar(n.id);
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text(context.t('noti.eliminada')),
-              action: SnackBarAction(
-                label: context.t('comun.deshacer'),
-                onPressed: () => repo.restaurar(n),
-              ),
-            ),
-          );
+      onDismissed: (_) async {
+        try {
+          await repo.eliminar(n.id);
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(content: Text(context.t('noti.eliminada'))),
+            );
+        } catch (error) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(content: Text(textoError(context, error))));
+        }
       },
       child: InkWell(
         onTap: () => _abrir(context),
@@ -367,35 +421,52 @@ class _Tarjeta extends StatelessWidget {
                       _mensaje(context, n),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, height: 1.3, color: a.textoSecundario),
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.3,
+                        color: a.textoSecundario,
+                      ),
                     ),
                     const SizedBox(height: 6),
-                    Text(tiempoRelativo(n.fechaEnvio),
-                        style: TextStyle(fontSize: 11, color: a.textoSecundario)),
+                    Text(
+                      tiempoRelativo(n.fechaEnvio),
+                      style: TextStyle(fontSize: 11, color: a.textoSecundario),
+                    ),
                     if (pendiente) ...[
                       const SizedBox(height: 10),
                       SizedBox(
                         height: 36,
                         child: FilledButton(
-                          onPressed: () async => _confirmar(context),
+                          onPressed: _confirmando ? null : _confirmar,
                           style: FilledButton.styleFrom(
                             backgroundColor: a.boton,
                             foregroundColor: a.textoBoton,
                             padding: const EdgeInsets.symmetric(horizontal: 18),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
-                          child: Text(context.t('noti.confirmar_cita'),
-                              style: const TextStyle(fontSize: 12)),
+                          child: Text(
+                            context.t('noti.confirmar_cita'),
+                            style: const TextStyle(fontSize: 12),
+                          ),
                         ),
                       ),
-                    ] else if (n.tipo == Notificacion.confirmarCita && n.atendida) ...[
+                    ] else if (n.tipo == Notificacion.confirmarCita &&
+                        n.atendida) ...[
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.check_circle, size: 14, color: _verde),
+                          const Icon(
+                            Icons.check_circle,
+                            size: 14,
+                            color: _verde,
+                          ),
                           const SizedBox(width: 4),
-                          Text(context.t('noti.cita_confirmada'),
-                              style: const TextStyle(fontSize: 11, color: _verde)),
+                          Text(
+                            context.t('noti.cita_confirmada'),
+                            style: const TextStyle(fontSize: 11, color: _verde),
+                          ),
                         ],
                       ),
                     ],
@@ -439,11 +510,17 @@ class _Vacio extends StatelessWidget {
                 color: a.rosaSuave,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.notifications_none, size: 56, color: AppColors.rosaFuerte),
+              child: const Icon(
+                Icons.notifications_none,
+                size: 56,
+                color: AppColors.rosaFuerte,
+              ),
             ),
             const SizedBox(height: 24),
-            Text(context.t('noti.vacio_t'),
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+            Text(
+              context.t('noti.vacio_t'),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 10),
             Text(
               context.t('noti.vacio_m'),

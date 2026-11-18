@@ -1,6 +1,7 @@
 
 const cron = require('node-cron');
 const pool = require('../db');
+const { enviarNotificacionAUsuario } = require('../services/notificaciones.service');
 
 // Buscar citas que necesitan una solicitud de confirmación.
 const generarRecordatorios = async () => {
@@ -24,7 +25,8 @@ const generarRecordatorios = async () => {
             FROM citas c
             INNER JOIN clientes cl
                 ON cl.id_cliente = c.id_cliente
-            WHERE c.estado = 'Pendiente'
+            WHERE c.estado = 'Confirmada'
+              AND c.fecha_confirmacion IS NULL
 
               -- La cita debe estar dentro de las próximas 48 horas.
               AND (c.fecha + c.hora_inicio) <=
@@ -44,14 +46,23 @@ const generarRecordatorios = async () => {
                   WHERE n.id_cita = c.id_cita
                     AND n.tipo = 'confirmar_cita'
               )
-            RETURNING id_notificacion, id_cita`
+            ON CONFLICT DO NOTHING
+            RETURNING id_notificacion, id_cita, id_usuario, titulo, mensaje`
         );
 
         if (resultado.rowCount > 0) {
-            console.log(
-                'Solicitudes de confirmación creadas:',
-                resultado.rows
-            );
+            console.log('Solicitudes de confirmación creadas:', resultado.rows.length);
+            // El INSERT ya fue confirmado: los fallos de push no pierden la notificación interna.
+            for (const notificacion of resultado.rows) {
+                try {
+                    await enviarNotificacionAUsuario({
+                        ...notificacion,
+                        tipo: 'confirmar_cita'
+                    });
+                } catch (errorPush) {
+                    console.error('No se pudo enviar push de recordatorio:', errorPush.message);
+                }
+            }
         }
 
     } catch (error) {

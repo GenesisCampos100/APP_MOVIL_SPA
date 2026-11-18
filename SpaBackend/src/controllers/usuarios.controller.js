@@ -20,15 +20,22 @@ const {
 
 const pool = require('../db');
 
+// Las fotografías de personal se almacenan en /uploads/perfiles.
+// Las de Cliente conservan la resolución mediante Supabase Storage.
+const resolverFotoPerfil = async (foto) => {
+    if (typeof foto === 'string' && foto.startsWith('/uploads/perfiles/')) {
+        return foto;
+    }
+    return generarUrlFoto(foto);
+};
+
 // CONSULTAR PERFIL DEL USUARIO AUTENTICADO
 const obtenerPerfil = async (req, res) => {
     try {
-        const id_usuario = req.usuario.id_usuario;
+        const id_usuario = Number(req.usuario?.id_usuario);
 
-        if (Number(req.usuario.rol) !== 3) {
-            return res.status(403).json({
-                error: 'Solo los clientes pueden consultar este perfil'
-            });
+        if (!Number.isSafeInteger(id_usuario) || id_usuario <= 0) {
+            return res.status(401).json({error: 'Sesión inválida'});
         }
 
         const result = await pool.query(
@@ -75,8 +82,15 @@ const obtenerPerfil = async (req, res) => {
         }
 
         const usuario = result.rows[0];
+        const rolReal = Number(usuario.id_rol);
 
-        usuario.foto = await generarUrlFoto(usuario.foto);
+        // Permitir el perfil propio a Administrador, Empleado/Recepción y Cliente.
+        // Comprobar también el rol vigente de la BD, no solo el JWT.
+        if (![1, 2, 3].includes(rolReal) || rolReal !== Number(req.usuario?.rol)) {
+            return res.status(403).json({error: 'No tienes permiso para consultar este perfil'});
+        }
+
+        usuario.foto = await resolverFotoPerfil(usuario.foto);
 
         return res.status(200).json({
             mensaje: 'Perfil obtenido correctamente',
@@ -139,22 +153,19 @@ const actualizarPerfil = async (req, res) => {
 
         const rol = Number(usuarioResult.rows[0].id_rol);
 
-        if (rol !== 3) {
+        if (![2, 3].includes(rol) || rol !== Number(req.usuario?.rol)) {
             return await responderError(
                 client,
                 res,
                 403,
-                'Solo los clientes pueden actualizar este perfil'
+                'No tienes permiso para actualizar este perfil'
             );
         }
 
-        const camposPermitidos = [
-            'nombre',
-            'apellido_p',
-            'apellido_m',
-            'telefono',
-            'fecha_nacimiento'
-        ];
+        // Recepción/Empleado no tiene fecha_nacimiento en la tabla empleados.
+        const camposPermitidos = rol === 3
+            ? ['nombre', 'apellido_p', 'apellido_m', 'telefono', 'fecha_nacimiento']
+            : ['nombre', 'apellido_p', 'apellido_m', 'telefono'];
 
         // Rechazar campos que no corresponden al rol.
         const camposRecibidos = Object.keys(datos);
@@ -387,7 +398,7 @@ const actualizarPerfil = async (req, res) => {
             [id_usuario]
         );
 
-        perfilResult.rows[0].foto = await generarUrlFoto(
+        perfilResult.rows[0].foto = await resolverFotoPerfil(
             perfilResult.rows[0].foto
         );
 

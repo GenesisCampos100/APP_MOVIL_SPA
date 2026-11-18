@@ -33,6 +33,15 @@ const obtenerAgendaRecepcion = async (req, res) => {
                 c.id_cita, c.id_cliente, c.id_empleado, c.id_servicio,
                 c.fecha, c.hora_inicio, c.duracion_aplicada,
                 c.precio_aplicado, c.estado, c.observaciones,
+                c.fecha_confirmacion, c.fecha_limite,
+                (
+                    c.estado = 'Confirmada'
+                    AND c.fecha_confirmacion IS NULL
+                    AND (c.fecha + c.hora_inicio) > timezone('America/Mexico_City', NOW())
+                    AND (c.fecha + c.hora_inicio) <=
+                        timezone('America/Mexico_City', NOW()) + INTERVAL '48 hours'
+                    AND (c.fecha_limite IS NULL OR c.fecha_limite > NOW())
+                ) AS puede_registrar_asistencia,
                 CONCAT(cl.nombre, ' ', cl.apellido_p, ' ', COALESCE(cl.apellido_m, '')) AS cliente,
                 s.nombre AS servicio,
                 CONCAT(e.nombre, ' ', e.apellido_p, ' ', COALESCE(e.apellido_m, '')) AS empleado

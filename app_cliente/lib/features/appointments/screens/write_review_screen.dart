@@ -4,6 +4,7 @@ import '../../../core/i18n/textos.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/aura_colores.dart';
 import '../../../core/utils/formato.dart';
+import '../../../core/utils/errores.dart';
 import '../../../data/models/cita.dart';
 import '../../../data/repositories/servicios_repository.dart';
 import '../../../shared/widgets/servicio_visual.dart';
@@ -79,7 +80,7 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          content: Text(textoError(context, e)),
         ),
       );
     } finally {

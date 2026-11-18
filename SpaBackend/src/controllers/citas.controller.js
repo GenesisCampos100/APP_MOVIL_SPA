@@ -408,6 +408,11 @@ const obtenerCitas = async (req, res) => {
                 c.precio_aplicado,
                 c.estado,
                 c.observaciones,
+                EXISTS (
+                    SELECT 1
+                    FROM resenas r
+                    WHERE r.id_cita = c.id_cita
+                ) AS tiene_resena,
 
                 cl.id_cliente,
                 CONCAT(
@@ -666,6 +671,11 @@ const obtenerCitasCliente = async (req, res) => {
                 c.precio_aplicado,
                 c.estado,
                 c.observaciones,
+                EXISTS (
+                    SELECT 1
+                    FROM resenas r
+                    WHERE r.id_cita = c.id_cita
+                ) AS tiene_resena,
                 cl.id_cliente,
                 s.id_servicio,
                 s.nombre AS servicio,
@@ -1611,6 +1621,42 @@ const obtenerDisponibilidad = async (req, res) => {
             return res.status(200).json({ horarios: [] });
         }
 
+        const horaActualResult = await pool.query(
+            `SELECT
+                (timezone('America/Mexico_City', NOW()))::date AS fecha,
+                (timezone('America/Mexico_City', NOW()))::time AS hora`
+        );
+
+        const fechaMexico = horaActualResult.rows[0].fecha instanceof Date
+            ? horaActualResult.rows[0].fecha.toISOString().slice(0, 10)
+            : String(horaActualResult.rows[0].fecha);
+        const horaMexico = horaActualResult.rows[0].hora instanceof Date
+            ? horaActualResult.rows[0].hora.toISOString().slice(11, 19)
+            : String(horaActualResult.rows[0].hora);
+        const fechaConsulta = new Date(fechaComprobada);
+        const hoyMexico = new Date(
+            Date.UTC(
+                Number(String(fechaMexico).slice(0, 4)),
+                Number(String(fechaMexico).slice(5, 7)) - 1,
+                Number(String(fechaMexico).slice(8, 10))
+            )
+        );
+
+        if (fechaConsulta < hoyMexico) {
+            return res.status(200).json({ horarios: [] });
+        }
+
+        if (fechaConsulta.getTime() === hoyMexico.getTime()) {
+            const [hora, minuto] = String(horaMexico)
+                .slice(0, 5)
+                .split(':')
+                .map(Number);
+
+            if (hora > 20 || (hora === 20 && minuto >= 0)) {
+                return res.status(200).json({ horarios: [] });
+            }
+        }
+
         // 3. Obtener duración del servicio.
         const servicioResult = await pool.query(
             `SELECT duracion
@@ -1736,12 +1782,12 @@ const obtenerDisponibilidad = async (req, res) => {
                     ($3::integer * INTERVAL '1 minute')
                     <= g.fin_jornada
 
-                -- Si es hoy, exigir una hora de anticipación.
+                -- Comparar siempre con la hora local de México.
                 AND (
-                    $4::date > CURRENT_DATE
+                    $4::date > $5::date
                     OR (
-                        $4::date = CURRENT_DATE
-                        AND g.hora_inicio > LOCALTIME + INTERVAL '1 hour'
+                        $4::date = $5::date
+                        AND g.hora_inicio > $6::time + INTERVAL '1 hour'
                     )
                 )
 
@@ -1776,7 +1822,14 @@ const obtenerDisponibilidad = async (req, res) => {
                 )
 
             ORDER BY hora`,
-            [servicioId, diaSemana, duracion, fecha]
+            [
+                servicioId,
+                diaSemana,
+                duracion,
+                fecha,
+                fechaMexico,
+                horaMexico
+            ]
         );
 
         return res.status(200).json({
@@ -1823,12 +1876,35 @@ const cancelarCita = async (req, res) => {
                AND c.id_cliente = cl.id_cliente
                AND cl.id_usuario = $2
                AND c.estado IN ('Pendiente', 'Confirmada')
-               AND (c.fecha + c.hora_inicio) > NOW()
+               AND (c.fecha + c.hora_inicio) >=
+                   timezone('America/Mexico_City', NOW()) + INTERVAL '1 hour'
              RETURNING c.id_cita, c.estado`,
             [Number(id_cita), id_usuario]
         );
 
         if (resultado.rowCount === 0) {
+            const fueraDePlazo = await pool.query(
+                `SELECT 1
+                 FROM citas c
+                 INNER JOIN clientes cl
+                    ON cl.id_cliente = c.id_cliente
+                 WHERE c.id_cita = $1
+                   AND cl.id_usuario = $2
+                   AND c.estado IN ('Pendiente', 'Confirmada')
+                   AND (c.fecha + c.hora_inicio) >
+                       timezone('America/Mexico_City', NOW())
+                   AND (c.fecha + c.hora_inicio) <
+                       timezone('America/Mexico_City', NOW()) + INTERVAL '1 hour'`,
+                [Number(id_cita), id_usuario]
+            );
+
+            if (fueraDePlazo.rowCount > 0) {
+                return res.status(409).json({
+                    codigo: 'CITA_FUERA_DE_PLAZO',
+                    error: 'Ya no puedes cancelar la cita con menos de una hora de anticipación'
+                });
+            }
+
             return res.status(404).json({
                 mensaje: 'No se encontró una cita cancelable asociada a tu cuenta.'
             });
@@ -1924,7 +2000,9 @@ const confirmarCita = async (req, res) => {
                 c.id_cita,
                 c.estado,
                 c.fecha,
-                c.hora_inicio
+                c.hora_inicio,
+                c.fecha_confirmacion,
+                c.fecha_limite
              FROM citas c
              INNER JOIN clientes cl
                 ON cl.id_cliente = c.id_cliente
@@ -1945,21 +2023,26 @@ const confirmarCita = async (req, res) => {
 
         const cita = resultado.rows[0];
 
-        if (cita.estado !== 'Pendiente') {
+        // La asistencia es independiente de la aceptación administrativa.
+        // Una cita Pendiente o Confirmada puede registrar asistencia una sola vez.
+        if (!['Pendiente', 'Confirmada'].includes(cita.estado) ||
+            cita.fecha_confirmacion !== null) {
             await client.query('ROLLBACK');
             transaccionIniciada = false;
 
             return res.status(409).json({
-                error: 'Esta cita ya no está pendiente de confirmación'
+                error: 'Esta cita ya no requiere confirmación de asistencia'
             });
         }
 
         // Comprobar que la cita todavía no haya comenzado.
         const fechaFutura = await client.query(
-            `SELECT (
-                ($1::date + $2::time) > NOW()
-            ) AS es_futura`,
-            [cita.fecha, cita.hora_inicio]
+            `SELECT
+                ($1::date + $2::time) >
+                    timezone('America/Mexico_City', NOW()) AS es_futura,
+                ($3::timestamptz IS NULL OR $3::timestamptz > NOW())
+                    AS plazo_vigente`,
+            [cita.fecha, cita.hora_inicio, cita.fecha_limite]
         );
 
         if (!fechaFutura.rows[0].es_futura) {
@@ -1971,13 +2054,22 @@ const confirmarCita = async (req, res) => {
             });
         }
 
-        // Actualizar el estado de la cita.
+        if (!fechaFutura.rows[0].plazo_vigente) {
+            await client.query('ROLLBACK');
+            transaccionIniciada = false;
+            return res.status(409).json({
+                error: 'El plazo para confirmar la asistencia ya venció'
+            });
+        }
+
+        // Registrar asistencia sin cambiar el estado administrativo de la cita.
         const actualizacion = await client.query(
             `UPDATE citas
-             SET estado = 'Confirmada'
+             SET fecha_confirmacion = NOW()
              WHERE id_cita = $1
-               AND estado = 'Pendiente'
-             RETURNING id_cita, estado`,
+               AND estado IN ('Pendiente', 'Confirmada')
+               AND fecha_confirmacion IS NULL
+             RETURNING id_cita, estado, fecha_confirmacion`,
             [id_cita]
         );
 
@@ -1996,8 +2088,8 @@ const confirmarCita = async (req, res) => {
                 'cita_confirmada',
                 timezone('America/Mexico_City', NOW()),
                 $2,
-                'Cita confirmada',
-                'Tu cita ha sido confirmada correctamente.'
+                'Asistencia confirmada',
+                'Tu asistencia ha sido confirmada correctamente.'
              )
              RETURNING id_notificacion`,
             [id_cita, id_usuario]
@@ -2014,12 +2106,12 @@ const confirmarCita = async (req, res) => {
             id_usuario,
             id_cita,
             tipo: 'cita_confirmada',
-            titulo: 'Cita confirmada',
-            mensaje: 'Tu cita ha sido confirmada correctamente.'
+            titulo: 'Asistencia confirmada',
+            mensaje: 'Tu asistencia ha sido confirmada correctamente.'
         });
 
         return res.status(200).json({
-            mensaje: 'La cita se confirmó correctamente',
+            mensaje: 'Tu asistencia se confirmó correctamente',
             cita: actualizacion.rows[0]
         });
 
@@ -2143,26 +2235,23 @@ const reagendarCita = async (req, res) => {
             );
         }
 
-        // 3. Comprobar que la cita original todavía no haya comenzado.
-        const citaFutura = await client.query(
-            `SELECT (
-                ($1::date + $2::time) > NOW()
-            ) AS es_futura`,
-            [cita.fecha, cita.hora_inicio]
-        );
-
+        // 3. Permitir cambios solo hasta una hora antes de la cita.
         if (!esReactivacion) {
-            const citaFutura = await client.query(
+            const elegibleParaCambio = await client.query(
                 `SELECT (
-                    ($1::date + $2::time) > NOW()
-                ) AS es_futura`,
+                    ($1::date + $2::time) >=
+                    timezone('America/Mexico_City', NOW()) + INTERVAL '1 hour'
+                ) AS puede_modificarse`,
                 [cita.fecha, cita.hora_inicio]
             );
 
-            if (!citaFutura.rows[0].es_futura) {
+            if (!elegibleParaCambio.rows[0].puede_modificarse) {
                 throw Object.assign(
-                    new Error('No puedes reagendar una cita que ya comenzó'),
-                    { status: 400 }
+                    new Error('No puedes reagendar una cita con menos de una hora de anticipación'),
+                    {
+                        status: 409,
+                        codigo: 'CITA_FUERA_DE_PLAZO'
+                    }
                 );
             }
         }
@@ -2170,15 +2259,16 @@ const reagendarCita = async (req, res) => {
         // 4. Comprobar que el nuevo horario sea futuro.
         const nuevoHorarioFuturo = await client.query(
             `SELECT (
-                ($1::date + $2::time) > NOW()
+                ($1::date + $2::time) >=
+                timezone('America/Mexico_City', NOW()) + INTERVAL '1 hour'
             ) AS es_futuro`,
             [fecha, hora_inicio]
         );
 
         if (!nuevoHorarioFuturo.rows[0].es_futuro) {
             throw Object.assign(
-                new Error('El nuevo horario debe ser futuro'),
-                { status: 400 }
+                new Error('El nuevo horario debe tener al menos una hora de anticipación'),
+                { status: 409, codigo: 'CITA_FUERA_DE_PLAZO' }
             );
         }
 
@@ -2337,7 +2427,16 @@ const reagendarCita = async (req, res) => {
              SET id_empleado = $1,
                  fecha = $2,
                  hora_inicio = $3,
-                 estado = 'Pendiente'
+                 estado = 'Pendiente',
+                 fecha_confirmacion = NULL,
+                 fecha_limite = CASE
+                     WHEN ($2::date + $3::time) >
+                         timezone('America/Mexico_City', NOW()) + INTERVAL '48 hours'
+                     THEN (($2::date + $3::time) - INTERVAL '24 hours')
+                         AT TIME ZONE 'America/Mexico_City'
+                     ELSE (($2::date + $3::time) - INTERVAL '1 hour')
+                         AT TIME ZONE 'America/Mexico_City'
+                 END
              WHERE id_cita = $4
                AND id_cliente = $5
              RETURNING
@@ -2366,6 +2465,20 @@ const reagendarCita = async (req, res) => {
             );
         }
 
+        // Archivar sin borrar las solicitudes de asistencia del horario anterior.
+        // La nueva cita necesitará una confirmación de asistencia nueva.
+        await client.query(
+            `UPDATE notificaciones
+             SET tipo = 'cita_reagendada',
+                 titulo = 'Solicitud de asistencia anterior',
+                 mensaje = 'Esta solicitud correspondía al horario anterior de tu cita.',
+                 leida = TRUE
+             WHERE id_cita = $1 AND tipo = 'confirmar_cita'`,
+            [citaId]
+        );
+
+
+
         // 8. Registrar notificación de reagendamiento.
         const notificacionCreada = await client.query(
             `INSERT INTO notificaciones (
@@ -2392,15 +2505,19 @@ const reagendarCita = async (req, res) => {
         transaccionIniciada = false;
 
         // 9. Enviar notificación push al cliente.
-        await enviarNotificacionAUsuario({
-            id_notificacion:
-                notificacionCreada.rows[0].id_notificacion,
-            id_usuario,
-            id_cita: citaId,
-            tipo: 'cita_reagendada',
-            titulo: 'Cita reagendada',
-            mensaje: 'Tu cita ha sido reagendada correctamente. Consulta los nuevos detalles en AuraSpa.'
-        });
+        try {
+            await enviarNotificacionAUsuario({
+                id_notificacion: notificacionCreada.rows[0].id_notificacion,
+                id_usuario,
+                id_cita: citaId,
+                tipo: 'cita_reagendada',
+                titulo: 'Cita reagendada',
+                mensaje: 'Tu cita ha sido reagendada correctamente. Consulta los nuevos detalles en AuraSpa.'
+            });
+        } catch (errorPush) {
+            console.error('No se pudo enviar push de reagendamiento:', errorPush.message);
+        }
+
 
         return res.status(200).json({
             mensaje: 'La cita se reagendó correctamente',
@@ -2416,6 +2533,7 @@ const reagendarCita = async (req, res) => {
         console.error('Error al reagendar cita:', error.message);
 
         return res.status(error.status || 500).json({
+            ...(error.codigo ? { codigo: error.codigo } : {}),
             error: error.status
                 ? error.message
                 : 'Error interno al reagendar la cita'

@@ -360,6 +360,54 @@ async function cambiarEstadoCitaPersonal(req, res, accion) {
     }
 }
 
+// Recepción registra una respuesta VERBAL real del cliente (telefono o presencial).
+// A diferencia de confirmarCitaPersonal, no modifica el estado administrativo.
+async function registrarAsistenciaVerbal(req, res) {
+    const idCita = idCitaSolicitada(req);
+    if (!idCita) return res.status(400).json({ error: 'El identificador de la cita no es válido' });
+
+    const medio = req.body?.medio;
+    if (medio !== 'telefono' && medio !== 'presencial') {
+        return res.status(400).json({ error: 'Indica si el cliente confirmó por teléfono o presencialmente' });
+    }
+
+    try {
+        // Reutiliza la verificación de rol, puesto y cuenta activa del módulo de personal.
+        if (!await comprobarAcceso(req, pool)) {
+            return res.status(403).json({ error: 'No tienes permiso para registrar confirmaciones' });
+        }
+
+        // UPDATE atómico: exige reserva aceptada, respuesta no registrada y
+        // ventana real de 48 horas con plazo vigente, respetando la hora local.
+        const resultado = await pool.query(`
+            UPDATE citas c
+               SET fecha_confirmacion = NOW()
+             WHERE c.id_cita = $1
+               AND c.estado = 'Confirmada'
+               AND c.fecha_confirmacion IS NULL
+               AND (c.fecha + c.hora_inicio) > timezone('America/Mexico_City', NOW())
+               AND (c.fecha + c.hora_inicio) <=
+                   timezone('America/Mexico_City', NOW()) + INTERVAL '48 hours'
+               AND (c.fecha_limite IS NULL OR c.fecha_limite > NOW())
+         RETURNING c.id_cita, c.estado, c.fecha_confirmacion`, [idCita]);
+
+        if (resultado.rowCount === 0) {
+            return res.status(409).json({
+                error: 'La cita no es elegible: debe estar aceptada, sin asistencia registrada y dentro del plazo de confirmación'
+            });
+        }
+
+        return res.status(200).json({
+            mensaje: 'Asistencia registrada correctamente',
+            medio, // Se devuelve al Cliente API; todavía no se almacena en otra columna.
+            cita: resultado.rows[0]
+        });
+    } catch (error) {
+        console.error('Error al registrar asistencia verbal:', error.message);
+        return res.status(500).json({ error: 'No se pudo registrar la asistencia' });
+    }
+}
+
 const confirmarCitaPersonal = (req, res) => cambiarEstadoCitaPersonal(req, res, 'confirmar');
 const cancelarCitaPersonal = (req, res) => cambiarEstadoCitaPersonal(req, res, 'cancelar');
 
@@ -513,7 +561,15 @@ async function reprogramarCitaPersonal(req, res) {
         }
         const resultado = await client.query(`
             UPDATE citas SET id_empleado = $2, fecha = $3::date, hora_inicio = $4::time,
-                            estado = 'Pendiente', fecha_confirmacion = NULL
+                            estado = 'Pendiente', fecha_confirmacion = NULL,
+                            fecha_limite = CASE
+                                WHEN ($3::date + $4::time) >
+                                    timezone('America/Mexico_City', NOW()) + INTERVAL '48 hours'
+                                THEN (($3::date + $4::time) - INTERVAL '24 hours')
+                                    AT TIME ZONE 'America/Mexico_City'
+                                ELSE (($3::date + $4::time) - INTERVAL '1 hour')
+                                    AT TIME ZONE 'America/Mexico_City'
+                            END
             WHERE id_cita = $1 AND estado IN ('Pendiente', 'Confirmada')
             RETURNING id_cita, id_empleado, TO_CHAR(fecha, 'YYYY-MM-DD') AS fecha,
                       TO_CHAR(hora_inicio, 'HH24:MI') AS hora_inicio, estado`,
@@ -522,6 +578,20 @@ async function reprogramarCitaPersonal(req, res) {
             await client.query('ROLLBACK'); abierta = false;
             return res.status(409).json({ error: 'El estado de la cita cambió. Actualiza la agenda.' });
         }
+
+                // Archivar recordatorios del horario anterior sin eliminarlos.
+        // La cita reprogramada necesitara una nueva confirmacion de asistencia.
+        await client.query(
+            `UPDATE notificaciones
+             SET tipo = 'cita_reagendada',
+                 titulo = 'Solicitud de asistencia anterior',
+                 mensaje = 'Esta solicitud correspondía al horario anterior de tu cita.',
+                 leida = TRUE
+             WHERE id_cita = $1
+               AND tipo = 'confirmar_cita'`,
+            [idCita]
+        );
+
         await client.query('COMMIT'); abierta = false;
         return res.json({
             mensaje: 'Cita reprogramada. Quedó Pendiente de confirmación.',
@@ -541,6 +611,7 @@ async function reprogramarCitaPersonal(req, res) {
 module.exports = {
     catalogo, buscarClientes, disponibilidad, crearCitaManual, crearCitaManualSinCuenta,
     confirmarCitaPersonal, cancelarCitaPersonal, completarCitaPersonal,
+    registrarAsistenciaVerbal,
     detalleParaReprogramar, disponibilidadReprogramacion, reprogramarCitaPersonal
 };
 

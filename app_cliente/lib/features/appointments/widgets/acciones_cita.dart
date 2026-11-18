@@ -17,12 +17,12 @@ DateTime inicioDeCita(Cita c) {
   return DateTime(c.fecha.year, c.fecha.month, c.fecha.day, int.parse(p[0]), int.parse(p[1]));
 }
 
-/// Solo se puede cancelar o reagendar con más de 24 horas de anticipación.
+/// Se puede cancelar o reagendar hasta una hora antes de la cita, inclusive.
 bool citaModificable(Cita c) =>
-    inicioDeCita(c).difference(DateTime.now()) > const Duration(hours: 24);
+    inicioDeCita(c).difference(DateTime.now()) >= const Duration(hours: 1);
 
 /// Botones "Reagendar" y "Cancelar" de una cita confirmada.
-/// Si faltan 24 horas o menos, se ven desactivados (gris pálido) y aparece
+/// Si falta menos de una hora, se ven desactivados y aparece
 /// una nota que explica por qué. [onCambio] se llama cuando la cita cambia
 /// (por ejemplo, al cancelarla) para que la lista se vuelva a cargar.
 class AccionesCita extends StatelessWidget {
@@ -140,7 +140,7 @@ class AccionesCita extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    context.t('citas.nota_24h'),
+                    context.t('citas.nota_1h'),
                     style: TextStyle(fontSize: 11, color: c.textoSecundario),
                   ),
                 ),

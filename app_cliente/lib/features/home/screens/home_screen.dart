@@ -21,12 +21,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _repo = ServiciosRepository();
-  
-  late final Future<List<Servicio>> _futuro =
-      _repo.obtenerServiciosDestacados();
 
-  late final Future<List<Servicio>> _futuroCategorias =
-      _repo.obtenerServicios();
+  late final Future<List<Servicio>> _futuro = _repo
+      .obtenerServiciosDestacados();
+
+  late final Future<List<Servicio>> _futuroCategorias = _repo
+      .obtenerServicios();
 
   void _irCatalogo([String? categoria]) =>
       Navigator.pushNamed(context, AppRoutes.catalogo, arguments: categoria);
@@ -48,15 +48,22 @@ class _HomeScreenState extends State<HomeScreen> {
             const Row(
               children: [
                 // Imágenes para la promoción hacia la propia app.
-                Expanded(child: _Promo(imagen: kPromo1Imagen, icono: Icons.spa)),
+                Expanded(
+                  child: _Promo(imagen: kPromo1Imagen, icono: Icons.spa),
+                ),
                 SizedBox(width: 12),
-                Expanded(child: _Promo(imagen: kPromo2Imagen, icono: Icons.local_florist)),
+                Expanded(
+                  child: _Promo(
+                    imagen: kPromo2Imagen,
+                    icono: Icons.local_florist,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 16),
             Center(child: _titulo('Categorías')),
             const SizedBox(height: 10),
-            
+
             // Categorías: se desliza hacia la izquierda para ver las demás.
             FutureBuilder<List<Servicio>>(
               future: _futuroCategorias,
@@ -68,18 +75,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (!snap.hasData) {
                   return const SizedBox(
                     height: 76,
-                    child: Center(
-                      child: CircularProgressIndicator(),
-                    ),
+                    child: Center(child: CircularProgressIndicator()),
                   );
                 }
 
-                final categorias = snap.data!
-                    .map((s) => s.categoria.trim())
-                    .where((c) => c.isNotEmpty)
-                    .toSet()
-                    .toList()
-                  ..sort();
+                final categorias =
+                    snap.data!
+                        .map((s) => s.categoria.trim())
+                        .where((c) => c.isNotEmpty)
+                        .toSet()
+                        .toList()
+                      ..sort();
 
                 return SizedBox(
                   height: 76,
@@ -129,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             _titulo('Servicios Destacados'),
             const SizedBox(height: 8),
-            
+
             FutureBuilder<List<Servicio>>(
               future: _futuro,
               builder: (context, snap) {
@@ -142,9 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (snap.connectionState == ConnectionState.waiting) {
                   return const Padding(
                     padding: EdgeInsets.all(24),
-                    child: Center(
-                      child: CircularProgressIndicator(),
-                    ),
+                    child: Center(child: CircularProgressIndicator()),
                   );
                 }
 
@@ -165,10 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 return Column(
                   children: [
                     for (final s in destacados) ...[
-                      _DestacadoTile(
-                        servicio: s,
-                        onTap: () => _irDetalle(s),
-                      ),
+                      _DestacadoTile(servicio: s, onTap: () => _irDetalle(s)),
                       const SizedBox(height: 12),
                     ],
                   ],
@@ -181,8 +182,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _titulo(String t) =>
-      Text(t, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500));
+  Widget _titulo(String t) => Text(
+    t,
+    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+  );
 
   Widget _buscador() {
     return Row(
@@ -194,7 +197,10 @@ class _HomeScreenState extends State<HomeScreen> {
             decoration: InputDecoration(
               hintText: 'Buscar.....',
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 10,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(24),
                 borderSide: const BorderSide(color: AppColors.gris),
@@ -203,7 +209,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         const SizedBox(width: 8),
-        IconButton(onPressed: _irCatalogo, icon: const Icon(Icons.search, size: 28)),
+        IconButton(
+          onPressed: _irCatalogo,
+          icon: const Icon(Icons.search, size: 28),
+        ),
         IconButton(
           onPressed: () => abrirNotificaciones(context),
           icon: const Icon(Icons.notifications_none, size: 28),
@@ -274,7 +283,7 @@ class _HomeScreenState extends State<HomeScreen> {
 class _Promo extends StatelessWidget {
   final String imagen;
   final IconData icono;
-  
+
   const _Promo({required this.imagen, required this.icono});
 
   @override
@@ -300,7 +309,7 @@ class _Promo extends StatelessWidget {
 class _DestacadoTile extends StatelessWidget {
   final Servicio servicio;
   final VoidCallback onTap;
-  
+
   const _DestacadoTile({required this.servicio, required this.onTap});
 
   @override
@@ -311,52 +320,98 @@ class _DestacadoTile extends StatelessWidget {
       child: Row(
         children: [
           // Al inicio usa la imagen del servicio
-          ServicioThumb(categoria: s.categoria, imagen: s.imagen, width: 120, height: 84),
+          ServicioThumb(
+            categoria: s.categoria,
+            imagen: s.imagen,
+            width: 120,
+            height: 84,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    CategoriaBadge(s.categoria),
-                    Text(
-                      'Desde ${s.precioTexto}',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) => Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: constraints.maxWidth * 0.55,
+                        ),
+                        child: CategoriaBadge(s.categoria),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          'Desde ${s.precioTexto}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.end,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   s.nombre,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 4),
-                Row(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      s.duracionTexto,
-                      style: const TextStyle(fontSize: 12, color: AppColors.gris),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          s.duracionTexto,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.gris,
+                          ),
+                        ),
+                        if (s.rating > 0) ...[
+                          const SizedBox(width: 6),
+                          const Icon(Icons.star, size: 14, color: Colors.amber),
+                          Text(
+                            ' ${s.rating}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.gris,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                    if (s.rating > 0) ...[
-                      const SizedBox(width: 10),
-                      const Icon(Icons.star, size: 14, color: Colors.amber),
-                      Text(
-                        ' ${s.rating}',
-                        style: const TextStyle(fontSize: 12, color: AppColors.gris),
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton(
+                        onPressed: onTap,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          minimumSize: const Size(0, 28),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        child: const Text(
+                          'Reservar',
+                          style: TextStyle(fontSize: 11),
+                        ),
                       ),
-                    ],
-                    const Spacer(),
-                    FilledButton(
-                      onPressed: onTap,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        minimumSize: const Size(0, 28),
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                      ),
-                      child: const Text('Reservar', style: TextStyle(fontSize: 11)),
                     ),
                   ],
                 ),

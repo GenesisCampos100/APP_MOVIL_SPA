@@ -1,17 +1,26 @@
 
 const cron = require('node-cron');
 const pool = require('../db');
+const { enviarNotificacionAUsuario } = require('../services/notificaciones.service');
 
 // Cancelar citas que no fueron confirmadas a tiempo.
 const cancelarCitasVencidas = async () => {
     try {
         const resultado = await pool.query(
             `WITH citas_vencidas AS (
-                UPDATE citas
+                UPDATE citas c
                 SET estado = 'Cancelada'
-                WHERE estado = 'Pendiente'
-                  AND fecha_limite IS NOT NULL
-                  AND fecha_limite <= NOW()
+                WHERE c.estado IN ('Pendiente', 'Confirmada')
+                  AND c.fecha_confirmacion IS NULL
+                  AND c.fecha_limite IS NOT NULL
+                  AND c.fecha_limite <= NOW()
+                  -- Solo cancelar si se generó una solicitud de asistencia.
+                  AND EXISTS (
+                      SELECT 1
+                      FROM notificaciones n
+                      WHERE n.id_cita = c.id_cita
+                        AND n.tipo = 'confirmar_cita'
+                  )
                 RETURNING
                     id_cita,
                     id_cliente
@@ -34,14 +43,22 @@ const cancelarCitasVencidas = async () => {
             FROM citas_vencidas cv
             INNER JOIN clientes cl
                 ON cl.id_cliente = cv.id_cliente
-            RETURNING id_notificacion, id_cita`
+            RETURNING id_notificacion, id_cita, id_usuario, titulo, mensaje`
         );
 
         if (resultado.rowCount > 0) {
-            console.log(
-                'Citas canceladas automáticamente:',
-                resultado.rows
-            );
+            console.log('Citas canceladas automáticamente:', resultado.rows.length);
+            // El registro en PostgreSQL no depende de que Firebase esté disponible.
+            for (const notificacion of resultado.rows) {
+                try {
+                    await enviarNotificacionAUsuario({
+                        ...notificacion,
+                        tipo: 'cita_cancelada'
+                    });
+                } catch (errorPush) {
+                    console.error('No se pudo enviar push de cancelación:', errorPush.message);
+                }
+            }
         }
 
     } catch (error) {
