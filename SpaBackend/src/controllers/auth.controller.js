@@ -143,8 +143,22 @@ const login = async (req, res) => {
 
             const cliente = clienteResult.rows[0];
 
-            // Generar URL firmada para la foto del cliente
-            const fotoUrl = await generarUrlFoto(usuario.foto);
+// Generar URL firmada para la foto del cliente        
+// La foto de perfil es opcional y no debe impedir
+// que el cliente inicie sesion correctamente.
+            let fotoUrl = null;
+
+            if (usuario.foto) {
+                try {
+                    fotoUrl = await generarUrlFoto(usuario.foto);
+                } catch (errorFoto) {
+                    console.warn(
+                        'No se pudo obtener la foto de perfil:',
+                        errorFoto.message
+                    );
+                }
+            }
+
             return res.json({
                 mensaje: 'Inicio de sesión exitoso',
                 token,
