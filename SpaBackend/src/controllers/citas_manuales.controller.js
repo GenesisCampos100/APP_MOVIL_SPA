@@ -5,6 +5,7 @@
 // Las rutas públicas de app_cliente no se modifican.
 const pool = require('../db');
 const bcrypt = require('bcrypt');
+const { enviarNotificacionAUsuario } = require('../services/notificaciones.service');
 const { randomUUID, randomBytes } = require('crypto');
 
 // Cuentas tecnicas locales: NO tienen acceso ni correo real.
@@ -578,8 +579,7 @@ async function reprogramarCitaPersonal(req, res) {
             await client.query('ROLLBACK'); abierta = false;
             return res.status(409).json({ error: 'El estado de la cita cambió. Actualiza la agenda.' });
         }
-
-                // Archivar recordatorios del horario anterior sin eliminarlos.
+        // Archivar recordatorios del horario anterior sin eliminarlos.
         // La cita reprogramada necesitara una nueva confirmacion de asistencia.
         await client.query(
             `UPDATE notificaciones
@@ -592,26 +592,94 @@ async function reprogramarCitaPersonal(req, res) {
             [idCita]
         );
 
-        await client.query('COMMIT'); abierta = false;
+        // Registrar la notificacion de reprogramacion para el cliente.
+        // Si la cita no tiene una cuenta asociada, no se crea el aviso.
+        const avisoReprogramacion = await client.query(
+            `INSERT INTO notificaciones (
+                id_cita,
+                tipo,
+                fecha_envio,
+                id_usuario,
+                titulo,
+                mensaje
+            )
+            SELECT
+                c.id_cita,
+                'cita_reagendada',
+                timezone('America/Mexico_City', NOW()),
+                cl.id_usuario,
+                'Cita reprogramada',
+                'El personal de Aura SPA ha modificado el horario de tu cita. Consulta la nueva fecha y hora en Mis citas.'
+            FROM citas c
+            INNER JOIN clientes cl
+                ON cl.id_cliente = c.id_cliente
+            WHERE c.id_cita = $1
+              AND cl.id_usuario IS NOT NULL
+            RETURNING
+                id_notificacion,
+                id_cita,
+                id_usuario,
+                tipo,
+                titulo,
+                mensaje`,
+            [idCita]
+        );
+
+        // Confirmar los cambios en PostgreSQL.
+        await client.query('COMMIT');
+        abierta = false;
+
+        // Enviar la notificacion push despues del COMMIT.
+        // Un fallo de Firebase no debe deshacer la reprogramacion.
+        if (avisoReprogramacion.rows.length > 0) {
+            try {
+                await enviarNotificacionAUsuario(
+                    avisoReprogramacion.rows[0]
+                );
+            } catch (errorPush) {
+                console.error(
+                    'No se pudo enviar push de reprogramacion:',
+                    errorPush.message
+                );
+            }
+        }
+
         return res.json({
             mensaje: 'Cita reprogramada. Quedó Pendiente de confirmación.',
             cita: resultado.rows[0]
         });
+
     } catch (error) {
         if (abierta && client) {
-            try { await client.query('ROLLBACK'); } catch (_) { /* mantener error original */ }
+            try {
+                await client.query('ROLLBACK');
+            } catch (_) {
+                // Mantener el error original.
+            }
         }
+
         console.error('Error al reprogramar cita:', error.message);
-        return res.status(500).json({ error: 'No se pudo reprogramar la cita' });
+
+        return res.status(500).json({
+            error: 'No se pudo reprogramar la cita'
+        });
+
     } finally {
         if (client) client.release();
     }
 }
 
 module.exports = {
-    catalogo, buscarClientes, disponibilidad, crearCitaManual, crearCitaManualSinCuenta,
-    confirmarCitaPersonal, cancelarCitaPersonal, completarCitaPersonal,
+    catalogo,
+    buscarClientes,
+    disponibilidad,
+    crearCitaManual,
+    crearCitaManualSinCuenta,
+    confirmarCitaPersonal,
+    cancelarCitaPersonal,
+    completarCitaPersonal,
     registrarAsistenciaVerbal,
-    detalleParaReprogramar, disponibilidadReprogramacion, reprogramarCitaPersonal
+    detalleParaReprogramar,
+    disponibilidadReprogramacion,
+    reprogramarCitaPersonal
 };
-

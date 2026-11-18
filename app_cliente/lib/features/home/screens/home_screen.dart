@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/repositories/notificaciones_repository.dart';
+import '../../../data/services/sesion_service.dart';
+import '../../shell/shell_controller.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/servicio.dart';
@@ -19,8 +22,65 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with WidgetsBindingObserver {
   final _repo = ServiciosRepository();
+
+
+  bool _actualizandoNotificaciones = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addObserver(this);
+    ShellController.tab.addListener(_alCambiarPestana);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _actualizarNotificaciones();
+    });
+  }
+
+  Future<void> _actualizarNotificaciones() async {
+    final sesion = SesionService.instance;
+
+    if (_actualizandoNotificaciones ||
+        !sesion.estaIniciada ||
+        sesion.token == null) {
+      return;
+    }
+
+    _actualizandoNotificaciones = true;
+
+    try {
+      await NotificacionesRepository.instance.cargar();
+    } catch (_) {
+      // No interrumpir el Home si falla la consulta.
+    } finally {
+      _actualizandoNotificaciones = false;
+    }
+  }
+
+  void _alCambiarPestana() {
+    if (ShellController.tab.value == 0) {
+      _actualizarNotificaciones();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _actualizarNotificaciones();
+    }
+  }
+
+  @override
+  void dispose() {
+    ShellController.tab.removeListener(_alCambiarPestana);
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
 
   late final Future<List<Servicio>> _futuro = _repo
       .obtenerServiciosDestacados();
@@ -214,9 +274,34 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: const Icon(Icons.search, size: 28),
         ),
         IconButton(
+          tooltip: 'Notificaciones',
           onPressed: () => abrirNotificaciones(context),
-          icon: const Icon(Icons.notifications_none, size: 28),
+          icon: ListenableBuilder(
+            listenable: NotificacionesRepository.instance,
+            builder: (context, _) {
+              final cantidad = SesionService.instance.estaIniciada
+                  ? NotificacionesRepository.instance.noLeidas
+                  : 0;
+
+              const campana = Icon(
+                Icons.notifications_none,
+                size: 28,
+              );
+
+              if (cantidad == 0) {
+                return campana;
+              }
+
+              return Badge.count(
+                count: cantidad,
+                backgroundColor: AppColors.rosaFuerte,
+                textColor: Colors.white,
+                child: campana,
+              );
+            },
+          ),
         ),
+
       ],
     );
   }

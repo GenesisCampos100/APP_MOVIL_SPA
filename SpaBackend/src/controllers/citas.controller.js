@@ -315,42 +315,7 @@ const registrarCita = async (req, res) => {
             mensaje: 'Tu cita ha sido registrada correctamente. Está pendiente de confirmación.'
         });
 
-        // Solicitar confirmación inmediatamente si faltan 48 horas o menos.
-        const confirmacionCreada = await client.query(
-            `INSERT INTO notificaciones (
-                id_cita,
-                tipo,
-                fecha_envio,
-                id_usuario,
-                titulo,
-                mensaje
-            )
-            SELECT
-                $1,
-                'confirmar_cita',
-                timezone('America/Mexico_City', NOW()),
-                $4,
-                'Confirma tu asistencia',
-                'Tu cita está próxima. Confirma tu asistencia antes de la fecha límite.'
-            WHERE ($2::date + $3::time) <=
-                timezone('America/Mexico_City', NOW()) + INTERVAL '48 hours'
-            RETURNING id_notificacion`,
-            [cita.id_cita, fecha, hora_inicio, id_usuario]
-        );
-
-        if (confirmacionCreada.rows.length > 0) {
-            notificacionesParaEnviar.push({
-                id_notificacion: confirmacionCreada.rows[0].id_notificacion,
-                id_usuario,
-                id_cita: cita.id_cita,
-                tipo: 'confirmar_cita',
-                titulo: 'Confirma tu asistencia',
-                mensaje: 'Tu cita está próxima. Confirma tu asistencia antes de la fecha límite.'
-            });
-        }
-
-        
-        // 13. Confirmar ambas operaciones.
+        // 13. Confirmar el registro de la cita y su notificación.
         await client.query('COMMIT');
         transaccionIniciada = false;
 
@@ -407,6 +372,7 @@ const obtenerCitas = async (req, res) => {
                 c.duracion_aplicada,
                 c.precio_aplicado,
                 c.estado,
+                c.fecha_confirmacion,
                 c.observaciones,
                 EXISTS (
                     SELECT 1
@@ -670,6 +636,7 @@ const obtenerCitasCliente = async (req, res) => {
                 c.duracion_aplicada,
                 c.precio_aplicado,
                 c.estado,
+                c.fecha_confirmacion,
                 c.observaciones,
                 EXISTS (
                     SELECT 1
@@ -1366,48 +1333,6 @@ const confirmarApartado = async (req, res) => {
         );
 
 
-        // Si faltan 48 horas o menos, solicitar confirmación inmediatamente.
-        const confirmacionCreada = await client.query(
-            `INSERT INTO notificaciones (
-                id_cita,
-                tipo,
-                fecha_envio,
-                id_usuario,
-                titulo,
-                mensaje
-            )
-            SELECT
-                $1,
-                'confirmar_cita',
-                timezone('America/Mexico_City', NOW()),
-                $4,
-                'Confirma tu asistencia',
-                'Tu cita está próxima. Confirma tu asistencia antes de la fecha límite.'
-            FROM (
-                SELECT $2::date + $3::time AS fecha_cita
-            ) AS fc
-            WHERE fc.fecha_cita <=
-                timezone('America/Mexico_City', NOW()) + INTERVAL '48 hours'
-            RETURNING id_notificacion`,
-            [
-                nuevaCita.rows[0].id_cita,
-                reserva.fecha,
-                reserva.hora_inicio,
-                id_usuario
-            ]
-        );
-
-        if (confirmacionCreada.rows.length > 0) {
-            notificacionesParaEnviar.push({
-                id_notificacion: confirmacionCreada.rows[0].id_notificacion,
-                id_usuario,
-                id_cita: nuevaCita.rows[0].id_cita,
-                tipo: 'confirmar_cita',
-                titulo: 'Confirma tu asistencia',
-                mensaje: 'Tu cita está próxima. Confirma tu asistencia antes de la fecha límite.'
-            });
-        }
-
         // Eliminar el apartado temporal.
         await client.query(
             `DELETE FROM reservas_temporales
@@ -2023,23 +1948,26 @@ const confirmarCita = async (req, res) => {
 
         const cita = resultado.rows[0];
 
-        // La asistencia es independiente de la aceptación administrativa.
-        // Una cita Pendiente o Confirmada puede registrar asistencia una sola vez.
-        if (!['Pendiente', 'Confirmada'].includes(cita.estado) ||
+        // La asistencia se confirma de manera independiente del estado administrativo,
+        // pero solo después de que el negocio haya aceptado la reserva.
+        if (cita.estado !== 'Confirmada' ||
             cita.fecha_confirmacion !== null) {
             await client.query('ROLLBACK');
             transaccionIniciada = false;
 
             return res.status(409).json({
-                error: 'Esta cita ya no requiere confirmación de asistencia'
+                error: 'Solo puedes confirmar asistencia de una reserva aceptada y aún sin confirmar'
             });
         }
 
-        // Comprobar que la cita todavía no haya comenzado.
+        // Validar hora de inicio, ventana de 48 horas y plazo de confirmación.
         const fechaFutura = await client.query(
             `SELECT
                 ($1::date + $2::time) >
                     timezone('America/Mexico_City', NOW()) AS es_futura,
+                ($1::date + $2::time) <=
+                    timezone('America/Mexico_City', NOW()) + INTERVAL '48 hours'
+                    AS dentro_48_horas,
                 ($3::timestamptz IS NULL OR $3::timestamptz > NOW())
                     AS plazo_vigente`,
             [cita.fecha, cita.hora_inicio, cita.fecha_limite]
@@ -2051,6 +1979,14 @@ const confirmarCita = async (req, res) => {
 
             return res.status(409).json({
                 error: 'Ya no puedes confirmar una cita que comenzó'
+            });
+        }
+
+        if (!fechaFutura.rows[0].dentro_48_horas) {
+            await client.query('ROLLBACK');
+            transaccionIniciada = false;
+            return res.status(409).json({
+                error: 'Podrás confirmar tu asistencia cuando falten 48 horas o menos para tu cita'
             });
         }
 
@@ -2067,7 +2003,7 @@ const confirmarCita = async (req, res) => {
             `UPDATE citas
              SET fecha_confirmacion = NOW()
              WHERE id_cita = $1
-               AND estado IN ('Pendiente', 'Confirmada')
+               AND estado = 'Confirmada'
                AND fecha_confirmacion IS NULL
              RETURNING id_cita, estado, fecha_confirmacion`,
             [id_cita]

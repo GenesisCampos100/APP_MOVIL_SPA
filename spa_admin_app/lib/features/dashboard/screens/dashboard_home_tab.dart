@@ -346,6 +346,18 @@ class _DashboardHomeTabState extends State<DashboardHomeTab>
     final daily = _citas.where((c) => _sameDay(c.fecha, today)).toList();
     int count(String status) => daily.where((c) => _status(c) == status).length;
     final pending = count('pendiente');
+    final inicioHoy = DateTime(today.year, today.month, today.day);
+
+    final pendientesPorAceptar = _citas.where((c) {
+      final fechaCita = DateTime(
+        c.fecha.year,
+        c.fecha.month,
+        c.fecha.day,
+      );
+
+      return _status(c) == 'pendiente' &&
+          !fechaCita.isBefore(inicioHoy);
+    }).length;
     final confirmed = count('confirmada');
     final completed = count('completada');
     final cancelled = count('cancelada');
@@ -490,7 +502,7 @@ class _DashboardHomeTabState extends State<DashboardHomeTab>
                                     backgroundColor: const Color(0xFFF6E6E9), color: _rose))),
                             ])),
                           ]),
-                          if (pending > 0) ...[
+                          if (pendientesPorAceptar > 0) ...[
                             const SizedBox(height: 17),
                             Material(color: _dark ? _scheme.surfaceContainerHigh : _blush, borderRadius: BorderRadius.circular(15),
                               child: InkWell(onTap: _openAppointments,
@@ -500,11 +512,11 @@ class _DashboardHomeTabState extends State<DashboardHomeTab>
                                     Icon(Icons.info_outline_rounded, color: _dark ? _scheme.primary : _roseDark, size: 20),
                                     const SizedBox(width: 10),
                                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                      Text(StaffPreferences.language.value == 'en' ? '$pending pending ${pending == 1 ? 'appointment' : 'appointments'} to accept' : '$pending ${pending == 1 ? 'cita pendiente' : 'citas pendientes'} de confirmación',
+                                      Text(StaffPreferences.language.value == 'en' ? '$pendientesPorAceptar pending ${pendientesPorAceptar == 1 ? 'appointment' : 'appointments'} to accept' : '$pendientesPorAceptar ${pendientesPorAceptar == 1 ? 'cita pendiente' : 'citas pendientes'} de confirmación',
                                         style: TextStyle(color: _dark ? _scheme.onSurface : _roseDark, fontSize: 12.5,
                                           fontWeight: FontWeight.w700)),
                                       const SizedBox(height: 3),
-                                      Text(t('Revisa las solicitudes de hoy.', 'Review today’s requests.'),
+                                      Text(t('Revisa las solicitudes pendientes.', 'Review pending requests.'),
                                         style: TextStyle(color: _dark ? _scheme.onSurfaceVariant : _muted, fontSize: 11.5)),
                                     ])),
                                     Icon(Icons.chevron_right_rounded, color: _dark ? _scheme.primary : _roseDark, size: 20),

@@ -1,20 +1,23 @@
-
 const cron = require('node-cron');
 const pool = require('../db');
 const { enviarNotificacionAUsuario } = require('../services/notificaciones.service');
 
-// Cancelar citas que no fueron confirmadas a tiempo.
+// Cancelar solo las citas aceptadas que no confirmaron asistencia a tiempo.
+// No modificar reservas Pendientes ni citas que ya comenzaron.
 const cancelarCitasVencidas = async () => {
     try {
         const resultado = await pool.query(
             `WITH citas_vencidas AS (
                 UPDATE citas c
                 SET estado = 'Cancelada'
-                WHERE c.estado IN ('Pendiente', 'Confirmada')
+                WHERE c.estado = 'Confirmada'
                   AND c.fecha_confirmacion IS NULL
                   AND c.fecha_limite IS NOT NULL
                   AND c.fecha_limite <= NOW()
-                  -- Solo cancelar si se generó una solicitud de asistencia.
+                  -- No cancelar retroactivamente citas que ya comenzaron.
+                  AND (c.fecha + c.hora_inicio) >
+                      timezone('America/Mexico_City', NOW())
+                  -- Solo cancelar cuando exista una solicitud de asistencia.
                   AND EXISTS (
                       SELECT 1
                       FROM notificaciones n
@@ -48,7 +51,7 @@ const cancelarCitasVencidas = async () => {
 
         if (resultado.rowCount > 0) {
             console.log('Citas canceladas automáticamente:', resultado.rows.length);
-            // El registro en PostgreSQL no depende de que Firebase esté disponible.
+            // La cancelación guardada en PostgreSQL no depende de Firebase.
             for (const notificacion of resultado.rows) {
                 try {
                     await enviarNotificacionAUsuario({
@@ -69,7 +72,7 @@ const cancelarCitasVencidas = async () => {
     }
 };
 
-// Revisar cada 5 minutos.
+// Revisar cada 5 minutos cuando la programación esté habilitada.
 const iniciarCancelacionCitas = () => {
     cron.schedule('*/5 * * * *', cancelarCitasVencidas);
 
