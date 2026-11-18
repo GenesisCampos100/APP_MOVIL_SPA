@@ -14,6 +14,10 @@ class Disponibilidad {
   static bool diaHabil(DateTime d) {
     final dia = DateTime(d.year, d.month, d.day);
     if (dia.isBefore(_hoy())) return false;
+    if (dia == _hoy()) {
+      final ahora = DateTime.now();
+      if (ahora.hour >= 20) return false;
+    }
     return dia.weekday != DateTime.saturday && dia.weekday != DateTime.sunday;
   }
 

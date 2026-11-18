@@ -16,6 +16,7 @@ class Cita {
   final double precioAplicado; //   citas.precio_aplicado   NUMERIC(10,2)
   final String estado; //           citas.estado            VARCHAR(20)
   final String? observaciones; //   citas.observaciones     TEXT
+  final bool tieneResena;
 
   // Datos para mostrar (vienen de JOIN con servicios y empleados):
   final String servicioNombre;
@@ -33,6 +34,7 @@ class Cita {
     required this.precioAplicado,
     required this.estado,
     this.observaciones,
+    this.tieneResena = false,
     this.servicioNombre = '',
     this.servicioCategoria = '',
     this.empleadoNombre = '',
@@ -49,6 +51,9 @@ class Cita {
         precioAplicado: aDouble(j['precio_aplicado']),
         estado: j['estado'] as String,
         observaciones: j['observaciones'] as String?,
+        tieneResena: j['tiene_resena'] == true ||
+            j['tiene_resena'] == 1 ||
+            j['tiene_resena'] == '1',
         servicioNombre: (j['servicio'] ?? '') as String,
         servicioCategoria: (j['servicio_categoria'] ?? '') as String,
         empleadoNombre: (j['empleado'] ?? '') as String,

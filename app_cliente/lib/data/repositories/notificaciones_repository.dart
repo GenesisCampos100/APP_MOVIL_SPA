@@ -1,4 +1,3 @@
-
 import 'package:flutter/foundation.dart';
 
 import '../models/notificacion.dart';
@@ -9,8 +8,7 @@ import 'citas_repository.dart';
 class NotificacionesRepository extends ChangeNotifier {
   NotificacionesRepository._();
 
-  static final NotificacionesRepository instance =
-      NotificacionesRepository._();
+  static final NotificacionesRepository instance = NotificacionesRepository._();
 
   final List<Notificacion> _items = [];
 
@@ -37,9 +35,7 @@ class NotificacionesRepository extends ChangeNotifier {
     final sesion = SesionService.instance;
 
     if (!sesion.estaIniciada || sesion.token == null) {
-      throw Exception(
-        'Debes iniciar sesión para ver tus notificaciones.',
-      );
+      throw Exception('Debes iniciar sesión para ver tus notificaciones.');
     }
 
     _cargando = true;
@@ -59,9 +55,7 @@ class NotificacionesRepository extends ChangeNotifier {
       }
 
       final notificaciones = respuesta.map((item) {
-        return Notificacion.fromJson(
-          Map<String, dynamic>.from(item as Map),
-        );
+        return Notificacion.fromJson(Map<String, dynamic>.from(item as Map));
       }).toList();
 
       _items
@@ -88,10 +82,7 @@ class NotificacionesRepository extends ChangeNotifier {
       throw Exception('No hay una sesión activa.');
     }
 
-    await ApiService.patch(
-      '/api/notificaciones/$id/leida',
-      token: token,
-    );
+    await ApiService.patch('/api/notificaciones/$id/leida', token: token);
 
     _items[i] = _items[i].copyWith(leida: true);
 
@@ -108,10 +99,7 @@ class NotificacionesRepository extends ChangeNotifier {
       throw Exception('No hay una sesión activa.');
     }
 
-    await ApiService.patch(
-      '/api/notificaciones/leidas',
-      token: token,
-    );
+    await ApiService.patch('/api/notificaciones/leidas', token: token);
 
     for (int i = 0; i < _items.length; i++) {
       _items[i] = _items[i].copyWith(leida: true);
@@ -120,23 +108,49 @@ class NotificacionesRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Eliminar una notificación localmente.
-  void eliminar(int id) {
-    _items.removeWhere((n) => n.id == id);
+  // Elimina en el servidor y actualiza la lista de forma optimista.
+  Future<void> eliminar(int id) async {
+    final indice = _items.indexWhere((n) => n.id == id);
+    if (indice == -1) return;
+
+    final notificacion = _items.removeAt(indice);
     notifyListeners();
+
+    try {
+      final token = SesionService.instance.token;
+      if (token == null || token.isEmpty) {
+        throw Exception('No hay una sesión activa.');
+      }
+
+      await ApiService.delete('/api/notificaciones/$id', token: token);
+    } catch (_) {
+      _items.insert(indice.clamp(0, _items.length), notificacion);
+      notifyListeners();
+      rethrow;
+    }
   }
 
-  // Restaurar una notificación eliminada.
-  void restaurar(Notificacion n) {
-    if (_items.any((item) => item.id == n.id)) return;
+  // El servidor conserva las notificaciones de citas que aún requieren acción.
+  Future<void> limpiarTodo() async {
+    final token = SesionService.instance.token;
+    if (token == null || token.isEmpty) {
+      throw Exception('No hay una sesión activa.');
+    }
 
-    _items.add(n);
-    notifyListeners();
-  }
+    final respuesta = await ApiService.delete(
+      '/api/notificaciones',
+      token: token,
+    );
+    if (respuesta is! Map || respuesta['eliminadas'] is! List) {
+      throw const FormatException(
+        'La respuesta al limpiar notificaciones no es válida.',
+      );
+    }
 
-  // Limpiar todas, excepto las que todavía requieren acción.
-  void limpiarTodo() {
-    _items.removeWhere((n) => !n.requiereAccion);
+    final idsEliminados = (respuesta['eliminadas'] as List<dynamic>)
+        .map((id) => int.parse(id.toString()))
+        .toSet();
+    _items.removeWhere((n) => idsEliminados.contains(n.id));
     notifyListeners();
   }
 
@@ -151,27 +165,20 @@ class NotificacionesRepository extends ChangeNotifier {
     final notificacion = _items[i];
 
     if (!notificacion.requiereAccion) {
-      throw Exception(
-        'Esta notificación ya no requiere confirmación.',
-      );
+      throw Exception('Esta notificación ya no requiere confirmación.');
     }
 
     final idCita = notificacion.idCita;
 
     if (idCita == null) {
-      throw Exception(
-        'La notificación no tiene una cita asociada.',
-      );
+      throw Exception('La notificación no tiene una cita asociada.');
     }
 
     // Confirmar la cita realmente en el backend.
     await CitasRepository.instance.confirmarCita(idCita);
 
     // Actualizar el estado local después de confirmar correctamente.
-    _items[i] = notificacion.copyWith(
-      leida: true,
-      atendida: true,
-    );
+    _items[i] = notificacion.copyWith(leida: true, atendida: true);
 
     notifyListeners();
   }

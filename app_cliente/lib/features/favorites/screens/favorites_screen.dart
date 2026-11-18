@@ -4,6 +4,7 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/aura_colores.dart';
 import '../../../core/utils/formato.dart';
+import '../../../core/utils/errores.dart';
 import '../../../data/models/empleado.dart';
 import '../../../data/models/servicio.dart';
 import '../../../data/repositories/favoritos_repository.dart';
@@ -67,7 +68,7 @@ Future<void> alternarFavoritoServicio(
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          e.toString().replaceFirst('Exception: ', ''),
+          textoError(context, e),
         ),
         backgroundColor: Colors.red,
       ),
@@ -97,7 +98,7 @@ Future<void> alternarFavoritoEmpleado(
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          e.toString().replaceFirst('Exception: ', ''),
+          textoError(context, e),
         ),
         backgroundColor: Colors.red,
       ),
@@ -142,7 +143,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       if (!mounted) return;
 
       setState(() {
-        _errorCarga = e.toString().replaceFirst('Exception: ', '');
+        _errorCarga = textoError(context, e);
       });
     }
   }

@@ -101,8 +101,92 @@ const marcarTodasLeidas = async (req, res) => {
     }
 };
 
+const eliminarNotificacion = async (req, res) => {
+    try {
+        const id_usuario = req.usuario.id_usuario;
+        const id_notificacion = Number(req.params.id_notificacion);
+
+        if (!Number.isInteger(id_notificacion) || id_notificacion <= 0) {
+            return res.status(400).json({
+                error: 'El identificador de la notificación no es válido'
+            });
+        }
+
+        const resultado = await pool.query(
+            `DELETE FROM notificaciones n
+             WHERE n.id_notificacion = $1
+               AND n.id_usuario = $2
+               AND NOT (
+                   n.tipo = 'confirmar_cita'
+                   AND EXISTS (
+                       SELECT 1
+                       FROM citas c
+                       WHERE c.id_cita = n.id_cita
+                         AND c.estado = 'Pendiente'
+                   )
+               )
+             RETURNING n.id_notificacion`,
+            [id_notificacion, id_usuario]
+        );
+
+        if (resultado.rowCount === 0) {
+            return res.status(404).json({
+                error: 'La notificación no existe o todavía requiere confirmación'
+            });
+        }
+
+        return res.json({
+            mensaje: 'Notificación eliminada',
+            id_notificacion: resultado.rows[0].id_notificacion
+        });
+    } catch (error) {
+        console.error('Error al eliminar notificación:', error);
+
+        return res.status(500).json({
+            error: 'Error al eliminar la notificación'
+        });
+    }
+};
+
+const eliminarNotificaciones = async (req, res) => {
+    try {
+        const id_usuario = req.usuario.id_usuario;
+
+        const resultado = await pool.query(
+            `DELETE FROM notificaciones n
+             WHERE n.id_usuario = $1
+               AND NOT (
+                   n.tipo = 'confirmar_cita'
+                   AND EXISTS (
+                       SELECT 1
+                       FROM citas c
+                       WHERE c.id_cita = n.id_cita
+                         AND c.estado = 'Pendiente'
+                   )
+               )
+             RETURNING n.id_notificacion`,
+            [id_usuario]
+        );
+
+        return res.json({
+            mensaje: 'Notificaciones eliminadas',
+            eliminadas: resultado.rows.map(
+                notificacion => notificacion.id_notificacion
+            )
+        });
+    } catch (error) {
+        console.error('Error al eliminar notificaciones:', error);
+
+        return res.status(500).json({
+            error: 'Error al eliminar las notificaciones'
+        });
+    }
+};
+
 module.exports = {
     obtenerNotificaciones,
     marcarNotificacionLeida,
-    marcarTodasLeidas
+    marcarTodasLeidas,
+    eliminarNotificacion,
+    eliminarNotificaciones
 };

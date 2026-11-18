@@ -1,10 +1,9 @@
-
 import 'package:flutter/material.dart';
 
 import '../../../core/i18n/textos.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../auth/auth_state.dart';
-
+import '../../../data/services/notificacionesPush_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -22,44 +21,43 @@ class _SplashScreenState extends State<SplashScreen> {
     _iniciarAplicacion();
   }
 
-
-Future<void> _iniciarAplicacion() async {
-  await Future.delayed(const Duration(seconds: 2));
-
-  if (!mounted) return;
-
-  await _comprobarSesion();
-}
-
-Future<void> _comprobarSesion() async {
-  try {
-    await AuthState.instance.restaurarSesion();
+  Future<void> _iniciarAplicacion() async {
+    await Future.delayed(const Duration(seconds: 2));
 
     if (!mounted) return;
 
-    if (AuthState.instance.errorConexion) {
+    await _comprobarSesion();
+  }
+
+  Future<void> _comprobarSesion() async {
+    try {
+      await AuthState.instance.restaurarSesion();
+
+      if (!mounted) return;
+
+      if (AuthState.instance.errorConexion) {
+        setState(() {
+          _errorConexion = true;
+        });
+        return;
+      }
+
+      _entrarAplicacion();
+    } catch (_) {
+      if (!mounted) return;
+
       setState(() {
         _errorConexion = true;
       });
-      return;
     }
+  }
 
-    _entrarAplicacion();
-  } catch (_) {
-    if (!mounted) return;
-
-    setState(() {
-      _errorConexion = true;
+  void _entrarAplicacion() {
+    Navigator.of(context).pushReplacementNamed(AppRoutes.shell);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificacionesPushService.instance.procesarMensajePendiente();
     });
   }
-}
-
-void _entrarAplicacion() {
-  Navigator.of(context).pushReplacementNamed(
-    AppRoutes.shell,
-  );
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -78,10 +76,7 @@ void _entrarAplicacion() {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black54,
-                ],
+                colors: [Colors.transparent, Colors.black54],
               ),
             ),
           ),

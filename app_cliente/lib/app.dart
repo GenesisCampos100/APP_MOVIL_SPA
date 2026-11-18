@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 import 'core/i18n/idioma_state.dart';
 import 'core/routes/app_routes.dart';
+import 'core/routes/app_navigator.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/aura_colores.dart';
 import 'core/theme/dark_theme.dart';
@@ -19,6 +21,7 @@ class AuraSpaApp extends StatelessWidget {
       child: ListenableBuilder(
         listenable: TemaState.instance,
         builder: (context, _) => MaterialApp(
+          navigatorKey: appNavigatorKey,
           title: 'Aura Spa',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light.copyWith(
@@ -26,7 +29,9 @@ class AuraSpaApp extends StatelessWidget {
             extensions: [AuraColores.claro],
           ),
           darkTheme: crearTemaOscuro().copyWith(
-            snackBarTheme: temaAvisos.copyWith(backgroundColor: const Color(0xFF3A3A3C)),
+            snackBarTheme: temaAvisos.copyWith(
+              backgroundColor: const Color(0xFF3A3A3C),
+            ),
             extensions: [AuraColores.oscuro],
           ),
           themeMode: TemaState.instance.modo,

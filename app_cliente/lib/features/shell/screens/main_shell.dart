@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../data/services/notificacionesPush_service.dart';
 import '../../../core/i18n/textos.dart';
 import '../../appointments/screens/appointments_screen.dart';
 import '../../catalog/screens/catalog_screen.dart';
@@ -7,15 +9,28 @@ import '../../profile/screens/profile_screen.dart';
 import '../shell_controller.dart';
 
 /// Contenedor con el menú inferior de 4 pestañas.
-class MainShell extends StatelessWidget {
+class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
+  @override
+  State<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends State<MainShell> {
   static const List<Widget> _pantallas = [
     HomeScreen(),
     CatalogScreen(),
     AppointmentsScreen(),
     ProfileScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificacionesPushService.instance.marcarShellListo();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

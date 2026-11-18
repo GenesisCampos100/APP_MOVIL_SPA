@@ -1,11 +1,26 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+class ApiException implements Exception {
+  final int statusCode;
+  final String? codigo;
+  final String? mensajeServidor;
+
+  const ApiException(
+    this.statusCode, {
+    this.codigo,
+    this.mensajeServidor,
+  });
+
+  @override
+  String toString() => 'Error $statusCode';
+}
+
 class ApiService {
 
   //static const String baseUrl = 'http://10.0.2.2:3000';
-  //static const String baseUrl = 'http://192.168.100.10:3000';
-  static const String baseUrl = 'http://10.34.5.12:3000';
+  static const String baseUrl = 'http://192.168.100.10:3000';
+  //static const String baseUrl = 'http://10.34.5.12:3000';
   static Future<dynamic> get(
     String endpoint, {
     String? token,
@@ -169,19 +184,33 @@ class ApiService {
     print('>>> API STATUS: ${response.statusCode}');
     print('>>> API BODY: ${response.body}');
 
-    final data = jsonDecode(response.body);
+    dynamic data;
+    try {
+      data = response.body.isEmpty ? null : jsonDecode(response.body);
+    } catch (_) {
+      data = null;
+    }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     }
 
+    String? mensajeServidor;
+    String? codigo;
     if (data is Map<String, dynamic>) {
-      throw Exception(
-        '${response.statusCode}: '
-        '${data['error'] ?? data['mensaje'] ?? 'Error en la solicitud'}',
-      );
+      final valor = data['error'] ?? data['mensaje'];
+      if (valor is String && valor.trim().isNotEmpty) {
+        mensajeServidor = valor.trim();
+      }
+      if (data['codigo'] is String) {
+        codigo = data['codigo'] as String;
+      }
     }
 
-    throw Exception('Error en la solicitud');
+    throw ApiException(
+      response.statusCode,
+      codigo: codigo,
+      mensajeServidor: mensajeServidor,
+    );
   }
 }

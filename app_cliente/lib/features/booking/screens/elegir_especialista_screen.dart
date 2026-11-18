@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/errores.dart';
 import '../../../data/models/empleado.dart';
 import '../../../data/repositories/empleados_repository.dart';
 import '../../../data/repositories/citas_repository.dart';
@@ -129,7 +130,7 @@ class _ElegirEspecialistaScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
+            textoError(context, e),
           ),
           backgroundColor: Colors.red,
         ),
