@@ -1,5 +1,6 @@
 import 'convertidores.dart';
 
+
 /// Notificación para el usuario. Tipos según el ciclo de vida de una cita:
 ///   cita_creada      -> "Cita registrada"
 ///   confirmar_cita   -> "Confirma tu cita" (24 h antes; pide una acción)
@@ -29,6 +30,11 @@ class Notificacion {
   final bool leida; //             (columna nueva)                 BOOLEAN
   final bool atendida; //          derivado del estado de la cita
 
+  /// Datos para armar el texto en el idioma elegido (no son columnas):
+  ///   servicio -> nombre del servicio, hora -> "HH:MM", variante -> "manual".
+  /// Si viene vacío se muestran titulo y mensaje tal como llegan de la BD.
+  final Map<String, String> datos;
+
   const Notificacion({
     required this.id,
     this.idCita,
@@ -38,6 +44,7 @@ class Notificacion {
     required this.fechaEnvio,
     this.leida = false,
     this.atendida = false,
+    this.datos = const {},
   });
 
   /// "Confirma tu cita" que todavía no se ha confirmado.
@@ -52,6 +59,7 @@ class Notificacion {
         fechaEnvio: fechaEnvio,
         leida: leida ?? this.leida,
         atendida: atendida ?? this.atendida,
+        datos: datos,
       );
 
   factory Notificacion.fromJson(Map<String, dynamic> j) => Notificacion(
@@ -60,8 +68,12 @@ class Notificacion {
         tipo: (j['tipo'] ?? '') as String,
         titulo: (j['titulo'] ?? '') as String,
         mensaje: (j['mensaje'] ?? '') as String,
-        fechaEnvio: DateTime.parse(j['fecha_envio'].toString()).toLocal(),
+        fechaEnvio: DateTime.parse(j['fecha_envio'].toString()),
         leida: (j['leida'] as bool?) ?? false,
         atendida: (j['atendida'] as bool?) ?? false,
+        datos: {
+          if (j['servicio'] != null) 'servicio': j['servicio'].toString(),
+          if (j['hora'] != null) 'hora': j['hora'].toString(),
+        },
       );
 }

@@ -43,6 +43,42 @@ class PerfilRepository {
     return UsuarioSesion.fromJson(usuarioJson);
   }
 
+
+  // SUBIR O REEMPLAZAR FOTOGRAFÍA DE PERFIL
+  Future<String?> subirFotoPerfil(String filePath) async {
+    final sesion = SesionService.instance;
+    final token = sesion.token;
+
+    if (!sesion.estaIniciada || token == null) {
+      throw Exception('No hay una sesión activa');
+    }
+
+    final respuesta = await ApiService.putFile(
+      '/api/usuarios/perfil/foto',
+      filePath,
+      fieldName: 'foto',
+      token: token,
+    );
+
+    return respuesta['foto'] as String?;
+  }
+
+  // ELIMINAR FOTOGRAFÍA DE PERFIL
+  Future<void> eliminarFotoPerfil() async {
+    final sesion = SesionService.instance;
+    final token = sesion.token;
+
+    if (!sesion.estaIniciada || token == null) {
+      throw Exception('No hay una sesión activa');
+    }
+
+    await ApiService.delete(
+      '/api/usuarios/perfil/foto',
+      token: token,
+    );
+  }
+
+
   // SOLICITAR CÓDIGO PARA EL NUEVO CORREO
   Future<void> solicitarCambioCorreo(String correo) async {
     final sesion = SesionService.instance;

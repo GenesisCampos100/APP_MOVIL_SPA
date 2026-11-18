@@ -58,3 +58,7 @@ node_modules/
 
 # Variables de entorno privadas
 .env
+
+# Credenciales privadas de Firebase Admin SDK
+SpaBackend/credentials/
+SpaBackend/*service-account*.json

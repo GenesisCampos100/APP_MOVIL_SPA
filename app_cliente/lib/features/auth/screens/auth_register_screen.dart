@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../core/i18n/textos.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/theme/aura_colores.dart';
+import '../../../core/utils/errores.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../widgets/auth_widgets.dart';
 
@@ -41,11 +44,11 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen> {
         RegExp(r'[A-Za-z]').hasMatch(pass) &&
         RegExp(r'\d').hasMatch(pass);
     setState(() {
-      _errNombre = _nombre.text.trim().isEmpty ? 'Ingresa tu nombre' : null;
+      _errNombre = _nombre.text.trim().isEmpty ? context.t('auth.err_nombre') : null;
       // El apellido materno es opcional.
-      _errApellidoP = _apellidoP.text.trim().isEmpty ? 'Ingresa tu apellido' : null;
-      _errPassword = passValida ? null : 'Mínimo 8 caracteres, con letras y números';
-      _errTerminos = _acepto ? null : 'Debes aceptar los términos para continuar';
+      _errApellidoP = _apellidoP.text.trim().isEmpty ? context.t('auth.err_apellido') : null;
+      _errPassword = passValida ? null : context.t('auth.err_pass_regla');
+      _errTerminos = _acepto ? null : context.t('auth.err_terminos');
       _errGeneral = null;
     });
     return _errNombre == null &&
@@ -74,7 +77,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen> {
 
     if (!requiereVerificacion) {
       setState(() {
-        _errGeneral = 'No se pudo enviar el código de verificación.';
+        _errGeneral = context.t('auth.err_envio_codigo');
       });
       return;
     }
@@ -88,7 +91,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen> {
     if (!mounted) return;
 
     setState(() {
-      _errGeneral = e.toString().replaceFirst('Exception: ', '');
+      _errGeneral = textoError(context, e);
     });
   } finally {
     if (mounted) {
@@ -100,10 +103,10 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return AuthPagina(
-      titulo: 'Únete a Aura Spa',
-      subtitulo: 'Completa tus datos para continuar.',
+      titulo: context.t('auth.reg_titulo'),
+      subtitulo: context.t('auth.reg_sub'),
       hijos: [
-        AuthCampo(label: 'Nombre', controller: _nombre, errorText: _errNombre,
+        AuthCampo(label: context.t('auth.nombre'), controller: _nombre, errorText: _errNombre,
             textInputAction: TextInputAction.next),
         const SizedBox(height: 14),
         // Los dos apellidos en la misma línea
@@ -112,7 +115,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen> {
           children: [
             Expanded(
               child: AuthCampo(
-                label: 'Apellido paterno',
+                label: context.t('auth.apellido_p'),
                 controller: _apellidoP,
                 errorText: _errApellidoP,
                 textInputAction: TextInputAction.next,
@@ -121,7 +124,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: AuthCampo(
-                label: 'Apellido materno',
+                label: context.t('auth.apellido_m'),
                 controller: _apellidoM,
                 textInputAction: TextInputAction.next,
               ),
@@ -129,7 +132,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen> {
           ],
         ),
         const SizedBox(height: 14),
-        AuthCampo(label: 'Correo Electronico', controller: _correoCtrl, enabled: false),
+        AuthCampo(label: context.t('auth.correo'), controller: _correoCtrl, enabled: false),
         const SizedBox(height: 14),
         AuthCampoPassword(controller: _password, errorText: _errPassword),
         const SizedBox(height: 10),
@@ -141,15 +144,17 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen> {
               width: 24,
               child: Checkbox(
                 value: _acepto,
-                activeColor: Colors.black,
+                activeColor: context.aura.boton,
+                checkColor: context.aura.textoBoton,
+                side: BorderSide(color: context.aura.bordeCampo, width: 1.5),
                 onChanged: (v) => setState(() => _acepto = v ?? false),
               ),
             ),
             const SizedBox(width: 8),
-            const Expanded(
+            Expanded(
               child: Text(
-                'Acepto la Política de privacidad y los Términos y condiciones.',
-                style: TextStyle(fontSize: 12),
+                context.t('auth.terminos'),
+                style: const TextStyle(fontSize: 12),
               ),
             ),
           ],
@@ -165,7 +170,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen> {
             child: Text(_errGeneral!, style: const TextStyle(fontSize: 12, color: Colors.red)),
           ),
         const SizedBox(height: 20),
-        AuthBoton(texto: 'Crear mi cuenta', cargando: _cargando, onPressed: _crearCuenta),
+        AuthBoton(texto: context.t('auth.crear'), cargando: _cargando, onPressed: _crearCuenta),
       ],
     );
   }

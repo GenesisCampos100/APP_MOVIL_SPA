@@ -51,6 +51,58 @@ const obtenerServicios = async (req, res) => {
     }
 };
 
+// CONSULTAR SERVICIOS MÁS POPULARES DEL MES
+
+const obtenerServiciosDestacados = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT
+                s.id_servicio,
+                s.id_categoria,
+                cat.nombre AS categoria,
+                s.nombre,
+                s.descripcion,
+                s.duracion,
+                s.precio,
+                s.imagen,
+                s.estado,
+                COUNT(c.id_cita)::int AS total_citas
+             FROM servicios s
+             INNER JOIN categorias cat
+                ON cat.id_categoria = s.id_categoria
+             INNER JOIN citas c
+                ON c.id_servicio = s.id_servicio
+             WHERE s.estado = true
+               AND c.estado IN ('Confirmada', 'Completada')
+               AND c.fecha >= DATE_TRUNC('month', CURRENT_DATE)::date
+               AND c.fecha < (
+                   DATE_TRUNC('month', CURRENT_DATE)
+                   + INTERVAL '1 month'
+               )::date
+             GROUP BY
+                s.id_servicio,
+                s.id_categoria,
+                cat.nombre
+             ORDER BY
+                total_citas DESC,
+                s.nombre ASC
+             LIMIT 6`
+        );
+
+        return res.json(result.rows);
+
+    } catch (error) {
+        console.error(
+            'Error al obtener servicios destacados:',
+            error.message
+        );
+
+        return res.status(500).json({
+            error: 'Error al obtener los servicios destacados'
+        });
+    }
+};
+
 
 // CONSULTAR UN SERVICIO POR ID
 
@@ -93,6 +145,8 @@ const obtenerServicioPorId = async (req, res) => {
         });
     }
 };
+
+
 
 
 
@@ -505,6 +559,7 @@ const obtenerEmpleadosPorServicio = async (req, res) => {
 };
 
 
+
 const obtenerResenasPorServicio = async (req, res) => {
     try {
         const servicioId = Number(req.params.id);
@@ -530,7 +585,7 @@ const obtenerResenasPorServicio = async (req, res) => {
             });
         }
 
-        // Obtener reseñas con los datos necesarios para mostrarlas.
+        // Obtener reseñas.
         const result = await pool.query(
             `SELECT
                 r.id_resena,
@@ -538,6 +593,7 @@ const obtenerResenasPorServicio = async (req, res) => {
                 r.calificacion_ser,
                 r.calificacion_emp,
                 r.comentario,
+                r.aspectos,
                 r.fecha,
                 CONCAT(cl.nombre, ' ', cl.apellido_p) AS autor,
                 CONCAT(e.nombre, ' ', e.apellido_p) AS empleado_nombre,
@@ -558,8 +614,28 @@ const obtenerResenasPorServicio = async (req, res) => {
             [servicioId]
         );
 
+        // Calcular promedios.
+        const resumen = await pool.query(
+            `SELECT
+                COUNT(*)::int AS total_resenas,
+                COALESCE(
+                    ROUND(AVG(r.calificacion_ser)::numeric, 1),
+                    0
+                )::float AS promedio_servicio,
+                COALESCE(
+                    ROUND(AVG(r.calificacion_emp)::numeric, 1),
+                    0
+                )::float AS promedio_empleado
+             FROM resenas r
+             INNER JOIN citas c
+                ON c.id_cita = r.id_cita
+             WHERE c.id_servicio = $1`,
+            [servicioId]
+        );
+
         return res.json({
-            resenas: result.rows
+            resenas: result.rows,
+            resumen: resumen.rows[0]
         });
 
     } catch (error) {
@@ -575,6 +651,216 @@ const obtenerResenasPorServicio = async (req, res) => {
 };
 
 
+const crearResena = async (req, res) => {
+    const client = await pool.connect();
+    let transaccionIniciada = false;
+
+    try {
+        const servicioId = Number(req.params.id);
+        const usuarioId = Number(req.usuario?.id_usuario);
+        const rol = Number(req.usuario?.rol);
+
+        const {
+            id_cita,
+            calificacion,
+            comentario,
+            aspectos
+        } = req.body;
+
+        // Solo los clientes pueden publicar reseñas.
+        if (rol !== 3) {
+            return res.status(403).json({
+                error: 'Solo los clientes pueden publicar reseñas'
+            });
+        }
+
+        // Validar identificadores.
+        const citaId = Number(id_cita);
+
+        if (
+            !Number.isInteger(servicioId) || servicioId <= 0 ||
+            !Number.isInteger(citaId) || citaId <= 0 ||
+            !Number.isInteger(usuarioId) || usuarioId <= 0
+        ) {
+            return res.status(400).json({
+                error: 'Los identificadores proporcionados no son válidos'
+            });
+        }
+
+        // Validar calificación.
+        const calificacionNumero = Number(calificacion);
+
+        if (
+            !Number.isInteger(calificacionNumero) ||
+            calificacionNumero < 1 ||
+            calificacionNumero > 5
+        ) {
+            return res.status(400).json({
+                error: 'La calificación debe estar entre 1 y 5'
+            });
+        }
+
+        // Validar comentario.
+        if (
+            comentario !== undefined &&
+            comentario !== null &&
+            (
+                typeof comentario !== 'string' ||
+                comentario.trim().length > 200
+            )
+        ) {
+            return res.status(400).json({
+                error: 'El comentario no puede superar los 200 caracteres'
+            });
+        }
+
+        // Validar aspectos.
+        const aspectosPermitidos = [
+            'atencion',
+            'limpieza',
+            'resultado',
+            'puntualidad',
+            'instalaciones'
+        ];
+
+        if (
+            aspectos !== undefined &&
+            (
+                !Array.isArray(aspectos) ||
+                aspectos.some(
+                    aspecto =>
+                        typeof aspecto !== 'string' ||
+                        !aspectosPermitidos.includes(aspecto)
+                ) ||
+                new Set(aspectos).size !== aspectos.length
+            )
+        ) {
+            return res.status(400).json({
+                error: 'Los aspectos seleccionados no son válidos'
+            });
+        }
+
+        await client.query('BEGIN');
+        transaccionIniciada = true;
+
+        // Verificar que la cita pertenezca al cliente autenticado.
+        // Se bloquea la cita para evitar publicaciones simultáneas.
+        const citaResult = await client.query(
+            `SELECT
+                c.id_cita,
+                c.id_cliente,
+                c.id_servicio,
+                c.estado
+             FROM citas c
+             INNER JOIN clientes cl
+                ON cl.id_cliente = c.id_cliente
+             WHERE c.id_cita = $1
+               AND cl.id_usuario = $2
+             FOR UPDATE OF c`,
+            [citaId, usuarioId]
+        );
+
+        if (!citaResult.rowCount) {
+            await client.query('ROLLBACK');
+            transaccionIniciada = false;
+
+            return res.status(404).json({
+                error: 'La cita no existe o no te pertenece'
+            });
+        }
+
+        const cita = citaResult.rows[0];
+
+        // Comprobar que la cita corresponda al servicio.
+        if (Number(cita.id_servicio) !== servicioId) {
+            await client.query('ROLLBACK');
+            transaccionIniciada = false;
+
+            return res.status(400).json({
+                error: 'La cita no corresponde a este servicio'
+            });
+        }
+
+        // Solo se permiten reseñas de citas completadas.
+        if (cita.estado !== 'Completada') {
+            await client.query('ROLLBACK');
+            transaccionIniciada = false;
+
+            return res.status(409).json({
+                error: 'Solo puedes reseñar citas completadas'
+            });
+        }
+
+        // Evitar que una cita tenga más de una reseña.
+        const resenaExistente = await client.query(
+            `SELECT id_resena
+             FROM resenas
+             WHERE id_cita = $1`,
+            [citaId]
+        );
+
+        if (resenaExistente.rowCount) {
+            await client.query('ROLLBACK');
+            transaccionIniciada = false;
+
+            return res.status(409).json({
+                error: 'Esta cita ya tiene una reseña'
+            });
+        }
+
+        // Registrar la reseña.
+        const resultado = await client.query(
+            `INSERT INTO resenas (
+                id_cita,
+                calificacion_ser,
+                calificacion_emp,
+                comentario,
+                fecha,
+                aspectos
+             )
+             VALUES ($1, $2, $2, $3, CURRENT_DATE, $4)
+             RETURNING
+                id_resena,
+                id_cita,
+                calificacion_ser,
+                calificacion_emp,
+                comentario,
+                fecha,
+                aspectos`,
+            [
+                citaId,
+                calificacionNumero,
+                comentario?.trim() || null,
+                aspectos || []
+            ]
+        );
+
+        await client.query('COMMIT');
+        transaccionIniciada = false;
+
+        return res.status(201).json({
+            mensaje: 'Reseña publicada correctamente',
+            resena: resultado.rows[0]
+        });
+
+    } catch (error) {
+        if (transaccionIniciada) {
+            await client.query('ROLLBACK');
+        }
+
+        console.error('Error al publicar reseña:', error.message);
+
+        return res.status(500).json({
+            error: 'No se pudo publicar la reseña'
+        });
+
+    } finally {
+        client.release();
+    }
+};
+
+
+
 
 
 module.exports = {
@@ -584,6 +870,8 @@ module.exports = {
     actualizarServicio,
     eliminarServicio,
     obtenerEmpleadosPorServicio,
-    obtenerResenasPorServicio
+    obtenerResenasPorServicio,
+    obtenerServiciosDestacados,
+    crearResena
 };
 

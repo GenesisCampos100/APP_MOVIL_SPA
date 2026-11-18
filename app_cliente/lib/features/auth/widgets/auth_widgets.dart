@@ -1,28 +1,38 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aura_colores.dart';
+import '../../../core/i18n/textos.dart';
 
-InputDecoration _decoracion({
+/// Decoración de los campos de texto de la app (cambia con el tema).
+/// [relleno] y [sinContador] sirven para el campo de teléfono.
+InputDecoration decoracionCampo(
+  BuildContext context, {
   String? hint,
   String? errorText,
   Widget? suffix,
   bool deshabilitado = false,
+  EdgeInsetsGeometry relleno = const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+  bool sinContador = false,
 }) {
-  OutlineInputBorder borde(Color c) => OutlineInputBorder(
+  final c = context.aura;
+  OutlineInputBorder borde(Color color) => OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: c),
+        borderSide: BorderSide(color: color),
       );
   return InputDecoration(
     hintText: hint,
+    hintStyle: TextStyle(color: c.textoSecundario),
     errorText: errorText,
     suffixIcon: suffix,
+    counterText: sinContador ? '' : null,
     isDense: true,
     filled: deshabilitado,
-    fillColor: const Color(0xFFE6E6E6),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
-    border: borde(Colors.black54),
-    enabledBorder: borde(Colors.black54),
-    disabledBorder: borde(Colors.black26),
-    focusedBorder: borde(Colors.black),
+    fillColor: c.campoBloqueado,
+    contentPadding: relleno,
+    border: borde(context.bordeCampo),
+    enabledBorder: borde(context.bordeCampo),
+    disabledBorder: borde(c.borde),
+    focusedBorder: borde(c.texto),
     errorBorder: borde(Colors.red),
     focusedErrorBorder: borde(Colors.red),
   );
@@ -61,7 +71,7 @@ class AuthPagina extends StatelessWidget {
               ),
               const SizedBox(height: 28),
               if (subtitulo != null) ...[
-                Text(subtitulo!, style: const TextStyle(fontSize: 12, color: AppColors.gris)),
+                Text(subtitulo!, style: TextStyle(fontSize: 12, color: context.aura.textoSecundario)),
                 const SizedBox(height: 14),
               ],
               ...hijos,
@@ -109,7 +119,7 @@ class AuthCampo extends StatelessWidget {
           textInputAction: textInputAction,
           onChanged: onChanged,
           onSubmitted: onSubmitted,
-          decoration: _decoracion(errorText: errorText, deshabilitado: !enabled),
+          decoration: decoracionCampo(context, errorText: errorText, deshabilitado: !enabled),
         ),
       ],
     );
@@ -118,14 +128,14 @@ class AuthCampo extends StatelessWidget {
 
 /// Campo de contraseña con el ojito para mostrar u ocultar.
 class AuthCampoPassword extends StatefulWidget {
-  final String label;
+  final String? label; // si es null, se usa "Contraseña" en el idioma elegido
   final TextEditingController controller;
   final String? errorText;
   final ValueChanged<String>? onSubmitted;
 
   const AuthCampoPassword({
     super.key,
-    this.label = 'Contraseña',
+    this.label,
     required this.controller,
     this.errorText,
     this.onSubmitted,
@@ -143,13 +153,14 @@ class _AuthCampoPasswordState extends State<AuthCampoPassword> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(widget.label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        Text(widget.label ?? context.t('auth.password'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
         const SizedBox(height: 6),
         TextField(
           controller: widget.controller,
           obscureText: _oculto,
           onSubmitted: widget.onSubmitted,
-          decoration: _decoracion(
+          decoration: decoracionCampo(
+            context,
             errorText: widget.errorText,
             suffix: IconButton(
               icon: Icon(_oculto ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 20),
@@ -171,19 +182,22 @@ class AuthBoton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.aura;
     return FilledButton(
       onPressed: cargando ? null : onPressed,
       style: FilledButton.styleFrom(
-        backgroundColor: Colors.black,
-        disabledBackgroundColor: Colors.black26,
+        backgroundColor: c.boton,
+        foregroundColor: c.textoBoton,
+        disabledBackgroundColor: c.boton.withValues(alpha: 0.26),
+        disabledForegroundColor: c.textoBoton,
         minimumSize: const Size.fromHeight(46),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: cargando
-          ? const SizedBox(
+          ? SizedBox(
               height: 20,
               width: 20,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              child: CircularProgressIndicator(strokeWidth: 2, color: c.textoBoton),
             )
           : Text(texto),
     );

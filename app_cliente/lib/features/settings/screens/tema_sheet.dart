@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/i18n/textos.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tema_state.dart';
 
@@ -18,24 +19,25 @@ void abrirTema(BuildContext context) {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Tema', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              Text(ctx.t('tema.titulo'),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
               _Opcion(
                 icono: Icons.light_mode_outlined,
-                titulo: 'Claro',
+                titulo: ctx.t('tema.claro'),
                 modo: ThemeMode.light,
                 cerrar: () => Navigator.pop(ctx),
               ),
               _Opcion(
                 icono: Icons.dark_mode_outlined,
-                titulo: 'Oscuro',
+                titulo: ctx.t('tema.oscuro'),
                 modo: ThemeMode.dark,
                 cerrar: () => Navigator.pop(ctx),
               ),
               _Opcion(
                 icono: Icons.brightness_auto_outlined,
-                titulo: 'Automático',
-                subtitulo: 'Según la configuración de tu celular',
+                titulo: ctx.t('tema.automatico'),
+                subtitulo: ctx.t('tema.automatico_sub'),
                 modo: ThemeMode.system,
                 cerrar: () => Navigator.pop(ctx),
               ),

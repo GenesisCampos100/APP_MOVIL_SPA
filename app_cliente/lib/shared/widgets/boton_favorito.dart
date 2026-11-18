@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/i18n/textos.dart';
 import '../../core/theme/app_theme.dart';
 
 /// Botón circular con un corazón. Vacío = no es favorito; lleno = favorito.
@@ -17,7 +18,7 @@ class BotonFavorito extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos',
+      message: context.t(esFavorito ? 'fav.tip_quitar' : 'fav.tip_agregar'),
       child: Material(
         color: Colors.transparent,
         shape: const CircleBorder(

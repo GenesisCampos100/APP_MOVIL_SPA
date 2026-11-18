@@ -1,7 +1,9 @@
+import '../../../shared/widgets/prefijo_telefono.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/i18n/textos.dart';
 import '../../../core/routes/app_routes.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aura_colores.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../shared/widgets/pantalla_exito.dart';
 import '../../auth/auth_state.dart';
@@ -34,7 +36,7 @@ class _TelefonoScreenState extends State<TelefonoScreen> {
   Future<void> _continuar() async {
     final numero = _ctrl.text.trim();
     if (numero.length != 10) {
-      setState(() => _error = 'Ingresa un número de 10 dígitos');
+      setState(() => _error = context.t('tel.err_10'));
       return;
     }
     setState(() {
@@ -52,9 +54,9 @@ class _TelefonoScreenState extends State<TelefonoScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => PantallaExito(
-            titulo: 'Teléfono registrado',
-            mensaje: 'Gracias, ya tenemos tu número de contacto.\nContinúa con tu reserva.',
-            textoBoton: 'Continuar',
+            titulo: context.t('tel.ok_titulo'),
+            mensaje: context.t('tel.ok_msg'),
+            textoBoton: context.t('comun.continuar'),
             onContinuar: (ctx) => Navigator.pushReplacementNamed(
               ctx,
               AppRoutes.especialista,
@@ -67,18 +69,13 @@ class _TelefonoScreenState extends State<TelefonoScreen> {
       if (!mounted) return;
       setState(() {
         _cargando = false;
-        _error = 'No se pudo guardar. Intenta de nuevo.';
+        _error = context.t('tel.err_guardar');
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    OutlineInputBorder borde(Color c) => OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: c),
-        );
-
     return Scaffold(
       appBar: AppBar(),
       body: SafeArea(
@@ -87,29 +84,20 @@ class _TelefonoScreenState extends State<TelefonoScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Ingresa tu número de teléfono',
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
+              Text(
+                context.t('tel.titulo'),
+                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Necesitamos completar tu información para continuar.',
-                style: TextStyle(fontSize: 12, color: AppColors.gris),
+              Text(
+                context.t('tel.sub'),
+                style: TextStyle(fontSize: 12, color: context.aura.textoSecundario),
               ),
               const SizedBox(height: 22),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    height: 46,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.black54),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text('+52', style: TextStyle(fontWeight: FontWeight.w600)),
-                  ),
+                  const PrefijoTelefono(),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
@@ -120,23 +108,18 @@ class _TelefonoScreenState extends State<TelefonoScreen> {
                       onChanged: (_) {
                         if (_error != null) setState(() => _error = null);
                       },
-                      decoration: InputDecoration(
-                        counterText: '',
-                        isDense: true,
+                      decoration: decoracionCampo(
+                        context,
                         errorText: _error,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                        border: borde(Colors.black54),
-                        enabledBorder: borde(Colors.black54),
-                        focusedBorder: borde(Colors.black),
-                        errorBorder: borde(Colors.red),
-                        focusedErrorBorder: borde(Colors.red),
+                        relleno: PrefijoTelefono.relleno,
+                        sinContador: true,
                       ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 22),
-              AuthBoton(texto: 'Continuar', cargando: _cargando, onPressed: _continuar),
+              AuthBoton(texto: context.t('comun.continuar'), cargando: _cargando, onPressed: _continuar),
             ],
           ),
         ),

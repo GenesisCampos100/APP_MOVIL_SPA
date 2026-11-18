@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../core/i18n/textos.dart';
 import '../../../core/routes/app_routes.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aura_colores.dart';
+import '../../../core/utils/formato.dart';
 import '../../../data/models/servicio.dart';
 import '../../../data/repositories/favoritos_repository.dart';
 import '../../../shared/widgets/boton_favorito.dart';
@@ -28,6 +30,7 @@ class ServiceDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = servicio;
+    final a = context.aura;
     // La imagen ocupa buen espacio, pero deja ver el título "Reseñas" abajo.
     final altoImagen = (MediaQuery.of(context).size.height * 0.27).clamp(180.0, 280.0);
 
@@ -47,7 +50,8 @@ class ServiceDetailScreen extends StatelessWidget {
                   children: [
                     Text(s.nombre, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 2),
-                    Text(s.categoria, style: const TextStyle(fontSize: 12, color: AppColors.gris)),
+                    Text(context.tOr('cat.${s.categoria}', s.categoria),
+                        style: TextStyle(fontSize: 12, color: a.textoSecundario)),
                   ],
                 ),
               ),
@@ -82,18 +86,19 @@ class ServiceDetailScreen extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFFE3E3E3)),
+              color: a.superficie,
+              border: Border.all(color: a.borde),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Acerca del servicio',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                Text(context.t('detalle.acerca'),
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
                 Text(
                   (s.descripcion == null || s.descripcion!.isEmpty)
-                      ? 'Este servicio aún no tiene descripción.'
+                      ? context.t('detalle.sin_descripcion')
                       : s.descripcion!,
                   style: const TextStyle(fontSize: 13, height: 1.35),
                 ),
@@ -105,9 +110,9 @@ class ServiceDetailScreen extends StatelessWidget {
         ],
       ),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Color(0xFFE3E3E3))),
+        decoration: BoxDecoration(
+          color: a.superficie,
+          border: Border(top: BorderSide(color: a.borde)),
         ),
         child: SafeArea(
           top: false,
@@ -121,7 +126,7 @@ class ServiceDetailScreen extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '${s.nombre} - ${s.categoria}',
+                        '${s.nombre} - ${context.tOr('cat.${s.categoria}', s.categoria)}',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
@@ -129,11 +134,11 @@ class ServiceDetailScreen extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Text('${s.precioTexto} MXN',
+                          Text(context.t('comun.mxn', {'precio': s.precioTexto}),
                               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                           const SizedBox(width: 12),
-                          Text(s.duracionTexto,
-                              style: const TextStyle(fontSize: 13, color: AppColors.gris)),
+                          Text(duracionLegible(s.minutos),
+                              style: TextStyle(fontSize: 13, color: a.textoSecundario)),
                         ],
                       ),
                     ],
@@ -143,11 +148,12 @@ class ServiceDetailScreen extends StatelessWidget {
                 FilledButton(
                   onPressed: () => Navigator.pushNamed(context, AppRoutes.agendar, arguments: s),
                   style: FilledButton.styleFrom(
-                    backgroundColor: Colors.black,
+                    backgroundColor: a.boton,
+                    foregroundColor: a.textoBoton,
                     minimumSize: const Size(110, 42),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                   ),
-                  child: const Text('Agregar'),
+                  child: Text(context.t('detalle.agregar')),
                 ),
               ],
             ),

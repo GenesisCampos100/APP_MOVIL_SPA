@@ -1,8 +1,10 @@
 
 import 'package:flutter/material.dart';
 
+import '../../../core/i18n/textos.dart';
 import '../../../core/routes/app_routes.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aura_colores.dart';
+import '../../../core/utils/errores.dart';
 import '../../../core/utils/formato.dart';
 import '../../../data/repositories/citas_repository.dart';
 import '../../../shared/widgets/pantalla_exito.dart';
@@ -36,8 +38,8 @@ class _ConfirmarCitaScreenState extends State<ConfirmarCitaScreen> {
 
     if (b.idReserva == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No existe un apartado válido para confirmar'),
+        SnackBar(
+          content: Text(context.t('conf.sin_apartado')),
         ),
       );
       return;
@@ -56,9 +58,9 @@ class _ConfirmarCitaScreenState extends State<ConfirmarCitaScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => PantallaExito(
-            titulo: '¡Cita confirmada!',
-            mensaje: 'Tu cita quedó registrada.\nTe esperamos en Aura Spa.',
-            textoBoton: 'Ver mis citas',
+            titulo: context.t('conf.ok_titulo'),
+            mensaje: context.t('conf.ok_msg'),
+            textoBoton: context.t('conf.ver_citas'),
             onContinuar: (ctx) {
               ShellController.irA(2);
               Navigator.popUntil(
@@ -76,9 +78,7 @@ class _ConfirmarCitaScreenState extends State<ConfirmarCitaScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
-          ),
+          content: Text(textoError(context, e)),
         ),
       );
     }
@@ -116,9 +116,7 @@ class _ConfirmarCitaScreenState extends State<ConfirmarCitaScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
-          ),
+          content: Text(textoError(context, e)),
         ),
       );
     }
@@ -128,28 +126,29 @@ class _ConfirmarCitaScreenState extends State<ConfirmarCitaScreen> {
   Widget build(BuildContext context) {
     final b = widget.borrador;
     final s = b.servicio;
+    final c = context.aura;
 
     return Scaffold(
       appBar: AppBar(),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
         children: [
-          const Center(
+          Center(
             child: Text(
-              'Confirmar tu cita',
-              style: TextStyle(
+              context.t('conf.titulo'),
+              style: const TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
           const SizedBox(height: 4),
-          const Center(
+          Center(
             child: Text(
-              'Revisa los detalles antes de reservar',
+              context.t('conf.sub'),
               style: TextStyle(
                 fontSize: 12,
-                color: AppColors.gris,
+                color: c.textoSecundario,
               ),
             ),
           ),
@@ -169,28 +168,29 @@ class _ConfirmarCitaScreenState extends State<ConfirmarCitaScreen> {
               vertical: 6,
             ),
             decoration: BoxDecoration(
+              color: c.superficie,
               border: Border.all(
-                color: const Color(0xFFE3E3E3),
+                color: c.borde,
               ),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               children: [
-                _Fila('Servicio', s.nombre),
+                _Fila(context.t('conf.servicio'), s.nombre),
                 _Fila(
-                  'Especialista',
+                  context.t('conf.especialista'),
                   b.empleado.esCualquiera
-                      ? 'Cualquier disponible'
+                      ? context.t('esp.cualquiera')
                       : b.empleado.nombreCompleto,
                 ),
                 _Fila(
-                  'Fecha y hora',
+                  context.t('conf.fecha_hora'),
                   '${fechaCorta(b.fecha)} - ${hora12(b.hora)}',
                 ),
-                _Fila('Duración', s.duracionTexto),
+                _Fila(context.t('conf.duracion'), duracionLegible(s.minutos)),
                 _Fila(
-                  'Total',
-                  '${s.precioTexto} MXN',
+                  context.t('conf.total'),
+                  context.t('comun.mxn', {'precio': s.precioTexto}),
                   ultima: true,
                   destacado: true,
                 ),
@@ -198,24 +198,24 @@ class _ConfirmarCitaScreenState extends State<ConfirmarCitaScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          const Center(
+          Center(
             child: Text(
-              'Consejo: llega 10 minutos antes de tu cita.',
+              context.t('conf.consejo'),
               style: TextStyle(
                 fontSize: 11,
-                color: AppColors.gris,
+                color: c.textoSecundario,
               ),
             ),
           ),
           if (b.fechaExpiracion != null) ...[
             const SizedBox(height: 12),
-            const Center(
+            Center(
               child: Text(
-                'Tu horario está apartado temporalmente por 5 minutos.',
+                context.t('conf.apartado'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 11,
-                  color: AppColors.gris,
+                  color: c.textoSecundario,
                 ),
               ),
             ),
@@ -231,20 +231,20 @@ class _ConfirmarCitaScreenState extends State<ConfirmarCitaScreen> {
                 child: FilledButton(
                   onPressed: _cargando ? null : _cancelar,
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFEDEDED),
-                    foregroundColor: Colors.black,
+                    backgroundColor: c.campoBloqueado,
+                    foregroundColor: c.texto,
                     minimumSize: const Size.fromHeight(46),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: const Text('Cancelar'),
+                  child: Text(context.t('comun.cancelar')),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: AuthBoton(
-                  texto: 'Confirmar',
+                  texto: context.t('comun.confirmar'),
                   cargando: _cargando,
                   onPressed: _confirmar,
                 ),
@@ -272,15 +272,16 @@ class _Fila extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.aura;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
         border: ultima
             ? null
-            : const Border(
+            : Border(
                 bottom: BorderSide(
-                  color: Color(0xFFEDEDED),
+                  color: c.borde,
                 ),
               ),
       ),
@@ -289,9 +290,9 @@ class _Fila extends StatelessWidget {
         children: [
           Text(
             etiqueta,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
-              color: AppColors.gris,
+              color: c.textoSecundario,
             ),
           ),
           const SizedBox(height: 2),

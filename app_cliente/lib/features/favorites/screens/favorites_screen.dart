@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../../core/i18n/textos.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aura_colores.dart';
+import '../../../core/utils/formato.dart';
 import '../../../data/models/empleado.dart';
 import '../../../data/models/servicio.dart';
 import '../../../data/repositories/favoritos_repository.dart';
@@ -21,9 +24,10 @@ Future<void> abrirFavoritos(BuildContext context) async {
   );
 }
 
-void _aviso(BuildContext context, String texto, {SnackBarAction? accion}) {
+void _aviso(BuildContext context, {required bool agregado, SnackBarAction? accion}) {
   // Corazón lleno al agregar, corazón vacío al quitar.
-  final icono = texto.startsWith('Agregado') ? Icons.favorite : Icons.favorite_border;
+  final icono = agregado ? Icons.favorite : Icons.favorite_border;
+  final texto = context.t(agregado ? 'fav.agregado' : 'fav.quitado');
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
     ..showSnackBar(
@@ -40,26 +44,67 @@ void _aviso(BuildContext context, String texto, {SnackBarAction? accion}) {
     );
 }
 
-/// Corazón de un servicio. Si no hay sesión, pide iniciar sesión primero
-/// y después lo agrega.
-Future<void> alternarFavoritoServicio(BuildContext context, Servicio s) async {
+
+Future<void> alternarFavoritoServicio(
+  BuildContext context,
+  Servicio s,
+) async {
   if (!AuthState.instance.isLoggedIn) {
     final ok = await AuthFlow.iniciar(context);
     if (!ok || !context.mounted) return;
   }
-  final queda = FavoritosRepository.instance.alternarServicio(s);
-  _aviso(context, queda ? 'Agregado a favoritos' : 'Quitado de favoritos');
+
+  try {
+    final queda =
+        await FavoritosRepository.instance.alternarServicio(s);
+
+    if (!context.mounted) return;
+
+    _aviso(context, agregado: queda);
+  } catch (e) {
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          e.toString().replaceFirst('Exception: ', ''),
+        ),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
 }
 
-/// Corazón de un especialista.
-Future<void> alternarFavoritoEmpleado(BuildContext context, Empleado e) async {
+Future<void> alternarFavoritoEmpleado(
+  BuildContext context,
+  Empleado e,
+) async {
   if (!AuthState.instance.isLoggedIn) {
     final ok = await AuthFlow.iniciar(context);
     if (!ok || !context.mounted) return;
   }
-  final queda = FavoritosRepository.instance.alternarEmpleado(e);
-  _aviso(context, queda ? 'Agregado a favoritos' : 'Quitado de favoritos');
+
+  try {
+    final queda =
+        await FavoritosRepository.instance.alternarEmpleado(e);
+
+    if (!context.mounted) return;
+
+    _aviso(context, agregado: queda);
+  } catch (e) {
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          e.toString().replaceFirst('Exception: ', ''),
+        ),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
 }
+
 
 /// Favoritos: dos listas, Servicios y Especialistas. El corazón lleno de cada
 /// fila los quita (con "Deshacer").
@@ -71,8 +116,36 @@ class FavoritesScreen extends StatefulWidget {
 }
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
-  static const _tabs = ['Servicios', 'Especialistas'];
-  String _tab = 'Servicios';
+  static const _tabs = ['servicios', 'especialistas'];
+  String _tab = 'servicios';
+  String? _errorCarga;
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _cargarFavoritos();
+    });
+  }
+
+  Future<void> _cargarFavoritos() async {
+    if (!mounted) return;
+
+    setState(() {
+      _errorCarga = null;
+    });
+
+    try {
+      await FavoritosRepository.instance.cargarFavoritos();
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _errorCarga = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,14 +155,45 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       builder: (context, _) {
         final servicios = repo.servicios;
         final empleados = repo.empleados;
-        final cantidades = {'Servicios': servicios.length, 'Especialistas': empleados.length};
+        final cantidades = {'servicios': servicios.length, 'especialistas': empleados.length};
+        final a = context.aura;
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Favoritos',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            title: Text(context.t('fav.titulo'),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           ),
-          body: Column(
+          body: _errorCarga != null
+    ? Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.wifi_off_rounded,
+                size: 42,
+                color: Colors.redAccent,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _errorCarga!,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _cargarFavoritos,
+                child: Text(context.t('comun.reintentar')),
+              ),
+            ],
+          ),
+        ),
+      )
+    : repo.cargando
+        ? const Center(
+            child: CircularProgressIndicator(),
+          )
+        : Column(
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
@@ -103,31 +207,37 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: f == _tab ? Colors.black : Colors.white,
+                              color: f == _tab ? a.boton : a.superficie,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                  color: f == _tab ? Colors.black : Colors.black26),
+                                color: f == _tab ? a.boton : a.borde,
+                              ),
                             ),
                             child: Text(
-                              cantidades[f]! > 0 ? '$f · ${cantidades[f]}' : f,
+                              cantidades[f]! > 0
+                                  ? '${context.t('fav.$f')} · ${cantidades[f]}'
+                                  : context.t('fav.$f'),
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: f == _tab ? Colors.white : AppColors.gris,
+                                color: f == _tab
+                                    ? a.textoBoton
+                                    : a.textoSecundario,
                               ),
                             ),
                           ),
                         ),
                       ),
-                      if (f != _tabs.last) const SizedBox(width: 10),
+                      if (f != _tabs.last)
+                        const SizedBox(width: 10),
                     ],
                   ],
                 ),
               ),
               Expanded(
-                child: _tab == 'Servicios'
-                    ? _listaServicios(servicios)
-                    : _listaEmpleados(empleados),
+                child: _tab == 'servicios'
+                    ? _listaServicios(context, servicios)
+                    : _listaEmpleados(context, empleados),
               ),
             ],
           ),
@@ -136,11 +246,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  Widget _listaServicios(List<Servicio> lista) {
+  Widget _listaServicios(BuildContext context, List<Servicio> lista) {
     if (lista.isEmpty) {
-      return const _Vacio(
-        titulo: 'Sin servicios favoritos',
-        mensaje: 'Toca el corazón en el detalle de un servicio para guardarlo aquí.',
+      return _Vacio(
+        titulo: context.t('fav.vacio_serv_t'),
+        mensaje: context.t('fav.vacio_serv_m'),
       );
     }
     return ListView(
@@ -154,11 +264,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  Widget _listaEmpleados(List<Empleado> lista) {
+  Widget _listaEmpleados(BuildContext context, List<Empleado> lista) {
     if (lista.isEmpty) {
-      return const _Vacio(
-        titulo: 'Sin especialistas favoritos',
-        mensaje: 'Toca el corazón al elegir a tu especialista para guardarlo aquí.',
+      return _Vacio(
+        titulo: context.t('fav.vacio_esp_t'),
+        mensaje: context.t('fav.vacio_esp_m'),
       );
     }
     return ListView(
@@ -180,13 +290,15 @@ class _FilaServicio extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = servicio;
+    final a = context.aura;
     return InkWell(
       onTap: () => Navigator.pushNamed(context, AppRoutes.detalle, arguments: s),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFE3E3E3)),
+          color: a.superficie,
+          border: Border.all(color: a.borde),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -213,11 +325,11 @@ class _FilaServicio extends StatelessWidget {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Text('${s.precioTexto} MXN',
+                      Text(context.t('comun.mxn', {'precio': s.precioTexto}),
                           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                       const SizedBox(width: 10),
-                      Text(s.duracionTexto,
-                          style: const TextStyle(fontSize: 12, color: AppColors.gris)),
+                      Text(duracionLegible(s.minutos),
+                          style: TextStyle(fontSize: 12, color: a.textoSecundario)),
                     ],
                   ),
                 ],
@@ -232,9 +344,9 @@ class _FilaServicio extends StatelessWidget {
                 repo.alternarServicio(s);
                 _aviso(
                   context,
-                  'Quitado de favoritos',
+                  agregado: false,
                   accion: SnackBarAction(
-                    label: 'Deshacer',
+                    label: context.t('comun.deshacer'),
                     onPressed: () => repo.alternarServicio(s),
                   ),
                 );
@@ -255,10 +367,12 @@ class _FilaEmpleado extends StatelessWidget {
   Widget build(BuildContext context) {
     final e = empleado;
     final foto = e.foto;
+    final a = context.aura;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFE3E3E3)),
+        color: a.superficie,
+        border: Border.all(color: a.borde),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -280,7 +394,7 @@ class _FilaEmpleado extends StatelessWidget {
                 Text(e.nombreCompleto,
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 2),
-                Text(e.puesto, style: const TextStyle(fontSize: 12, color: AppColors.gris)),
+                Text(e.puesto, style: TextStyle(fontSize: 12, color: a.textoSecundario)),
                 if (e.rating > 0) ...[
                   const SizedBox(height: 4),
                   Row(
@@ -302,9 +416,9 @@ class _FilaEmpleado extends StatelessWidget {
               repo.alternarEmpleado(e);
               _aviso(
                 context,
-                'Quitado de favoritos',
+                agregado: false,
                 accion: SnackBarAction(
-                  label: 'Deshacer',
+                  label: context.t('comun.deshacer'),
                   onPressed: () => repo.alternarEmpleado(e),
                 ),
               );
@@ -323,6 +437,7 @@ class _Vacio extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final a = context.aura;
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -332,8 +447,8 @@ class _Vacio extends StatelessWidget {
             Container(
               width: 120,
               height: 120,
-              decoration: const BoxDecoration(
-                color: AppColors.rosaSuave,
+              decoration: BoxDecoration(
+                color: a.rosaSuave,
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.favorite_border, size: 56, color: AppColors.rosaFuerte),
@@ -345,7 +460,7 @@ class _Vacio extends StatelessWidget {
             const SizedBox(height: 10),
             Text(mensaje,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, color: AppColors.gris)),
+                style: TextStyle(fontSize: 14, color: a.textoSecundario)),
           ],
         ),
       ),

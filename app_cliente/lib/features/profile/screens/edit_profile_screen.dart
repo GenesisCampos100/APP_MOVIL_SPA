@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/i18n/textos.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aura_colores.dart';
+import '../../../core/utils/errores.dart';
+import '../../../core/utils/formato.dart';
+import '../../../shared/widgets/prefijo_telefono.dart';
 import '../../../data/models/usuario_sesion.dart';
 import '../../../data/repositories/perfil_repository.dart';
 import '../../auth/auth_state.dart';
 import '../../auth/widgets/auth_widgets.dart';
 import '../../auth/screens/auth_verify_screen.dart';
-
-const _meses = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-];
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 
 /// Abre "Mi perfil" (solo con sesión iniciada).
 void abrirMiPerfil(BuildContext context) {
@@ -42,6 +45,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   int? _dia, _mes, _anio;
   bool _cargando = false;
+  bool _cargandoFoto = false;
+  XFile? _fotoSeleccionada;
+  bool _eliminarFotoPendiente = false;
   String? _errNombre, _errApellido, _errTel, _errFecha, _errCorreo;
 
   @override
@@ -80,7 +86,52 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _correo.text.trim().toLowerCase() != o.correo.toLowerCase() ||
         _dia != f?.day ||
         _mes != f?.month ||
-        _anio != f?.year;
+        _anio != f?.year ||
+        _fotoSeleccionada != null ||
+        _eliminarFotoPendiente;
+  }
+
+  Future<bool> _esLaFotoOriginal(XFile imagen) async {
+    final fotoOriginal = _orig.foto;
+
+    if (fotoOriginal == null || fotoOriginal.isEmpty) {
+      return false;
+    }
+
+    final uri = Uri.tryParse(fotoOriginal);
+
+    List<int> bytesOriginales;
+
+    if (uri != null &&
+        (uri.scheme == 'http' || uri.scheme == 'https')) {
+      final respuesta = await http
+          .get(uri)
+          .timeout(const Duration(seconds: 20));
+
+      if (respuesta.statusCode != 200) {
+        throw Exception('No se pudo comprobar la foto original');
+      }
+
+      bytesOriginales = respuesta.bodyBytes;
+    } else if (uri != null && uri.scheme == 'file') {
+      bytesOriginales = await File.fromUri(uri).readAsBytes();
+    } else {
+      bytesOriginales = await File(fotoOriginal).readAsBytes();
+    }
+
+    final bytesSeleccionados = await imagen.readAsBytes();
+
+    if (bytesSeleccionados.length != bytesOriginales.length) {
+      return false;
+    }
+
+    for (var i = 0; i < bytesSeleccionados.length; i++) {
+      if (bytesSeleccionados[i] != bytesOriginales[i]) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   
@@ -93,14 +144,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     if (hayAlgo) {
       if (_dia == null || _mes == null || _anio == null) {
-        errFecha = 'Completa la fecha';
+        errFecha = context.t('edit.err_fecha_completa');
       } else {
         final f = DateTime(_anio!, _mes!, _dia!);
 
         if (f.month != _mes || f.day != _dia) {
-          errFecha = 'Fecha inválida';
+          errFecha = context.t('edit.err_fecha_invalida');
         } else if (f.isAfter(DateTime.now())) {
-          errFecha = 'La fecha no puede ser futura';
+          errFecha = context.t('edit.err_fecha_futura');
         }
       }
     }
@@ -108,18 +159,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final errCorreo = correo.isEmpty ||
             correo.length > 254 ||
             !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(correo)
-        ? 'Ingresa un correo electrónico válido'
+        ? context.t('edit.err_correo')
         : null;
 
     setState(() {
       _errNombre =
-          _nombre.text.trim().isEmpty ? 'Ingresa tu nombre' : null;
+          _nombre.text.trim().isEmpty ? context.t('edit.err_nombre') : null;
 
       _errApellido =
-          _apellidoP.text.trim().isEmpty ? 'Ingresa tu apellido' : null;
+          _apellidoP.text.trim().isEmpty ? context.t('edit.err_apellido') : null;
 
       _errTel = (tel.isNotEmpty && tel.length != 10)
-          ? 'Ingresa un número de 10 dígitos'
+          ? context.t('edit.err_tel')
           : null;
 
       _errCorreo = errCorreo;
@@ -145,9 +196,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       MaterialPageRoute(
         builder: (_) => AuthVerifyScreen(
           correo: correo,
-          titulo: 'Verifica tu nuevo correo',
-          subtitulo:
-              'Te enviamos un código de verificación a:\n$correo',
+          titulo: context.t('edit.verif_titulo'),
+          subtitulo: context.t('edit.verif_sub', {'correo': correo}),
 
           // Utilizar el endpoint específico para cambiar el correo.
           onVerificar: (codigo) async {
@@ -170,6 +220,95 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
 
     return resultado == true;
+  }
+
+  Future<void> _seleccionarFoto(ImageSource source) async {
+    if (_cargandoFoto) return;
+
+    try {
+      final picker = ImagePicker();
+
+      final imagen = await picker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1200,
+        maxHeight: 1200,
+      );
+
+      if (imagen == null || !mounted) return;
+
+      setState(() => _cargandoFoto = true);
+
+      final esOriginal = await _esLaFotoOriginal(imagen);
+
+      if (!mounted) return;
+
+      setState(() {
+        if (esOriginal) {
+          _fotoSeleccionada = null;
+          _eliminarFotoPendiente = false;
+        } else {
+          _fotoSeleccionada = imagen;
+          _eliminarFotoPendiente = false;
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            esOriginal
+                ? 'Es la misma fotografía. No hay cambios.'
+                : 'Vista previa actualizada. Guarda para confirmar.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo seleccionar la foto: $error'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _cargandoFoto = false);
+      }
+    }
+  }
+
+  Future<void> _eliminarFoto() async {
+    if (_cargandoFoto) return;
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar fotografía'),
+        content: const Text(
+          'La fotografía se eliminará cuando guardes los cambios.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Continuar',
+              style: TextStyle(color: Color(0xFFE5174D)),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true || !mounted) return;
+
+    setState(() {
+      _fotoSeleccionada = null;
+      _eliminarFotoPendiente = _orig.foto != null;
+    });
   }
 
 
@@ -202,6 +341,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
       await AuthState.instance.actualizarPerfil(nuevo);
 
+      // Aplicar cambios pendientes de fotografía.
+      if (_eliminarFotoPendiente) {
+        await _repo.eliminarFotoPerfil();
+
+        await AuthState.instance.actualizarFoto(null);
+      } else if (_fotoSeleccionada != null) {
+        final foto = await _repo.subirFotoPerfil(
+          _fotoSeleccionada!.path,
+        );
+
+        if (foto == null || foto.isEmpty) {
+          throw Exception('No se recibió la URL de la fotografía');
+        }
+
+        await AuthState.instance.actualizarFoto(foto);
+      }
+
       if (!mounted) return;
 
       // Si el correo cambió, iniciar el proceso de verificación.
@@ -214,9 +370,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           setState(() => _cargando = false);
 
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                'Los demás datos se guardaron, pero el correo sigue sin cambiar.',
+                context.t('edit.solo_datos'),
               ),
             ),
           );
@@ -235,8 +391,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         SnackBar(
           content: Text(
             cambioCorreo
-                ? 'Perfil y correo actualizados correctamente'
-                : 'Perfil actualizado correctamente',
+                ? context.t('edit.ok_correo')
+                : context.t('edit.ok'),
           ),
         ),
       );
@@ -248,27 +404,45 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'No se pudo completar la actualización: '
-            '${error.toString().replaceFirst('Exception: ', '')}',
+            context.t('edit.err_guardar', {'detalle': textoError(context, error)}),
           ),
         ),
       );
     }
   }
 
+  ImageProvider? _crearImagenOriginal() {
+    debugPrint('FOTO ORIGINAL: ${_orig.foto}');
+    
+    final foto = _orig.foto;
+
+    if (foto == null || foto.isEmpty) return null;
+
+    final uri = Uri.tryParse(foto);
+
+    if (uri != null &&
+        (uri.scheme == 'http' || uri.scheme == 'https')) {
+      return NetworkImage(foto);
+    }
+
+    if (uri != null && uri.scheme == 'file') {
+      return FileImage(File.fromUri(uri));
+    }
+
+    // Si es una ruta local sin esquema.
+    return FileImage(File(foto));
+  }
+
 
   @override
   Widget build(BuildContext context) {
     final anioActual = DateTime.now().year;
-    OutlineInputBorder borde(Color c) => OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: BorderSide(color: c),
-    );
+    final ac = context.aura;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mi perfil',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+        title: Text(context.t('edit.titulo'),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
@@ -277,21 +451,38 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           children: [
             Center(
               child: GestureDetector(
-                onTap: _abrirOpcionesFoto,
+                onTap: _cargandoFoto ? null : _abrirOpcionesFoto,
                 child: Stack(
                   children: [
-                    CircleAvatar(
-                      radius: 52,
-                      backgroundColor: AppColors.rosa,
-                      backgroundImage: _orig.foto != null ? NetworkImage(_orig.foto!) : null,
-                      child: _orig.foto == null
-                          ? Text(
-                        _orig.inicial,
-                        style: const TextStyle(
-                            fontSize: 40, color: Colors.white, fontWeight: FontWeight.w500),
-                      )
-                          : null,
+                    ListenableBuilder(
+                      listenable: AuthState.instance,
+                      builder: (context, child) {
+                        ImageProvider? imagen;
+
+                        if (_fotoSeleccionada != null) {
+                          imagen = FileImage(File(_fotoSeleccionada!.path));
+                        } else if (!_eliminarFotoPendiente) {
+                          imagen = _crearImagenOriginal();
+                        }
+
+                        return CircleAvatar(
+                          radius: 52,
+                          backgroundColor: AppColors.rosa,
+                          backgroundImage: imagen,
+                          child: imagen == null
+                              ? Text(
+                                  _orig.inicial,
+                                  style: const TextStyle(
+                                    fontSize: 40,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                )
+                              : null,
+                        );
+                      },
                     ),
+                    
                     Positioned(
                       right: 0,
                       bottom: 0,
@@ -299,11 +490,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         width: 34,
                         height: 34,
                         decoration: BoxDecoration(
-                          color: Colors.black,
+                          color: ac.boton,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
+                          border: Border.all(color: ac.fondo, width: 2),
                         ),
-                        child: const Icon(Icons.camera_alt_outlined, size: 17, color: Colors.white),
+                        child: Icon(Icons.camera_alt_outlined, size: 17, color: ac.textoBoton),
                       ),
                     ),
                   ],
@@ -312,7 +503,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             const SizedBox(height: 16),
             AuthCampo(
-              label: 'Nombre',
+              label: context.t('edit.nombre'),
               controller: _nombre,
               errorText: _errNombre,
               textInputAction: TextInputAction.next,
@@ -323,7 +514,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               children: [
                 Expanded(
                   child: AuthCampo(
-                    label: 'Apellido paterno',
+                    label: context.t('edit.apellido_p'),
                     controller: _apellidoP,
                     errorText: _errApellido,
                     textInputAction: TextInputAction.next,
@@ -332,7 +523,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: AuthCampo(
-                    label: 'Apellido materno',
+                    label: context.t('edit.apellido_m'),
                     controller: _apellidoM,
                     textInputAction: TextInputAction.next,
                   ),
@@ -341,35 +532,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             const SizedBox(height: 14),
             AuthCampo(
-              label: 'Correo electrónico',
+              label: context.t('edit.correo'),
               controller: _correo,
               errorText: _errCorreo,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
             ),
-            const Padding(
-              padding: EdgeInsets.only(top: 4, left: 2),
+            Padding(
+              padding: const EdgeInsets.only(top: 4, left: 2),
               child: Text(
-                'Si cambias tu correo, tendrás que verificarlo con un código.',
-                style: TextStyle(fontSize: 11, color: AppColors.gris),
+                context.t('edit.correo_nota'),
+                style: TextStyle(fontSize: 11, color: ac.textoSecundario),
               ),
             ),
             const SizedBox(height: 14),
-            const Text('Teléfono', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+            Text(context.t('edit.telefono'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
             const SizedBox(height: 6),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  height: 46,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.black54),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text('+52', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
+                const PrefijoTelefono(),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
@@ -377,31 +559,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     keyboardType: TextInputType.phone,
                     maxLength: 10,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: InputDecoration(
-                      counterText: '',
-                      isDense: true,
+                    decoration: decoracionCampo(
+                      context,
                       errorText: _errTel,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                      border: borde(Colors.black54),
-                      enabledBorder: borde(Colors.black54),
-                      focusedBorder: borde(Colors.black),
-                      errorBorder: borde(Colors.red),
-                      focusedErrorBorder: borde(Colors.red),
+                      relleno: PrefijoTelefono.relleno,
+                      sinContador: true,
                     ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 14),
-            const Text('Fecha de nacimiento',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+            Text(context.t('edit.fecha'),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
             const SizedBox(height: 6),
             Row(
               children: [
                 Expanded(
                   flex: 3,
                   child: _combo(
-                    hint: 'Día',
+                    hint: context.t('edit.dia'),
                     valor: _dia,
                     items: [for (var d = 1; d <= 31; d++) DropdownMenuItem(value: d, child: Text('$d'))],
                     onChanged: (v) => setState(() {
@@ -414,11 +591,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 Expanded(
                   flex: 5,
                   child: _combo(
-                    hint: 'Mes',
+                    hint: context.t('edit.mes'),
                     valor: _mes,
                     items: [
                       for (var m = 1; m <= 12; m++)
-                        DropdownMenuItem(value: m, child: Text(_meses[m - 1])),
+                        DropdownMenuItem(value: m, child: Text(nombreMes(m))),
                     ],
                     onChanged: (v) => setState(() {
                       _mes = v;
@@ -430,7 +607,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 Expanded(
                   flex: 4,
                   child: _combo(
-                    hint: 'Año',
+                    hint: context.t('edit.anio'),
                     valor: _anio,
                     items: [
                       for (var a = anioActual - 5; a >= anioActual - 100; a--)
@@ -456,7 +633,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
           child: AuthBoton(
-            texto: 'Guardar cambios',
+            texto: context.t('edit.guardar'),
             cargando: _cargando,
             onPressed: _hayCambios ? _guardar : null,
           ),
@@ -465,19 +642,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
+  
   void _abrirOpcionesFoto() {
-    void proximamente(BuildContext ctx, String que) {
-      Navigator.pop(ctx);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$que: próximamente')),
-      );
-    }
+    final tieneFoto = _fotoSeleccionada != null ||
+        (_orig.foto != null && !_eliminarFotoPendiente);
 
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: context.aura.superficie,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(20),
+        ),
       ),
       builder: (ctx) => SafeArea(
         child: Padding(
@@ -486,27 +662,56 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Foto de perfil',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              Text(
+                ctx.t('edit.foto'),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               const SizedBox(height: 8),
+
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.photo_library_outlined),
-                title: Text(_orig.foto == null ? 'Subir desde la galería' : 'Cambiar desde la galería'),
-                onTap: () => proximamente(ctx, 'Subir foto'),
+                title: Text(
+                  tieneFoto
+                      ? 'Cambiar desde la galería'
+                      : ctx.t('edit.foto_subir'),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _seleccionarFoto(ImageSource.gallery);
+                },
               ),
+
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.photo_camera_outlined),
-                title: const Text('Tomar una foto'),
-                onTap: () => proximamente(ctx, 'Tomar foto'),
+                title: Text(ctx.t('edit.foto_tomar')),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _seleccionarFoto(ImageSource.camera);
+                },
               ),
-              if (_orig.foto != null)
+
+              if (tieneFoto)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.delete_outline, color: Color(0xFFE5174D)),
-                  title: const Text('Eliminar foto', style: TextStyle(color: Color(0xFFE5174D))),
-                  onTap: () => proximamente(ctx, 'Eliminar foto'),
+                  leading: const Icon(
+                    Icons.delete_outline,
+                    color: Color(0xFFE5174D),
+                  ),
+                  title: const Text(
+                    'Eliminar foto',
+                    style: TextStyle(
+                      color: Color(0xFFE5174D),
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _eliminarFoto();
+                  },
                 ),
             ],
           ),
@@ -521,19 +726,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     required List<DropdownMenuItem<int>> items,
     required ValueChanged<int?> onChanged,
   }) {
+    final ac = context.aura;
     return Container(
       height: 46,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        border: Border.all(color: _errFecha != null ? Colors.red : Colors.black54),
+        border: Border.all(color: _errFecha != null ? Colors.red : ac.bordeCampo),
         borderRadius: BorderRadius.circular(8),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
           value: valor,
           isExpanded: true,
-          hint: Text(hint, style: const TextStyle(fontSize: 14, color: AppColors.gris)),
-          style: const TextStyle(fontSize: 14, color: Colors.black),
+          hint: Text(hint, style: TextStyle(fontSize: 14, color: ac.textoSecundario)),
+          style: TextStyle(fontSize: 14, color: ac.texto),
+          dropdownColor: ac.superficie,
           borderRadius: BorderRadius.circular(12),
           items: items,
           onChanged: onChanged,

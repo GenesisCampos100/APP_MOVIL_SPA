@@ -3,6 +3,9 @@ import 'package:flutter/foundation.dart';
 
 import '../../data/models/usuario_sesion.dart';
 import '../../data/services/sesion_service.dart';
+import '../../data/repositories/favoritos_repository.dart';
+import '../../data/services/notificacionesPush_service.dart';
+
 
 /// Estado de sesión de toda la aplicación.
 class AuthState extends ChangeNotifier {
@@ -33,6 +36,8 @@ class AuthState extends ChangeNotifier {
     _usuario = usuario;
     _errorConexion = false;
     notifyListeners();
+
+    await NotificacionesPushService.instance.registrarTokenEnBackend();
   }
 
   /// Recupera la sesión guardada y valida el JWT.
@@ -46,6 +51,9 @@ class AuthState extends ChangeNotifier {
           await SesionService.instance.restaurarSesion();
 
       _usuario = usuario;
+      if (usuario != null) {
+        await NotificacionesPushService.instance.registrarTokenEnBackend();
+      }
     } catch (e) {
       // Error de conexión: conservar los datos almacenados.
       _errorConexion = true;
@@ -63,6 +71,21 @@ class AuthState extends ChangeNotifier {
     _usuario = actual.copyWith(telefono: telefono);
     notifyListeners();
   }
+
+
+  // Actualiza la fotografía del usuario en memoria y almacenamiento.
+  Future<void> actualizarFoto(String? foto) async {
+    final actual = _usuario;
+    if (actual == null) return;
+
+    final actualizado = actual.copyWith(
+      foto: foto,
+      eliminarFoto: foto == null,
+    );
+
+    await actualizarPerfil(actualizado);
+  }
+
 
   /// Reemplaza los datos del usuario después de editar su perfil.
   Future<void> actualizarPerfil(UsuarioSesion nuevo) async {
@@ -83,6 +106,9 @@ class AuthState extends ChangeNotifier {
   /// Cierra la sesión y elimina los datos almacenados.
   Future<void> cerrarSesion() async {
     await SesionService.instance.cerrarSesion();
+
+    // Limpiar los favoritos del usuario anterior.
+    FavoritosRepository.instance.limpiar();
 
     _usuario = null;
     _errorConexion = false;

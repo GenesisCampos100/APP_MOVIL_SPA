@@ -54,18 +54,24 @@ class UsuarioSesion {
             j['fecha_nacimiento'] == null ? null : aFecha(j['fecha_nacimiento']),
       );
 
-  UsuarioSesion copyWith({String? telefono}) => UsuarioSesion(
-        id: id,
-        idCliente: idCliente,
-        correo: correo,
-        nombre: nombre,
-        apellido: apellido,
-        apellidoMaterno: apellidoMaterno,
-        foto: foto,
-        rol: rol,
-        telefono: telefono ?? this.telefono,
-        fechaNacimiento: fechaNacimiento,
-      );
+  
+  UsuarioSesion copyWith({
+    String? telefono,
+    String? foto,
+    bool eliminarFoto = false,
+  }) => UsuarioSesion(
+    id: id,
+    idCliente: idCliente,
+    correo: correo,
+    nombre: nombre,
+    apellido: apellido,
+    apellidoMaterno: apellidoMaterno,
+    foto: eliminarFoto ? null : (foto ?? this.foto),
+    rol: rol,
+    telefono: telefono ?? this.telefono,
+    fechaNacimiento: fechaNacimiento,
+  );
+
 
   /// Reemplaza los datos editables del perfil (permite dejar campos vacíos).
   UsuarioSesion conPerfil({

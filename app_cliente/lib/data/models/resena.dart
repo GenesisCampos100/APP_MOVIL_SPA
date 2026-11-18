@@ -1,18 +1,21 @@
+
 import 'convertidores.dart';
 
-/// Reseña de un servicio. Tipos alineados con la tabla "resenas".
+/// Reseña de un servicio.
 class Resena {
-  final int id; //                    resenas.id_resena        INT
-  final int idCita; //                resenas.id_cita          INT (FK)
-  final int calificacionServicio; //  resenas.calificacion_ser SMALLINT (1 a 5)
-  final int calificacionEmpleado; //  resenas.calificacion_emp SMALLINT (1 a 5)
-  final String? comentario; //        resenas.comentario       TEXT
-  final DateTime fecha; //            resenas.fecha            DATE
+  final int id;
+  final int idCita;
+  final int calificacionServicio;
+  final int calificacionEmpleado;
+  final String? comentario;
+  final DateTime fecha;
 
-  // Datos para mostrar (vienen de JOIN con citas, clientes y empleados):
   final String autor;
   final String empleadoNombre;
   final String servicioCategoria;
+
+  // Aspectos seleccionados por el cliente.
+  final List<String> aspectos;
 
   const Resena({
     required this.id,
@@ -24,6 +27,7 @@ class Resena {
     this.autor = '',
     this.empleadoNombre = '',
     this.servicioCategoria = '',
+    this.aspectos = const [],
   });
 
   factory Resena.fromJson(Map<String, dynamic> j) => Resena(
@@ -36,5 +40,8 @@ class Resena {
         autor: (j['autor'] ?? '') as String,
         empleadoNombre: (j['empleado_nombre'] ?? '') as String,
         servicioCategoria: (j['servicio_categoria'] ?? '') as String,
+        aspectos: (j['aspectos'] as List? ?? [])
+            .map((e) => e.toString())
+            .toList(),
       );
 }

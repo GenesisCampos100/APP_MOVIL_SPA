@@ -10,16 +10,30 @@ const authRoutes = require('./routes/auth.routes');
 const serviciosRoutes = require('./routes/servicios.routes');
 const citasRoutes = require('./routes/citas.routes');
 const pruebaRoutes = require('./routes/prueba.routes');
+const dispositivosRoutes = require('./routes/dispositivos.routes');
 
 // Rutas de Vanessa
 const usuariosRoutes = require('./routes/usuarios.routes');
-const usuariosFotoRoutes = require('./routes/usuarios_foto.routes');
-const {carpeta: carpetaFotosPerfil} = require('./controllers/usuarios_foto.controller');
+const notificacionesRoutes = require('./routes/notificaciones.routes');
+const favoritosRoutes = require('./routes/favoritos.routes');
 
-// Rutas administrativas de GENESIS
+const iniciarRecordatorios = require('./jobs/recordatorios.job');
+const iniciarCancelacionCitas = require('./jobs/cancelarCitas.job');
+
+// Fotografías de perfil
+const usuariosFotoRoutes = require('./routes/usuarios_foto.routes');
+const {
+  carpeta: carpetaFotosPerfil
+} = require('./controllers/usuarios_foto.controller');
+
+// Rutas administrativas de Génesis
 const adminServiciosRoutes = require('./routes/admin_servicios.routes');
 const adminServiciosImagenRoutes = require('./routes/admin_servicios_imagen.routes');
-const {carpeta: carpetaImagenesServicios} = require('./controllers/servicios_imagen.controller');
+
+const {
+  carpeta: carpetaImagenesServicios
+} = require('./controllers/servicios_imagen.controller');
+
 const adminEmpleadosRoutes = require('./routes/admin_empleados.routes');
 const adminHorariosRoutes = require('./routes/admin_horarios.routes');
 const personalRoutes = require('./routes/personal.routes');
@@ -30,21 +44,58 @@ app.use('/api/auth', authRoutes);
 app.use('/api/servicios', serviciosRoutes);
 app.use('/api/citas', citasRoutes);
 app.use('/api/prueba', pruebaRoutes);
+app.use('/api/dispositivos', dispositivosRoutes);
+
+// Registrar fotografías de perfil
+app.use('/api/usuarios/foto', usuariosFotoRoutes);
+app.use(
+  '/uploads/perfiles',
+  express.static(carpetaFotosPerfil, {
+    index: false,
+    dotfiles: 'deny'
+  })
+);
 
 // Registrar rutas de usuarios
 app.use('/api/usuarios', usuariosRoutes);
-app.use('/api/usuarios/foto', usuariosFotoRoutes);
-app.use('/uploads/perfiles', express.static(carpetaFotosPerfil, {index: false, dotfiles: 'deny'}));
+
+// Notificaciones y favoritos
+app.use('/api/notificaciones', notificacionesRoutes);
+app.use('/api/favoritos', favoritosRoutes);
 
 // Registrar rutas administrativas
 app.use('/api/admin/servicios', adminServiciosRoutes);
 app.use('/api/admin/servicios/imagen', adminServiciosImagenRoutes);
-app.use('/uploads/servicios', require('express').static(carpetaImagenesServicios, {index: false, dotfiles: 'deny'}));
+
+app.use(
+  '/uploads/servicios',
+  express.static(carpetaImagenesServicios, {
+    index: false,
+    dotfiles: 'deny'
+  })
+);
+
 app.use('/api/admin/empleados', adminEmpleadosRoutes);
 app.use('/api/admin/horarios', adminHorariosRoutes);
 
-// Nueva ruta de Recepción, independiente del flujo de app_cliente.
+// Rutas de Recepción
 app.use('/api/personal', personalRoutes);
+
+// Reseñas administrativas
 app.use('/api/admin/resenas', adminResenasRoutes);
 
-module.exports = app;
+
+ // Procesos programados de Vanessa.
+ // Se conservan para la integración definitiva.
+ // Solo se activan cuando estén validadas las reglas de negocio.
+ if (process.env.ENABLE_CITAS_CRON === 'true') {
+   iniciarRecordatorios();
+   iniciarCancelacionCitas();
+ } else {
+   console.log(
+     'Procesos automáticos de citas desactivados durante las pruebas.'
+   );
+ }
+
+ module.exports = app;
+

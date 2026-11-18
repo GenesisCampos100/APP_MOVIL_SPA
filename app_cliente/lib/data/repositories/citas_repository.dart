@@ -1,4 +1,3 @@
-
 import 'package:flutter/foundation.dart';
 
 import '../models/cita.dart';
@@ -67,6 +66,70 @@ class CitasRepository extends ChangeNotifier {
       throw Exception('No se pudo cancelar la cita: $e');
     }
   }
+
+
+  /// Confirma una cita pendiente del cliente.
+  Future<void> confirmarCita(int idCita) async {
+    final sesion = SesionService.instance;
+
+    if (!sesion.estaIniciada || sesion.token == null) {
+      throw Exception('Debes iniciar sesión para confirmar una cita.');
+    }
+
+    try {
+      await ApiService.patch(
+        '/api/citas/$idCita/confirmar',
+        token: sesion.token,
+      );
+
+      notifyListeners();
+    } catch (e) {
+      throw Exception('No se pudo confirmar la cita: $e');
+    }
+  }
+
+
+
+  /// Actualiza el horario y especialista de una cita existente.
+  Future<Cita> reagendarCita({
+    required int idCita,
+    required int idEmpleado,
+    required DateTime fecha,
+    required String hora,
+  }) async {
+    final sesion = SesionService.instance;
+
+    if (!sesion.estaIniciada || sesion.token == null) {
+      throw Exception('Debes iniciar sesión para reagendar una cita.');
+    }
+
+    try {
+      final fechaTexto =
+          '${fecha.year.toString().padLeft(4, '0')}-'
+          '${fecha.month.toString().padLeft(2, '0')}-'
+          '${fecha.day.toString().padLeft(2, '0')}';
+
+      final data = await ApiService.patch(
+        '/api/citas/$idCita/reagendar',
+        body: {
+          'id_empleado': idEmpleado,
+          'fecha': fechaTexto,
+          'hora_inicio': hora,
+        },
+        token: sesion.token,
+      );
+
+      final citaJson = data['cita'] as Map<String, dynamic>;
+      final cita = Cita.fromJson(citaJson);
+
+      notifyListeners();
+
+      return cita;
+    } catch (e) {
+      throw Exception('No se pudo reagendar la cita: $e');
+    }
+  }
+
 
 
   /// Aparta temporalmente un horario durante cinco minutos.
@@ -157,19 +220,25 @@ class CitasRepository extends ChangeNotifier {
     }
   }
 
+  
   /// GET /api/citas/disponibilidad
   Future<List<String>> obtenerDisponibilidad({
     required int idServicio,
     required DateTime fecha,
+    int? idCita,
   }) async {
     final fechaTexto =
         '${fecha.year.toString().padLeft(4, '0')}-'
         '${fecha.month.toString().padLeft(2, '0')}-'
         '${fecha.day.toString().padLeft(2, '0')}';
 
+    final query =
+        '?id_servicio=$idServicio&fecha=$fechaTexto'
+        '${idCita != null ? '&id_cita=$idCita' : ''}';
+
     final data = await ApiService.get(
-      '/api/citas/disponibilidad'
-      '?id_servicio=$idServicio&fecha=$fechaTexto',
+      '/api/citas/disponibilidad$query',
+      token: idCita != null ? SesionService.instance.token : null,
     );
 
     final horarios = data['horarios'];
@@ -180,6 +249,7 @@ class CitasRepository extends ChangeNotifier {
 
     return horarios.map((hora) => hora.toString()).toList();
   }
+
 
   /// Método anterior de registro directo.
   /// Se conserva temporalmente por compatibilidad.
@@ -217,4 +287,6 @@ class CitasRepository extends ChangeNotifier {
 
     return cita;
   }
+
+
 }

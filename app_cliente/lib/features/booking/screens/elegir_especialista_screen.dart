@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../../../core/routes/app_routes.dart';
@@ -39,23 +40,53 @@ class _ElegirEspecialistaScreenState
 
   bool _apartando = false;
 
-  /// Los especialistas favoritos aparecen primero (solo al abrir la pantalla).
+  /// Los especialistas favoritos aparecen primero.
   List<Empleado> _favoritosPrimero(List<Empleado> lista) {
     final repo = FavoritosRepository.instance;
+
     return [
       ...lista.where((e) => repo.esFavoritoEmpleado(e.id)),
       ...lista.where((e) => !repo.esFavoritoEmpleado(e.id)),
     ];
   }
 
-  /// Crea el apartado temporal y después abre la confirmación.
+  /// Reagenda una cita existente o crea un apartado temporal
+  /// para una reserva nueva.
   Future<void> _continuar() async {
     if (_apartando) return;
 
     setState(() => _apartando = true);
 
     try {
-      final respuesta = await CitasRepository.instance.apartarHorario(
+      // Si es un reagendamiento, actualizar la cita directamente.
+      if (widget.borrador.esReagendamiento) {
+        await CitasRepository.instance.reagendarCita(
+          idCita: widget.borrador.idCitaReagendar!,
+          idEmpleado: _seleccion.id,
+          fecha: widget.borrador.fecha,
+          hora: widget.borrador.hora,
+        );
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cita reagendada correctamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        final navigator = Navigator.of(context);
+
+        navigator.pop();
+        navigator.pop();
+
+        return;
+      }
+
+      // Si es una reserva nueva, utilizar el apartado temporal.
+      final respuesta =
+          await CitasRepository.instance.apartarHorario(
         servicio: widget.borrador.servicio,
         empleado: _seleccion,
         fecha: widget.borrador.fecha,
@@ -68,13 +99,16 @@ class _ElegirEspecialistaScreenState
       final empleadoJson =
           respuesta['empleado'] as Map<String, dynamic>;
 
-      final idReserva = (reservaJson['id_reserva'] as num).toInt();
+      final idReserva =
+          (reservaJson['id_reserva'] as num).toInt();
 
-      final fechaExpiracion =
-          DateTime.parse(reservaJson['fecha_expiracion'].toString());
+      final fechaExpiracion = DateTime.parse(
+        reservaJson['fecha_expiracion'].toString(),
+      );
 
       // El backend devuelve el empleado real asignado.
-      final empleadoAsignado = Empleado.fromJson(empleadoJson);
+      final empleadoAsignado =
+          Empleado.fromJson(empleadoJson);
 
       final nuevoBorrador = widget.borrador.conApartado(
         idReserva: idReserva,
@@ -126,7 +160,10 @@ class _ElegirEspecialistaScreenState
             );
           }
 
-          final lista = [Empleado.cualquiera, ...snap.data!];
+          final lista = [
+            Empleado.cualquiera,
+            ...snap.data!,
+          ];
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
@@ -281,10 +318,11 @@ class _TarjetaEmpleado extends StatelessWidget {
               ListenableBuilder(
                 listenable: FavoritosRepository.instance,
                 builder: (context, _) => BotonFavorito(
-                  esFavorito:
-                      FavoritosRepository.instance.esFavoritoEmpleado(e.id),
+                  esFavorito: FavoritosRepository.instance
+                      .esFavoritoEmpleado(e.id),
                   size: 34,
-                  onPressed: () => alternarFavoritoEmpleado(context, e),
+                  onPressed: () =>
+                      alternarFavoritoEmpleado(context, e),
                 ),
               ),
             ],

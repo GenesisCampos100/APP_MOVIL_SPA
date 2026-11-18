@@ -9,9 +9,12 @@ class ReservaBorrador {
   final String hora;
   final Empleado empleado;
 
-  // Datos del apartado temporal creado en el backend.
+  // Datos del apartado temporal para nuevas citas.
   final int? idReserva;
   final DateTime? fechaExpiracion;
+
+  // Identificador de la cita original cuando se está reagendando.
+  final int? idCitaReagendar;
 
   const ReservaBorrador({
     required this.servicio,
@@ -20,7 +23,10 @@ class ReservaBorrador {
     this.empleado = Empleado.cualquiera,
     this.idReserva,
     this.fechaExpiracion,
+    this.idCitaReagendar,
   });
+
+  bool get esReagendamiento => idCitaReagendar != null;
 
   ReservaBorrador conEmpleado(Empleado e) => ReservaBorrador(
         servicio: servicio,
@@ -29,6 +35,7 @@ class ReservaBorrador {
         empleado: e,
         idReserva: idReserva,
         fechaExpiracion: fechaExpiracion,
+        idCitaReagendar: idCitaReagendar,
       );
 
   /// Actualiza el borrador con el apartado creado por el backend.
@@ -44,6 +51,7 @@ class ReservaBorrador {
       empleado: empleado,
       idReserva: idReserva,
       fechaExpiracion: fechaExpiracion,
+      idCitaReagendar: idCitaReagendar,
     );
   }
 }

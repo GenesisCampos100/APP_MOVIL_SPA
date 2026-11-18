@@ -15,6 +15,8 @@ const {
     crearCodigoVerificacion
 } = require('../services/verificacion.service');
 
+const { generarUrlFoto } = require('../services/foto.service');
+
 
 const verificarCorreo = async (req, res) => {
     try {
@@ -140,6 +142,9 @@ const login = async (req, res) => {
             }
 
             const cliente = clienteResult.rows[0];
+
+            // Generar URL firmada para la foto del cliente
+            const fotoUrl = await generarUrlFoto(usuario.foto);
             return res.json({
                 mensaje: 'Inicio de sesión exitoso',
                 token,
@@ -152,7 +157,7 @@ const login = async (req, res) => {
                     apellido_m: cliente.apellido_m,
                     telefono: cliente.telefono,
                     fecha_nacimiento: cliente.fecha_nacimiento,
-                    foto: usuario.foto,
+                    foto: fotoUrl,
                     rol: usuario.rol
                 }
             });
@@ -524,9 +529,113 @@ const verificarCodigo = async (req, res) => {
 };
 
 
+const cambiarContrasena = async (req, res) => {
+    try {
+        const id_usuario = Number(req.usuario?.id_usuario);
+
+        const { contrasena_actual, contrasena_nueva } = req.body;
+
+        // Validar identidad del usuario.
+        if (!Number.isInteger(id_usuario) || id_usuario <= 0) {
+            return res.status(401).json({
+                error: 'La sesión no es válida'
+            });
+        }
+
+        // Validar las contraseñas recibidas.
+        if (
+            typeof contrasena_actual !== 'string' ||
+            typeof contrasena_nueva !== 'string' ||
+            !contrasena_actual ||
+            !contrasena_nueva
+        ) {
+            return res.status(400).json({
+                error: 'Debes proporcionar ambas contraseñas'
+            });
+        }
+
+        if (
+            contrasena_nueva.length < 8 ||
+            Buffer.byteLength(contrasena_nueva, 'utf8') > 72 ||
+            !/[A-Za-z]/.test(contrasena_nueva) ||
+            !/\d/.test(contrasena_nueva)
+        ) {
+            return res.status(400).json({
+                error: 'La nueva contraseña debe tener al menos 8 caracteres, incluir letras y números y no superar 72 bytes'
+            });
+        }
+
+        if (Buffer.byteLength(contrasena_actual, 'utf8') > 72) {
+            return res.status(400).json({
+                error: 'La contraseña actual no es válida'
+            });
+        }
+
+        if (contrasena_actual === contrasena_nueva) {
+            return res.status(400).json({
+                error: 'La nueva contraseña debe ser diferente a la actual'
+            });
+        }
+
+        // Obtener la contraseña almacenada del usuario autenticado.
+        const resultado = await pool.query(
+            `SELECT contrasenia
+             FROM usuarios
+             WHERE id_usuario = $1
+               AND estado = true`,
+            [id_usuario]
+        );
+
+        if (resultado.rows.length === 0) {
+            return res.status(404).json({
+                error: 'No se encontró el usuario'
+            });
+        }
+
+        // Comprobar la contraseña actual.
+        const coincide = await bcrypt.compare(
+            contrasena_actual,
+            resultado.rows[0].contrasenia
+        );
+
+        if (!coincide) {
+            return res.status(400).json({
+                error: 'La contraseña actual es incorrecta'
+            });
+        }
+
+        // Generar el nuevo hash.
+        const nuevoHash = await bcrypt.hash(contrasena_nueva, 12);
+
+        // Actualizar la contraseña.
+        await pool.query(
+            `UPDATE usuarios
+             SET contrasenia = $1
+             WHERE id_usuario = $2
+               AND estado = true`,
+            [nuevoHash, id_usuario]
+        );
+
+        return res.status(200).json({
+            mensaje: 'La contraseña se actualizó correctamente',
+            actualizada: true
+        });
+
+    } catch (error) {
+        console.error('Error al cambiar contraseña:', error);
+
+        return res.status(500).json({
+            error: 'No se pudo cambiar la contraseña'
+        });
+    }
+};
+
+
+
 module.exports = {
     verificarCorreo,
     login,
     registro,
-    verificarCodigo
+    verificarCodigo,
+    cambiarContrasena
 };

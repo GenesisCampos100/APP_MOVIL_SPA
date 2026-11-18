@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../core/i18n/textos.dart';
+import '../../../core/theme/aura_colores.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../shared/widgets/pantalla_exito.dart';
 import '../../auth/auth_state.dart';
@@ -59,15 +60,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
     String? errNueva;
     if (!cumpleReglas) {
-      errNueva = 'Mínimo 8 caracteres, con letras y números';
+      errNueva = context.t('pass.err_regla');
     } else if (n == _actual.text) {
-      errNueva = 'Debe ser diferente a tu contraseña actual';
+      errNueva = context.t('pass.err_igual');
     }
 
     setState(() {
       _errActual = null;
       _errNueva = errNueva;
-      _errConfirmar = _confirmar.text != n ? 'Las contraseñas no coinciden' : null;
+      _errConfirmar = _confirmar.text != n ? context.t('pass.err_no_coincide') : null;
     });
     return _errNueva == null && _errConfirmar == null;
   }
@@ -84,7 +85,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       if (!ok) {
         setState(() {
           _cargando = false;
-          _errActual = 'Contraseña actual incorrecta';
+          _errActual = context.t('pass.err_actual');
         });
         return;
       }
@@ -92,9 +93,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => PantallaExito(
-            titulo: 'Contraseña actualizada',
-            mensaje: 'Tu contraseña se cambió correctamente.\nÚsala la próxima vez que inicies sesión.',
-            textoBoton: 'Listo',
+            titulo: context.t('pass.ok_titulo'),
+            mensaje: context.t('pass.ok_msg'),
+            textoBoton: context.t('comun.listo'),
             onContinuar: (ctx) => Navigator.pop(ctx),
           ),
         ),
@@ -103,7 +104,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       if (!mounted) return;
       setState(() => _cargando = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo cambiar la contraseña. Intenta de nuevo.')),
+        SnackBar(content: Text(context.t('pass.err_guardar'))),
       );
     }
   }
@@ -112,39 +113,39 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cambiar contraseña',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+        title: Text(context.t('pass.titulo'),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Por tu seguridad, escribe tu contraseña actual y elige una nueva.',
-              style: TextStyle(fontSize: 12, color: AppColors.gris),
+            Text(
+              context.t('pass.intro'),
+              style: TextStyle(fontSize: 12, color: context.aura.textoSecundario),
             ),
             const SizedBox(height: 20),
             AuthCampoPassword(
-              label: 'Contraseña actual',
+              label: context.t('pass.actual'),
               controller: _actual,
               errorText: _errActual,
             ),
             const SizedBox(height: 16),
             AuthCampoPassword(
-              label: 'Nueva contraseña',
+              label: context.t('pass.nueva'),
               controller: _nueva,
               errorText: _errNueva,
             ),
             if (_errNueva == null)
-              const Padding(
-                padding: EdgeInsets.only(top: 4, left: 2),
-                child: Text('Mínimo 8 caracteres, con letras y números.',
-                    style: TextStyle(fontSize: 11, color: AppColors.gris)),
+              Padding(
+                padding: const EdgeInsets.only(top: 4, left: 2),
+                child: Text(context.t('pass.regla'),
+                    style: TextStyle(fontSize: 11, color: context.aura.textoSecundario)),
               ),
             const SizedBox(height: 16),
             AuthCampoPassword(
-              label: 'Confirmar nueva contraseña',
+              label: context.t('pass.confirmar'),
               controller: _confirmar,
               errorText: _errConfirmar,
               onSubmitted: (_) {
@@ -158,7 +159,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
           child: AuthBoton(
-            texto: 'Guardar contraseña',
+            texto: context.t('pass.guardar'),
             cargando: _cargando,
             onPressed: _completo ? _guardar : null,
           ),
