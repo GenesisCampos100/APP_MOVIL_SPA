@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:spa_admin_app/core/constants/app_colors.dart';
+import 'package:spa_admin_app/core/constants/app_text_styles.dart';
 import '../../data/models/appointment_model.dart';
 import 'estado_badge.dart';
 
@@ -19,12 +20,12 @@ class CitaCardWidget extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: AppColors.cardBorder, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: AppColors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -39,10 +40,9 @@ class CitaCardWidget extends StatelessWidget {
             children: [
               Text(
                 appointment.horaInicio,
-                style: const TextStyle(
+                style: AppTextStyles.body.copyWith(
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: Colors.black87,
+                  color: AppColors.textMedium,
                 ),
               ),
               EstadoBadge(estado: appointment.estado),
@@ -53,10 +53,10 @@ class CitaCardWidget extends StatelessWidget {
           // Cliente
           Text(
             'Cliente: ${appointment.nombreCliente}',
-            style: const TextStyle(
+            style: AppTextStyles.body.copyWith(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: Colors.black87,
+              color: AppColors.textMedium,
             ),
           ),
           const SizedBox(height: 4),
@@ -64,9 +64,8 @@ class CitaCardWidget extends StatelessWidget {
           // Servicio y duración
           Text(
             'Servicio: ${appointment.nombreServicio} (${appointment.duracionAplicada})',
-            style: const TextStyle(
-              fontSize: 12,
-              color: Colors.black54,
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.textLight,
             ),
           ),
           const SizedBox(height: 14),
@@ -77,17 +76,16 @@ class CitaCardWidget extends StatelessWidget {
               width: 140,
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
-                  backgroundColor: const Color(0xFFEAEAEA),
+                  backgroundColor: AppColors.secondaryButton,
                   side: BorderSide.none,
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
                 onPressed: onVerDetalle,
-                child: const Text(
+                child: Text(
                   'Ver detalle',
-                  style: TextStyle(
-                    color: Colors.black87,
-                    fontSize: 12,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textMedium,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

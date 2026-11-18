@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spa_admin_app/core/constants/app_colors.dart';
 import 'package:spa_admin_app/features/appointments/presentation/screens/manage_appointments_screen.dart';
 import 'package:spa_admin_app/features/services/presentation/screens/manage_services_screen.dart';
 import 'package:spa_admin_app/features/dashboard/presentation/tabs/dashboard_home_tab.dart';
@@ -25,6 +26,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: IndexedStack(
           index: _currentIndex,
@@ -34,7 +36,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       // Barra de navegación inferior
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: AppColors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
         ),
         child: BottomNavigationBar(
@@ -45,10 +47,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             });
           },
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.transparent,
+          backgroundColor: AppColors.transparent,
           elevation: 0,
-          selectedItemColor: Colors.black,
-          unselectedItemColor: Colors.black54,
+          selectedItemColor: AppColors.black,
+          unselectedItemColor: AppColors.textLight,
           showSelectedLabels: false,
           showUnselectedLabels: false,
           items: const [

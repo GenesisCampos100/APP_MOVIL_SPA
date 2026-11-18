@@ -16,7 +16,7 @@ class DashboardHomeTab extends StatelessWidget {
         children: [
           const SizedBox(height: 8),
 
-          // 1. Título principal estilo elegante
+          // 1. Título principal
           Text(
             'Dashboard admin',
             style: AppTextStyles.displayExtraBold.copyWith(
@@ -26,7 +26,7 @@ class DashboardHomeTab extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'Resumen operativo y métricas principales:',
-            style: AppTextStyles.caption.copyWith(color: Colors.black54),
+            style: AppTextStyles.caption.copyWith(color: AppColors.textLight),
           ),
           const SizedBox(height: 20),
 
@@ -45,14 +45,14 @@ class DashboardHomeTab extends StatelessWidget {
                     const Icon(
                       Icons.notifications_none_outlined,
                       size: 28,
-                      color: Colors.black87,
+                      color: AppColors.textMedium,
                     ),
                     CircleAvatar(
                       radius: 22,
-                      backgroundColor: const Color(0xFFE0E0E0),
+                      backgroundColor: AppColors.avatarBg,
                       child: const Icon(
                         Icons.person_outline,
-                        color: Colors.black87,
+                        color: AppColors.textMedium,
                         size: 26,
                       ),
                     ),
@@ -74,7 +74,7 @@ class DashboardHomeTab extends StatelessWidget {
                 Text(
                   'Consulte e inicie las citas asignadas para hoy.',
                   textAlign: TextAlign.center,
-                  style: AppTextStyles.caption.copyWith(color: Colors.black54),
+                  style: AppTextStyles.caption.copyWith(color: AppColors.textLight),
                 ),
                 const SizedBox(height: 14),
                 SizedBox(
@@ -87,7 +87,7 @@ class DashboardHomeTab extends StatelessWidget {
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryPink,
+                      backgroundColor: AppColors.primaryButton, // backgroundColor: const Color(0xFFFF007A), // Comentado por cambio de diseño
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -97,7 +97,7 @@ class DashboardHomeTab extends StatelessWidget {
                     child: Text(
                       'Ver mis citas',
                       style: AppTextStyles.body.copyWith(
-                        color: Colors.white,
+                        color: AppColors.white,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -118,12 +118,12 @@ class DashboardHomeTab extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   'Masaje relajante - 4:00 PM',
-                  style: AppTextStyles.body.copyWith(color: Colors.black87),
+                  style: AppTextStyles.body.copyWith(color: AppColors.textMedium),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '(Cliente: Maria G.)',
-                  style: AppTextStyles.caption.copyWith(color: Colors.black54),
+                  style: AppTextStyles.caption.copyWith(color: AppColors.textLight),
                 ),
                 const SizedBox(height: 14),
                 SizedBox(
@@ -136,7 +136,7 @@ class DashboardHomeTab extends StatelessWidget {
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryPink,
+                      backgroundColor: AppColors.primaryButton, // backgroundColor: const Color(0xFFFF007A), // Comentado por cambio de diseño
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -146,7 +146,7 @@ class DashboardHomeTab extends StatelessWidget {
                     child: Text(
                       'Iniciar servicio',
                       style: AppTextStyles.body.copyWith(
-                        color: Colors.white,
+                        color: AppColors.white,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -194,10 +194,10 @@ class DashboardHomeTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder, width: 1.5),
+        border: Border.all(color: AppColors.cardBorder, width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: AppColors.black.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -218,7 +218,7 @@ class _MetricRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: Colors.black87),
+        Icon(icon, size: 20, color: AppColors.textMedium),
         const SizedBox(width: 12),
         Text(
           text,

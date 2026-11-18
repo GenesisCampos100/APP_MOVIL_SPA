@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:spa_admin_app/core/constants/app_colors.dart';
+import 'package:spa_admin_app/core/constants/app_text_styles.dart';
 
 class EstadoBadge extends StatelessWidget {
   final String estado; // 'Confirmada', 'En proceso', 'Pendiente', 'Completada', 'Cancelada'
@@ -11,23 +13,25 @@ class EstadoBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color bgColor;
-    Color textColor = Colors.white;
 
     switch (estado) {
       case 'Confirmada':
-        bgColor = const Color(0xFF4CAF50); // Verde
+        bgColor = AppColors.statusConfirmada;
         break;
       case 'En proceso':
-        bgColor = const Color(0xFFFF9800); // Naranja
+        bgColor = AppColors.statusEnProceso;
         break;
       case 'Pendiente':
-        bgColor = const Color(0xFF9E9E9E); // Gris
+        bgColor = AppColors.statusPendiente;
         break;
       case 'Completada':
-        bgColor = const Color(0xFF9C27B0); // Púrpura
+        bgColor = AppColors.statusCompletada;
+        break;
+      case 'Cancelada':
+        bgColor = AppColors.statusCancelada;
         break;
       default:
-        bgColor = Colors.grey;
+        bgColor = AppColors.statusPendiente;
     }
 
     return Container(
@@ -38,8 +42,8 @@ class EstadoBadge extends StatelessWidget {
       ),
       child: Text(
         estado,
-        style: TextStyle(
-          color: textColor,
+        style: AppTextStyles.caption.copyWith(
+          color: AppColors.white,
           fontSize: 11,
           fontWeight: FontWeight.bold,
         ),

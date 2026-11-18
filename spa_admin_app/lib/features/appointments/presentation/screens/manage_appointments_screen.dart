@@ -487,7 +487,7 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder, width: 1.5),
+        border: Border.all(color: AppColors.cardBorder, width: 0.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),

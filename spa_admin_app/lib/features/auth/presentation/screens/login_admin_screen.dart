@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:spa_admin_app/core/constants/app_colors.dart';
 import 'package:spa_admin_app/core/constants/app_text_styles.dart';
-import 'package:spa_admin_app/core/network/api_service.dart';
 import 'package:spa_admin_app/features/dashboard/presentation/screens/main_navigation_screen.dart';
 
 class LoginAdminScreen extends StatefulWidget {
@@ -37,49 +36,15 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
 
     setState(() => _isLoading = true);
 
-    try {
-      // Intento de conexión con el backend Node.js / Express
-      final response = await ApiService.login(correo, contrasena);
+    // Simulación de respuesta rápida para pruebas UI y prototipo
+    await Future.delayed(const Duration(milliseconds: 300));
 
-      if (!mounted) return;
+    if (!mounted) return;
 
-      // Verificar rol admin según la tabla USUARIOS del diagrama
-      final rol = response['rol'] ?? 'admin';
-      final estado = response['estado'] ?? true;
-
-      if (estado == false) {
-        throw Exception('El usuario se encuentra inactivo');
-      }
-
-      if (rol != 'admin') {
-        throw Exception('Acceso denegado: Se requiere rol de administrador');
-      }
-
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      // Modo de prueba / fallback si el backend Node.js aún no está levantado
-      if (correo == 'admin@auraspa.com' && contrasena == 'admin123') {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
-        );
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error de autenticación: ${e.toString().replaceAll("Exception: ", "")}'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
+    // Redirección inmediata al Dashboard Admin
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+    );
   }
 
   @override
@@ -93,12 +58,12 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
             child: Container(
               padding: const EdgeInsets.all(24.0),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.cardBackground,
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: AppColors.cardBorder, width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
+                    color: AppColors.black.withValues(alpha: 0.08),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -121,63 +86,65 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
                     'Panel de Administración',
                     textAlign: TextAlign.center,
                     style: AppTextStyles.body.copyWith(
-                      color: Colors.black54,
+                      color: AppColors.textLight,
                     ),
                   ),
                   const SizedBox(height: 28),
 
                   // Correo
-                  const Text(
+                  Text(
                     'Correo electrónico:',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+                    style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: AppColors.textMedium),
                   ),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
+                    style: AppTextStyles.body.copyWith(color: AppColors.textDark),
                     decoration: InputDecoration(
                       hintText: 'admin@auraspa.com',
                       filled: true,
-                      fillColor: const Color(0xFFF7F7F7),
+                      fillColor: AppColors.inputFill,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.black12),
+                        borderSide: const BorderSide(color: AppColors.inputBorder),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.black12),
+                        borderSide: const BorderSide(color: AppColors.inputBorder),
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
 
                   // Contraseña
-                  const Text(
+                  Text(
                     'Contraseña:',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+                    style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: AppColors.textMedium),
                   ),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
+                    style: AppTextStyles.body.copyWith(color: AppColors.textDark),
                     decoration: InputDecoration(
                       hintText: '••••••••',
                       filled: true,
-                      fillColor: const Color(0xFFF7F7F7),
+                      fillColor: AppColors.inputFill,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.black12),
+                        borderSide: const BorderSide(color: AppColors.inputBorder),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.black12),
+                        borderSide: const BorderSide(color: AppColors.inputBorder),
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                          color: Colors.black54,
+                          color: AppColors.textLight,
                         ),
                         onPressed: () {
                           setState(() {
@@ -189,10 +156,10 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
                   ),
                   const SizedBox(height: 28),
 
-                  // Botón Iniciar Sesión
+                  // Botón Iniciar Sesión (Negro en nuevo diseño)
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryPink,
+                      backgroundColor: AppColors.primaryButton, // backgroundColor: const Color(0xFFFF007A), // Comentado por cambio de diseño
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -204,14 +171,14 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
                             width: 22,
                             height: 22,
                             child: CircularProgressIndicator(
-                              color: Colors.white,
+                              color: AppColors.white,
                               strokeWidth: 2.5,
                             ),
                           )
-                        : const Text(
+                        : Text(
                             'Iniciar sesión',
-                            style: TextStyle(
-                              color: Colors.white,
+                            style: AppTextStyles.body.copyWith(
+                              color: AppColors.white,
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
                             ),

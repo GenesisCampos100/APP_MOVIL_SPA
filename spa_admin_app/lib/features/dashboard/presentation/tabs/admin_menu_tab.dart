@@ -40,7 +40,7 @@ class AdminMenuTab extends StatelessWidget {
                   border: Border.all(color: AppColors.cardBorder, width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
+                      color: AppColors.black.withValues(alpha: 0.08),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -65,7 +65,7 @@ class AdminMenuTab extends StatelessWidget {
                         style: AppTextStyles.subtitle.copyWith(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: AppColors.textMedium,
                         ),
                       ),
                     ),
@@ -109,7 +109,7 @@ class AdminMenuTab extends StatelessWidget {
                         style: AppTextStyles.subtitle.copyWith(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: AppColors.textMedium,
                         ),
                       ),
                     ),
@@ -163,7 +163,7 @@ class AdminMenuTab extends StatelessWidget {
     );
   }
 
-  // Widget reutilizable para los botones rosados del menú
+  // Widget reutilizable para los botones del menú (Actualizado a fondo negro con referencia histórica comentada)
   Widget _buildMenuOption({
     required IconData icon,
     required String title,
@@ -173,7 +173,7 @@ class AdminMenuTab extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: Material(
-        color: const Color(0xFFFDE8EE), // Rosa claro según Figma
+        color: AppColors.adminMenuButtonBg, // color: const Color(0xFFFDE8EE), // Comentado por cambio de diseño
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           onTap: onTap,
@@ -182,7 +182,7 @@ class AdminMenuTab extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
-                Icon(icon, size: 28, color: Colors.black87),
+                Icon(icon, size: 28, color: AppColors.adminMenuButtonText),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -193,7 +193,7 @@ class AdminMenuTab extends StatelessWidget {
                         style: AppTextStyles.body.copyWith(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          color: AppColors.adminMenuButtonText,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -201,7 +201,7 @@ class AdminMenuTab extends StatelessWidget {
                         subtitle,
                         style: AppTextStyles.caption.copyWith(
                           fontSize: 11,
-                          color: Colors.black54,
+                          color: AppColors.adminMenuButtonText.withValues(alpha: 0.8),
                           height: 1.25,
                         ),
                       ),

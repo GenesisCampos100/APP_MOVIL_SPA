@@ -113,7 +113,7 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.cardBackground,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.cardBorder, width: 1.5),
+                    border: Border.all(color: AppColors.cardBorder, width: 0.5),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
