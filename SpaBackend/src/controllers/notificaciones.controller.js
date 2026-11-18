@@ -11,8 +11,9 @@ const obtenerNotificaciones = async (req, res) => {
                 n.tipo,
                 n.titulo,
                 n.mensaje,
-                n.fecha_envio,
+                n.fecha_envio AT TIME ZONE 'America/Mexico_City' AS fecha_envio,
                 n.leida,
+
                 CASE
                     WHEN n.tipo = 'confirmar_cita'
                     THEN (
