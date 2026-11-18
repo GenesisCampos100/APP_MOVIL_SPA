@@ -4,7 +4,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/aura_colores.dart';
 import '../../../core/utils/formato.dart';
 import '../../../data/models/resena.dart';
-import '../../../data/repositories/resenas_repository.dart';
+import '../../../data/models/resenas_servicio.dart';
+import '../../../data/repositories/servicios_repository.dart';
 
 enum _Modo { todas, servicio, profesional }
 
@@ -30,8 +31,10 @@ class _ResenasSeccionState extends State<ResenasSeccion> {
   _Modo _filtro = _Modo.todas;
   String? _empleado; // empleado elegido en el filtro "Profesional"
 
-  final _repo = ResenasRepository();
-  late final Future<List<Resena>> _futuro = _repo.obtenerDeServicio(widget.idServicio);
+  final _repo = ServiciosRepository();
+
+  late final Future<ResenasServicio> _futuro =
+      _repo.obtenerResenasPorServicio(widget.idServicio);
 
   _Modo get _modo => _filtro;
 
@@ -48,16 +51,17 @@ class _ResenasSeccionState extends State<ResenasSeccion> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Resena>>(
+    return FutureBuilder<ResenasServicio>(
       future: _futuro,
       builder: (context, snap) {
         final a = context.aura;
-        final resenas = snap.data ?? const <Resena>[];
-        final cargando = !snap.hasData && !snap.hasError;
-        final promedio = resenas.isEmpty
-            ? 0.0
-            : resenas.fold<int>(0, (suma, r) => suma + r.calificacionServicio) / resenas.length;
+        final datos = snap.data;
 
+        final resenas = datos?.resenas ?? const <Resena>[];
+        final cargando = !snap.hasData && !snap.hasError;
+
+        final promedio = datos?.promedioServicio ?? 0.0;
+        final total = datos?.totalResenas ?? 0;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -66,14 +70,24 @@ class _ResenasSeccionState extends State<ResenasSeccion> {
                 Text(context.t('resenas.titulo'),
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
                 const Spacer(),
-                if (resenas.isNotEmpty) ...[
+                if (total > 0) ...[
                   const Icon(Icons.star, size: 20, color: Colors.amber),
                   const SizedBox(width: 4),
-                  Text(promedio.toStringAsFixed(1),
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  Text(
+                    promedio.toStringAsFixed(1),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(width: 4),
-                  Text('(${resenas.length})',
-                      style: TextStyle(fontSize: 11, color: a.textoSecundario)),
+                  Text(
+                    '($total)',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: a.textoSecundario,
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -104,7 +118,22 @@ class _ResenasSeccionState extends State<ResenasSeccion> {
               ],
             ),
             const SizedBox(height: 20),
-            ..._cuerpo(context, cargando, resenas),
+            if (snap.hasError)
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Center(
+                  child: Text(
+                    'No se pudieron cargar las reseñas. Intenta nuevamente.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: a.textoSecundario,
+                    ),
+                  ),
+                ),
+              )
+            else
+              ..._cuerpo(context, cargando, resenas),
             const SizedBox(height: 24),
           ],
         );
@@ -252,6 +281,34 @@ class _TarjetaResena extends StatelessWidget {
               const SizedBox(height: 4),
               if (r.comentario != null && r.comentario!.isNotEmpty)
                 Text(r.comentario!, style: const TextStyle(fontSize: 12, height: 1.3)),
+
+              if (r.aspectos.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    for (final aspecto in r.aspectos)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: a.rosaSuave,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          context.tOr('rev.asp.$aspecto', aspecto),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppColors.rosaFuerte,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 6),
               Row(
                 children: [

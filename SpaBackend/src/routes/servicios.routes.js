@@ -13,7 +13,8 @@ const {
     eliminarServicio,
     obtenerEmpleadosPorServicio,
     obtenerResenasPorServicio,
-    obtenerServiciosDestacados  
+    obtenerServiciosDestacados,
+    crearResena
 } = require('../controllers/servicios.controller');
 
 // Verificar que el usuario sea Administrador y su cuenta esté activa.
@@ -51,12 +52,14 @@ const autorizarAdministradorActivo = async (req, res, next) => {
 };
 
 // Consultas utilizadas por la aplicación Cliente.
-// Se conservan públicas.
 router.get('/', obtenerServicios);
 router.get('/destacados', obtenerServiciosDestacados);
 router.get('/:id', obtenerServicioPorId);
 router.get('/:id/empleados', obtenerEmpleadosPorServicio);
 router.get('/:id/resenas', obtenerResenasPorServicio);
+
+// Publicar una reseña.
+router.post('/:id/resenas', verificarToken, crearResena);
 
 // Operaciones exclusivas del Administrador.
 router.post(
