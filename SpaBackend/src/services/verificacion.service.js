@@ -9,22 +9,31 @@ const generarCodigo = () => {
 
 const enviarCodigoVerificacion = async (correo, codigo, tipo = 'registro') => {
     const esCambioCorreo = tipo === 'cambio_correo';
+    const esRecuperacion = tipo === 'recuperacion';
 
     const titulo = esCambioCorreo
         ? 'Confirma tu nuevo correo electrónico'
-        : 'Verifica tu cuenta';
+        : esRecuperacion
+            ? 'Recupera tu contraseña'
+            : 'Verifica tu cuenta';
 
     const descripcion = esCambioCorreo
         ? 'Has solicitado cambiar el correo electrónico de tu cuenta AuraSpa. Introduce el siguiente código para confirmar que tienes acceso a esta dirección:'
-        : 'Estás a un paso de disfrutar de la mejor experiencia de bienestar. Utiliza el siguiente código de verificación para completar tu registro:';
+        : esRecuperacion
+            ? 'Has solicitado restablecer la contraseña de tu cuenta AuraSpa. Introduce el siguiente código para continuar:'
+            : 'Estás a un paso de disfrutar de la mejor experiencia de bienestar. Utiliza el siguiente código de verificación para completar tu registro:';
 
     const aviso = esCambioCorreo
         ? 'Si no solicitaste este cambio de correo, puedes ignorar este mensaje. Tu correo actual no será modificado.'
-        : 'Si no solicitaste este registro, puedes ignorar este mensaje de forma segura.';
+        : esRecuperacion
+            ? 'Si no solicitaste recuperar tu contraseña, puedes ignorar este mensaje de forma segura.'
+            : 'Si no solicitaste este registro, puedes ignorar este mensaje de forma segura.';
 
     const asunto = esCambioCorreo
         ? '✨ Confirma tu nuevo correo - AuraSpa'
-        : '✨ Tu código de verificación - AuraSpa';
+        : esRecuperacion
+            ? '✨ Recupera tu contraseña - AuraSpa'
+            : '✨ Tu código de verificación - AuraSpa';
 
     const htmlContenido = `
     <!DOCTYPE html>

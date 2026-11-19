@@ -17,6 +17,10 @@ const {
 
 const { generarUrlFoto } = require('../services/foto.service');
 
+const recuperacionesPendientes = new Map();
+const DURACION_RECUPERACION = 10 * 60 * 1000;
+const MAX_INTENTOS_RECUPERACION = 5;
+
 
 const verificarCorreo = async (req, res) => {
     try {
@@ -543,6 +547,219 @@ const verificarCodigo = async (req, res) => {
 };
 
 
+const solicitarRecuperacion = async (req, res) => {
+    try {
+        const { correo } = req.body;
+
+        if (typeof correo !== 'string' || !correo.trim()) {
+            return res.status(400).json({
+                error: 'Debes proporcionar un correo válido'
+            });
+        }
+
+        const correoNormalizado = correo.trim().toLowerCase();
+        const usuario = await pool.query(
+            `SELECT id_usuario
+             FROM usuarios
+             WHERE LOWER(correo) = $1
+               AND estado = true`,
+            [correoNormalizado]
+        );
+
+        // Respuesta uniforme para no revelar si el correo está registrado.
+        if (usuario.rows.length === 0) {
+            return res.status(200).json({
+                mensaje: 'Si el correo está registrado, recibirás un código.',
+                enviada: true
+            });
+        }
+
+        const codigo = await crearCodigoVerificacion(
+            correoNormalizado,
+            { tipo: 'recuperacion' }
+        );
+
+        recuperacionesPendientes.set(correoNormalizado, {
+            idUsuario: usuario.rows[0].id_usuario,
+            codigoHash: codigo.codigoHash,
+            expiraEnCodigo: codigo.expiraEn,
+            intentos: 0,
+            token: null,
+            expiraEnToken: null
+        });
+
+        return res.status(200).json({
+            mensaje: 'Código enviado. Revisa tu correo.',
+            enviada: true
+        });
+    } catch (error) {
+        console.error('Error al solicitar recuperación:', error);
+        return res.status(500).json({
+            error: 'No se pudo enviar el código de recuperación'
+        });
+    }
+};
+
+const verificarCodigoRecuperacion = async (req, res) => {
+    try {
+        const { correo, codigo } = req.body;
+
+        if (
+            typeof correo !== 'string' ||
+            typeof codigo !== 'string' ||
+            !/^\d{6}$/.test(codigo)
+        ) {
+            return res.status(400).json({
+                error: 'Debes proporcionar un correo y un código de seis dígitos'
+            });
+        }
+
+        const correoNormalizado = correo.trim().toLowerCase();
+        const pendiente = recuperacionesPendientes.get(correoNormalizado);
+
+        if (!pendiente) {
+            return res.status(400).json({
+                error: 'La solicitud no existe o ha expirado'
+            });
+        }
+
+        if (Date.now() >= pendiente.expiraEnCodigo) {
+            recuperacionesPendientes.delete(correoNormalizado);
+            return res.status(400).json({
+                error: 'El código ha expirado'
+            });
+        }
+
+        const codigoValido = await bcrypt.compare(codigo, pendiente.codigoHash);
+
+        if (!codigoValido) {
+            pendiente.intentos += 1;
+            if (pendiente.intentos >= MAX_INTENTOS_RECUPERACION) {
+                recuperacionesPendientes.delete(correoNormalizado);
+                return res.status(429).json({
+                    error: 'Se agotaron los intentos'
+                });
+            }
+            return res.status(400).json({
+                error: 'Código incorrecto'
+            });
+        }
+
+        const token = jwt.sign(
+            {
+                id_usuario: pendiente.idUsuario,
+                tipo: 'recuperacion'
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: '10m', algorithm: 'HS256' }
+        );
+
+        pendiente.token = token;
+        pendiente.expiraEnToken = Date.now() + DURACION_RECUPERACION;
+
+        return res.status(200).json({
+            mensaje: 'Código verificado',
+            token
+        });
+    } catch (error) {
+        console.error('Error al verificar recuperación:', error);
+        return res.status(500).json({
+            error: 'No se pudo verificar el código'
+        });
+    }
+};
+
+const restablecerContrasena = async (req, res) => {
+    try {
+        const { correo, token, nuevaContrasena } = req.body;
+
+        if (
+            typeof correo !== 'string' ||
+            typeof token !== 'string' ||
+            typeof nuevaContrasena !== 'string'
+        ) {
+            return res.status(400).json({
+                error: 'Debes proporcionar el correo, el token y la nueva contraseña'
+            });
+        }
+
+        if (
+            nuevaContrasena.length < 8 ||
+            Buffer.byteLength(nuevaContrasena, 'utf8') > 72 ||
+            !/[A-Za-z]/.test(nuevaContrasena) ||
+            !/\d/.test(nuevaContrasena)
+        ) {
+            return res.status(400).json({
+                error: 'La contraseña debe tener al menos 8 caracteres, incluir letras y números y no superar 72 bytes'
+            });
+        }
+
+        const correoNormalizado = correo.trim().toLowerCase();
+        const pendiente = recuperacionesPendientes.get(correoNormalizado);
+
+        if (
+            !pendiente ||
+            !pendiente.token ||
+            pendiente.token !== token ||
+            !pendiente.expiraEnToken ||
+            Date.now() >= pendiente.expiraEnToken
+        ) {
+            return res.status(400).json({
+                error: 'El token de recuperación no es válido o ha expirado'
+            });
+        }
+
+        let datosToken;
+        try {
+            datosToken = jwt.verify(token, process.env.JWT_SECRET, {
+                algorithms: ['HS256']
+            });
+        } catch (_) {
+            return res.status(400).json({
+                error: 'El token de recuperación no es válido o ha expirado'
+            });
+        }
+
+        if (
+            datosToken.tipo !== 'recuperacion' ||
+            Number(datosToken.id_usuario) !== Number(pendiente.idUsuario)
+        ) {
+            return res.status(400).json({
+                error: 'El token de recuperación no es válido'
+            });
+        }
+
+        const nuevoHash = await bcrypt.hash(nuevaContrasena, 12);
+        const resultado = await pool.query(
+            `UPDATE usuarios
+             SET contrasenia = $1
+             WHERE id_usuario = $2
+               AND correo = $3
+               AND estado = true
+             RETURNING id_usuario`,
+            [nuevoHash, pendiente.idUsuario, correoNormalizado]
+        );
+
+        if (resultado.rows.length === 0) {
+            return res.status(404).json({
+                error: 'No se encontró el usuario'
+            });
+        }
+
+        recuperacionesPendientes.delete(correoNormalizado);
+
+        return res.status(200).json({
+            mensaje: 'Contraseña restablecida correctamente',
+            restablecida: true
+        });
+    } catch (error) {
+        console.error('Error al restablecer contraseña:', error);
+        return res.status(500).json({
+            error: 'No se pudo restablecer la contraseña'
+        });
+    }
+};
+
 const cambiarContrasena = async (req, res) => {
     try {
         const id_usuario = Number(req.usuario?.id_usuario);
@@ -651,5 +868,8 @@ module.exports = {
     login,
     registro,
     verificarCodigo,
-    cambiarContrasena
+    cambiarContrasena,
+    solicitarRecuperacion,
+    verificarCodigoRecuperacion,
+    restablecerContrasena
 };
