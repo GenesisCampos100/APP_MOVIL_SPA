@@ -1,0 +1,628 @@
+import 'package:flutter/material.dart';
+import 'package:spa_admin_app/core/theme/admin_visual.dart';
+import 'package:spa_admin_app/core/theme/app_colors.dart';
+import 'package:spa_admin_app/core/theme/app_text_styles.dart';
+import 'package:spa_admin_app/data/models/employee_model.dart';
+import 'package:spa_admin_app/data/repositories/empleados_repository.dart';
+import 'package:spa_admin_app/data/services/api_exception.dart';
+import 'package:spa_admin_app/features/employees/widgets/employee_card_widget.dart';
+import 'package:spa_admin_app/features/employees/widgets/employee_form_dialog.dart';
+import 'package:spa_admin_app/features/services/screens/assign_services_screen.dart';
+import 'package:spa_admin_app/features/schedules/screens/manage_schedules_screen.dart';
+import 'package:spa_admin_app/shared/widgets/confirm_action_dialog.dart';
+
+/// Pantalla de personal. Las acciones existentes permanecen conectadas a la API.
+class ManageEmployeesScreen extends StatefulWidget {
+  const ManageEmployeesScreen({super.key});
+
+  @override
+  State<ManageEmployeesScreen> createState() => _ManageEmployeesScreenState();
+}
+
+class _ManageEmployeesScreenState extends State<ManageEmployeesScreen> {
+  final EmpleadosRepository _repository = EmpleadosRepository();
+  final TextEditingController _busquedaController = TextEditingController();
+
+  List<EmployeeModel> _employees = const [];
+  bool _loading = true;
+  String? _error;
+  String _searchQuery = '';
+  String _filtro = 'Todos';
+  String? _actualizandoEstadoId;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarEmpleados();
+  }
+
+  @override
+  void dispose() {
+    _busquedaController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _cargarEmpleados() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final empleados = await _repository.obtenerEmpleados();
+      if (!mounted) return;
+      setState(() {
+        _employees = empleados;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'No se pudo actualizar la lista. Intenta nuevamente.';
+      });
+    }
+  }
+
+  String _mensajeError(Object error) => error is ApiException
+      ? error.message
+      : 'No se pudo completar la operación. Intenta nuevamente.';
+
+  Future<void> _abrirFormulario({EmployeeModel? empleado}) async {
+    try {
+      final puestos = await _repository.obtenerPuestos();
+      if (!mounted) return;
+      // Solo un nuevo especialista puede pasar directamente a asignar servicios.
+      // Conservamos correo y puesto del formulario únicamente tras guardar con éxito.
+      String? correoNuevo;
+      int? puestoNuevo;
+      final guardado = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => EmployeeFormDialog(
+          employeeToEdit: empleado,
+          puestos: puestos,
+          onCrearPuesto: _repository.crearPuesto,
+          onSave: (datos) async {
+            if (empleado == null) {
+              await _repository.crearEmpleado(datos);
+              correoNuevo = (datos['correo'] ?? '').toString().trim();
+              puestoNuevo = datos['id_puesto'] is int
+                  ? datos['id_puesto'] as int
+                  : int.tryParse('${datos['id_puesto']}');
+            } else {
+              await _repository.editarEmpleado(empleado.idEmpleado, datos);
+            }
+          },
+        ),
+      );
+      if (!mounted || guardado != true) return;
+      await _cargarEmpleados();
+      if (!mounted) return;
+
+      final especialistaNuevo = empleado == null &&
+          puestoNuevo != null &&
+          puestoNuevo != 5 &&
+          correoNuevo != null &&
+          correoNuevo!.isNotEmpty;
+      if (especialistaNuevo) {
+        final asignarAhora = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            backgroundColor: AdminVisual.cardBackground,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+            ),
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle_outline_rounded,
+                    color: Color(0xFF347652)),
+                SizedBox(width: 10),
+                Expanded(child: Text('¡Empleado creado correctamente!')),
+              ],
+            ),
+            content: const Text(
+              'El especialista todavía no tiene servicios asignados. '
+              '¿Deseas elegir los servicios que puede realizar ahora?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const AdminTranslatedText('Más tarde', 'Later'),
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AdminVisual.primaryPink,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.pop(dialogContext, true),
+                icon: const Icon(Icons.spa_outlined),
+                label: const AdminTranslatedText('Asignar ahora', 'Assign now'),
+              ),
+            ],
+          ),
+        );
+        if (!mounted) return;
+        if (asignarAhora == true) {
+          await Navigator.of(context).push<void>(
+            MaterialPageRoute<void>(
+              builder: (_) => AssignServicesScreen(
+                correoEmpleadoInicial: correoNuevo,
+              ),
+            ),
+          );
+          if (!mounted) return;
+        }
+
+        // Los horarios son independientes de los servicios. Nunca se asignan
+        // automáticamente: el Administrador decide días y horas de trabajo.
+        final configurarAhora = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            backgroundColor: AdminVisual.cardBackground,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+            ),
+            title: const Row(
+              children: [
+                Icon(Icons.calendar_month_outlined,
+                    color: AppColors.primaryPink),
+                SizedBox(width: 10),
+                Expanded(child: Text('Configurar horarios de trabajo')),
+              ],
+            ),
+            content: const Text(
+              'Para recibir reservaciones, este especialista necesita '
+              'horarios de trabajo. ¿Deseas elegir ahora sus días y horas? '
+              'Podrás configurarlos también más adelante.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const AdminTranslatedText('Más tarde', 'Later'),
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AdminVisual.primaryPink,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.pop(dialogContext, true),
+                icon: const Icon(Icons.schedule_outlined),
+                label: const AdminTranslatedText('Configurar horarios', 'Set schedules'),
+              ),
+            ],
+          ),
+        );
+        if (!mounted) return;
+        if (configurarAhora == true) {
+          // Se usa el ID real recién obtenido del backend tras refrescar
+          // empleados. Así no dependemos de nombres que pueden repetirse.
+          int? idEmpleadoCreado;
+          for (final item in _employees) {
+            if (item.correo.trim().toLowerCase() ==
+                correoNuevo!.toLowerCase()) {
+              idEmpleadoCreado = int.tryParse(item.idEmpleado);
+              break;
+            }
+          }
+          if (idEmpleadoCreado == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'No fue posible seleccionar automáticamente al especialista. '
+                  'Puedes elegirlo en la pantalla de horarios.',
+                ),
+              ),
+            );
+          }
+          await Navigator.of(context).push<void>(
+            MaterialPageRoute<void>(
+              builder: (_) => ManageSchedulesScreen(
+                empleadoInicialId: idEmpleadoCreado,
+              ),
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(empleado == null
+                ? 'Empleado registrado correctamente.'
+                : 'Empleado actualizado correctamente.'),
+          ),
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_mensajeError(error))),
+      );
+    }
+  }
+
+  Future<void> _cambiarEstado(EmployeeModel empleado) async {
+    if (_actualizandoEstadoId != null) return;
+    final nuevoEstado = !empleado.estado;
+    final confirmado = await mostrarConfirmacion(
+      context: context,
+      titulo: nuevoEstado ? '¿Reactivar empleado?' : '¿Desactivar empleado?',
+      mensaje: nuevoEstado
+          ? '${empleado.nombreCompleto} podrá volver a iniciar sesión.'
+          : '${empleado.nombreCompleto} no podrá iniciar una nueva sesión. '
+              'Antes de desactivarlo, deberán resolverse sus citas futuras pendientes.',
+      textoConfirmar: nuevoEstado ? 'Sí, reactivar' : 'Sí, desactivar',
+      icono: nuevoEstado
+          ? Icons.check_circle_outline
+          : Icons.person_off_outlined,
+    );
+    if (!mounted || !confirmado) return;
+    setState(() => _actualizandoEstadoId = empleado.idEmpleado);
+    try {
+      await _repository.cambiarEstado(empleado.idEmpleado, activo: nuevoEstado);
+      if (!mounted) return;
+      await _cargarEmpleados();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(nuevoEstado
+              ? 'Empleado reactivado correctamente.'
+              : 'Empleado desactivado correctamente.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_mensajeError(error))),
+      );
+    } finally {
+      if (mounted) setState(() => _actualizandoEstadoId = null);
+    }
+  }
+
+  List<EmployeeModel> get _filtrados {
+    final q = _searchQuery.toLowerCase().trim();
+    return _employees.where((e) {
+      final coincide = e.nombreCompleto.toLowerCase().contains(q) ||
+          e.puesto.toLowerCase().contains(q) ||
+          e.correo.toLowerCase().contains(q);
+      final estado = _filtro == 'Todos' ||
+          (_filtro == 'Activos' && e.estado) ||
+          (_filtro == 'Inactivos' && !e.estado);
+      return coincide && estado;
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final disponibles = _filtrados;
+    final activos = _employees.where((e) => e.estado).length;
+    final inactivos = _employees.length - activos;
+    final reducirMovimiento = MediaQuery.of(context).disableAnimations;
+
+    return Scaffold(
+      backgroundColor: AdminVisual.background,
+      appBar: AppBar(
+        backgroundColor: AdminVisual.background,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                tooltip: 'Regresar',
+                icon: Icon(
+                  Icons.arrow_back_ios_new,
+                  color: AdminVisual.textDark,
+                ),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
+        title: AdminTranslatedText('Gestionar empleados', 'Manage employees',
+          style: AppTextStyles.heading1.copyWith(
+            color: AdminVisual.textDark,
+          ),
+        ),
+        actions: [
+          IconButton(
+            tooltip: AdminVisual.t('Actualizar empleados', 'Refresh staff'),
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.primaryPink),
+            onPressed: _loading ? null : _cargarEmpleados,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AdminTranslatedText('Administración del personal', 'Staff management', style: AppTextStyles.heading2),
+                const SizedBox(height: 4),
+                Text(
+                  'Consulta, organiza y administra al personal del SPA.',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AdminVisual.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _resumenEstado('Activos', activos, Icons.check_circle_outline),
+                    const SizedBox(width: 10),
+                    _resumenEstado('Inactivos', inactivos, Icons.pause_circle_outline),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _busquedaController,
+                  onChanged: (texto) => setState(() => _searchQuery = texto),
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    hintText: AdminVisual.t('Buscar por nombre, puesto o correo', 'Search name, role or email'),
+                    hintStyle: AppTextStyles.body.copyWith(
+                      color: AdminVisual.textMuted,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                      color: AppColors.primaryPink,
+                    ),
+                    suffixIcon: _searchQuery.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: AdminVisual.t('Limpiar búsqueda', 'Clear search'),
+                            icon: const Icon(Icons.close_rounded, size: 19),
+                            onPressed: () {
+                              _busquedaController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          ),
+                    filled: true,
+                    fillColor: AdminVisual.fieldBackground,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 13,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(color: AppColors.cardBorder),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(color: AppColors.cardBorder),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _filtroChip('Todos'),
+                      const SizedBox(width: 8),
+                      _filtroChip('Activos'),
+                      const SizedBox(width: 8),
+                      _filtroChip('Inactivos'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${disponibles.length} empleado(s)',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AdminVisual.textMuted,
+                        ),
+                      ),
+                    ),
+                    FilledButton.icon(
+                      onPressed: _loading || _error != null ||
+                              _actualizandoEstadoId != null
+                          ? null
+                          : () => _abrirFormulario(),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AdminVisual.primaryPink,
+                        foregroundColor: Colors.white,
+                        shape: const StadiumBorder(),
+                      ),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const AdminTranslatedText('Nuevo', 'New'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: reducirMovimiento
+                  ? Duration.zero
+                  : const Duration(milliseconds: 250),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              child: _loading
+                  ? const Center(
+                      key: ValueKey('cargando'),
+                      child: CircularProgressIndicator(
+                        color: AppColors.primaryPink,
+                      ),
+                    )
+                  : _error != null
+                      ? _mensaje(
+                          key: 'error',
+                          icon: Icons.wifi_off_outlined,
+                          titulo: 'No se pudo cargar el personal',
+                          detalle: _error!,
+                          reintentar: true,
+                        )
+                      : disponibles.isEmpty
+                          ? _mensaje(
+                              key: 'vacio-$_filtro-$_searchQuery',
+                              icon: Icons.people_outline,
+                              titulo: _employees.isEmpty
+                                  ? 'Aún no hay empleados'
+                                  : 'No encontramos coincidencias',
+                              detalle: _employees.isEmpty
+                                  ? 'Registra a tu primer empleado con el botón Nuevo.'
+                                  : 'Prueba con otro nombre o cambia el filtro.',
+                            )
+                          : RefreshIndicator(
+                              key: const ValueKey('empleados'),
+                              onRefresh: _cargarEmpleados,
+                              color: AdminVisual.primaryPink,
+                              child: ListView.separated(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                padding: const EdgeInsets.fromLTRB(18, 7, 18, 28),
+                                keyboardDismissBehavior:
+                                    ScrollViewKeyboardDismissBehavior.onDrag,
+                                itemCount: disponibles.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 12),
+                                itemBuilder: (context, index) {
+                                  final empleado = disponibles[index];
+                                  return TweenAnimationBuilder<double>(
+                                    key: ValueKey(empleado.idEmpleado),
+                                    tween: Tween<double>(
+                                      begin: reducirMovimiento ? 1 : 0,
+                                      end: 1,
+                                    ),
+                                    duration: Duration(
+                                      milliseconds: reducirMovimiento
+                                          ? 0
+                                          : 180 + ((index < 5 ? index : 5) * 30),
+                                    ),
+                                    curve: Curves.easeOutCubic,
+                                    builder: (context, progreso, child) => Opacity(
+                                      opacity: progreso,
+                                      child: Transform.translate(
+                                        offset: Offset(0, 8 * (1 - progreso)),
+                                        child: child,
+                                      ),
+                                    ),
+                                    child: EmployeeCardWidget(
+                                      empleado: empleado,
+                                      actualizando: _actualizandoEstadoId ==
+                                          empleado.idEmpleado,
+                                      accionesDisponibles:
+                                          _actualizandoEstadoId == null,
+                                      onEditar: () => _abrirFormulario(
+                                        empleado: empleado,
+                                      ),
+                                      onCambiarEstado: () =>
+                                          _cambiarEstado(empleado),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _resumenEstado(String titulo, int valor, IconData icono) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: AdminVisual.primaryPinkSoft,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(icono, size: 20, color: AdminVisual.primaryPink),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                AdminVisual.ui(titulo),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.caption.copyWith(
+                  color: AdminVisual.textDark,
+                ),
+              ),
+            ),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              child: Text(
+                _loading && _employees.isEmpty ? '—' : '$valor',
+                key: ValueKey('$titulo-$valor-$_loading'),
+                style: AppTextStyles.heading2.copyWith(
+                  color: AdminVisual.primaryPink,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _filtroChip(String filtro) {
+    final seleccionado = _filtro == filtro;
+    return ChoiceChip(
+      label: Text(AdminVisual.ui(filtro)),
+      selected: seleccionado,
+      showCheckmark: seleccionado,
+      selectedColor: AdminVisual.primaryPinkSoft,
+      checkmarkColor: AdminVisual.primaryPink,
+      backgroundColor: AdminVisual.cardBackground,
+      side: BorderSide(
+        color: seleccionado ? AdminVisual.primaryPinkSoft : AdminVisual.cardBorder,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      labelStyle: AppTextStyles.caption.copyWith(
+        fontWeight: seleccionado ? FontWeight.w600 : FontWeight.w400,
+        color: seleccionado ? AdminVisual.primaryPink : AdminVisual.textDark,
+      ),
+      onSelected: (_) => setState(() => _filtro = filtro),
+    );
+  }
+
+  Widget _mensaje({
+    required String key,
+    required IconData icon,
+    required String titulo,
+    required String detalle,
+    bool reintentar = false,
+  }) {
+    return Center(
+      key: ValueKey(key),
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: AdminVisual.primaryPink, size: 42),
+            const SizedBox(height: 12),
+            Text(
+              titulo,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.heading2,
+            ),
+            const SizedBox(height: 7),
+            Text(
+              detalle,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.body,
+            ),
+            if (reintentar) ...[
+              const SizedBox(height: 14),
+              FilledButton.icon(
+                onPressed: _cargarEmpleados,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const AdminTranslatedText('Reintentar', 'Retry'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}

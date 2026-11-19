@@ -1,0 +1,312 @@
+
+import 'package:flutter/material.dart';
+
+import '../../../core/i18n/textos.dart';
+import '../../../core/routes/app_routes.dart';
+import '../../../core/theme/aura_colores.dart';
+import '../../../core/utils/errores.dart';
+import '../../../core/utils/formato.dart';
+import '../../../data/repositories/citas_repository.dart';
+import '../../../shared/widgets/pantalla_exito.dart';
+import '../../../shared/widgets/servicio_visual.dart';
+import '../../auth/widgets/auth_widgets.dart';
+import '../../shell/shell_controller.dart';
+import '../reserva_borrador.dart';
+
+/// "Confirmar tu cita": resumen de la reserva y botón para confirmar.
+class ConfirmarCitaScreen extends StatefulWidget {
+  final ReservaBorrador borrador;
+
+  const ConfirmarCitaScreen({
+    super.key,
+    required this.borrador,
+  });
+
+  @override
+  State<ConfirmarCitaScreen> createState() =>
+      _ConfirmarCitaScreenState();
+}
+
+class _ConfirmarCitaScreenState extends State<ConfirmarCitaScreen> {
+  bool _cargando = false;
+
+  /// Confirma el apartado temporal y registra la cita definitiva.
+  Future<void> _confirmar() async {
+    if (_cargando) return;
+
+    final b = widget.borrador;
+
+    if (b.idReserva == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.t('conf.sin_apartado')),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _cargando = true);
+
+    try {
+      await CitasRepository.instance.confirmarApartado(
+        idReserva: b.idReserva!,
+      );
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PantallaExito(
+            titulo: context.t('conf.ok_titulo'),
+            mensaje: context.t('conf.ok_msg'),
+            textoBoton: context.t('conf.ver_citas'),
+            onContinuar: (ctx) {
+              ShellController.irA(2);
+              Navigator.popUntil(
+                ctx,
+                ModalRoute.withName(AppRoutes.shell),
+              );
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() => _cargando = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(textoError(context, e)),
+        ),
+      );
+    }
+  }
+
+  /// Cancela el apartado temporal y regresa a la selección anterior.
+  Future<void> _cancelar() async {
+    if (_cargando) return;
+
+    final idReserva = widget.borrador.idReserva;
+
+    if (idReserva == null) {
+      Navigator.popUntil(
+        context,
+        ModalRoute.withName(AppRoutes.detalle),
+      );
+      return;
+    }
+
+    setState(() => _cargando = true);
+
+    try {
+      await CitasRepository.instance.cancelarApartado(idReserva);
+
+      if (!mounted) return;
+
+      Navigator.popUntil(
+        context,
+        ModalRoute.withName(AppRoutes.detalle),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() => _cargando = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(textoError(context, e)),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final b = widget.borrador;
+    final s = b.servicio;
+    final c = context.aura;
+
+    return Scaffold(
+      appBar: AppBar(),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+        children: [
+          Center(
+            child: Text(
+              context.t('conf.titulo'),
+              style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Center(
+            child: Text(
+              context.t('conf.sub'),
+              style: TextStyle(
+                fontSize: 12,
+                color: c.textoSecundario,
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          ServicioThumb(
+            categoria: s.categoria,
+            imagen: s.imagen,
+            width: double.infinity,
+            height: 150,
+            radius: 14,
+            iconSize: 60,
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 6,
+            ),
+            decoration: BoxDecoration(
+              color: c.superficie,
+              border: Border.all(
+                color: c.borde,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                _Fila(context.t('conf.servicio'), s.nombre),
+                _Fila(
+                  context.t('conf.especialista'),
+                  b.empleado.esCualquiera
+                      ? context.t('esp.cualquiera')
+                      : b.empleado.nombreCompleto,
+                ),
+                _Fila(
+                  context.t('conf.fecha_hora'),
+                  '${fechaCorta(b.fecha)} - ${hora12(b.hora)}',
+                ),
+                _Fila(context.t('conf.duracion'), duracionLegible(s.minutos)),
+                _Fila(
+                  context.t('conf.total'),
+                  context.t('comun.mxn', {'precio': s.precioTexto}),
+                  ultima: true,
+                  destacado: true,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Center(
+            child: Text(
+              context.t('conf.consejo'),
+              style: TextStyle(
+                fontSize: 11,
+                color: c.textoSecundario,
+              ),
+            ),
+          ),
+          if (b.fechaExpiracion != null) ...[
+            const SizedBox(height: 12),
+            Center(
+              child: Text(
+                context.t('conf.apartado'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: c.textoSecundario,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+          child: Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: _cargando ? null : _cancelar,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: c.campoBloqueado,
+                    foregroundColor: c.texto,
+                    minimumSize: const Size.fromHeight(46),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(context.t('comun.cancelar')),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: AuthBoton(
+                  texto: context.t('comun.confirmar'),
+                  cargando: _cargando,
+                  onPressed: _confirmar,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Fila extends StatelessWidget {
+  final String etiqueta;
+  final String valor;
+  final bool ultima;
+  final bool destacado;
+
+  const _Fila(
+    this.etiqueta,
+    this.valor, {
+    this.ultima = false,
+    this.destacado = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.aura;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        border: ultima
+            ? null
+            : Border(
+                bottom: BorderSide(
+                  color: c.borde,
+                ),
+              ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            etiqueta,
+            style: TextStyle(
+              fontSize: 12,
+              color: c.textoSecundario,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            valor,
+            style: TextStyle(
+              fontSize: destacado ? 16 : 14,
+              fontWeight: destacado
+                  ? FontWeight.w700
+                  : FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
