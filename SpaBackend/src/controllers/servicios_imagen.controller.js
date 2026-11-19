@@ -1,6 +1,8 @@
-const fs = require('node:fs/promises');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
+const supabase = require('../config/supabase');
+
+const BUCKET = 'servicios';
 
 // El volumen/directorio debe ser persistente en producción; nunca bajo la BD.
 const carpeta = path.resolve(process.env.SPA_UPLOAD_DIR || path.join(__dirname, '../../uploads/servicios'));
@@ -33,13 +35,43 @@ async function subirImagenServicio(req, res) {
     }
     const nombre = `${randomUUID()}${tipo.ext}`;
     try {
-        await fs.mkdir(carpeta, {recursive: true});
-        await fs.writeFile(path.join(carpeta, nombre), bytes, {flag: 'wx'});
-        return res.status(201).json({imagen: `/uploads/servicios/${nombre}`});
+        // Guardar la imagen en Supabase Storage.
+        const { error } = await supabase.storage
+            .from(BUCKET)
+            .upload(nombre, bytes, {
+                contentType: tipo.mime,
+                cacheControl: '3600',
+                upsert: false
+            });
+
+        if (error) {
+            throw error;
+        }
+
+        // Obtener la URL pública de la fotografía.
+        const { data } = supabase.storage
+            .from(BUCKET)
+            .getPublicUrl(nombre);
+
+        if (!data?.publicUrl) {
+            throw new Error('No se pudo generar la URL pública');
+        }
+
+        return res.status(201).json({
+            imagen: data.publicUrl
+        });
+
     } catch (err) {
-        console.error('No fue posible guardar la imagen del servicio:', err.message);
-        return res.status(500).json({error: 'No se pudo almacenar la imagen del servicio.'});
+        console.error(
+            'No fue posible guardar la imagen del servicio:',
+            err.message
+        );
+
+        return res.status(500).json({
+            error: 'No se pudo almacenar la imagen del servicio.'
+        });
     }
+
 }
 
 module.exports = {subirImagenServicio, carpeta, tipoReal};
