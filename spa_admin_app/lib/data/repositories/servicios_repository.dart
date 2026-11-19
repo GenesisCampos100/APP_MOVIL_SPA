@@ -108,9 +108,28 @@ class ServiciosRepository {
       throw ApiException(message: 'La API no devolvió una ruta válida de la fotografía.');
     }
     final ruta = (respuesta['imagen'] as String).trim();
-    if (!RegExp(r'^/uploads/servicios/[a-zA-Z0-9-]+\.(jpg|png|webp)$').hasMatch(ruta)) {
-      throw ApiException(message: 'La API devolvió una ubicación inesperada.');
-    }
+
+  final rutaAnterior = RegExp(
+    r'^/uploads/servicios/[a-zA-Z0-9-]+\.(jpg|png|webp)$',
+  ).hasMatch(ruta);
+
+  final uri = Uri.tryParse(ruta);
+
+  final urlSupabase = uri != null &&
+      uri.scheme == 'https' &&
+      uri.host == 'qpflbdklyxrmkoobaddm.supabase.co' &&
+      !uri.hasQuery &&
+      !uri.hasFragment &&
+      RegExp(
+        r'^/storage/v1/object/public/servicios/[a-zA-Z0-9-]+\.(jpg|png|webp)$',
+      ).hasMatch(uri.path);
+
+  if (!rutaAnterior && !urlSupabase) {
+    throw ApiException(
+      message: 'La API devolvió una ubicación inesperada.',
+    );
+  }
+
     return ruta;
   }
 
