@@ -55,6 +55,7 @@ class _AuthEmailScreenState extends State<AuthEmailScreen> {
     }
   }
 
+ 
   @override
   Widget build(BuildContext context) {
     return AuthPagina(
@@ -74,34 +75,10 @@ class _AuthEmailScreenState extends State<AuthEmailScreen> {
           onSubmitted: (_) => _continuar(),
         ),
         const SizedBox(height: 24),
-        AuthBoton(texto: context.t('comun.continuar'), cargando: _cargando, onPressed: _continuar),
-        const SizedBox(height: 20),
-        Row(
-          children: [
-            const Expanded(child: Divider()),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Text(context.t('auth.o'), style: TextStyle(color: context.aura.textoSecundario)),
-            ),
-            const Expanded(child: Divider()),
-          ],
-        ),
-        const SizedBox(height: 20),
-        OutlinedButton.icon(
-          onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(context.t('comun.proximamente',
-                  {'que': context.t('auth.google_q')})),
-            ),
-          ),
-          icon: const Icon(Icons.g_mobiledata, size: 30),
-          label: Text(context.t('auth.google')),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: context.aura.texto,
-            minimumSize: const Size.fromHeight(46),
-            side: BorderSide(color: context.aura.bordeCampo),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
+        AuthBoton(
+          texto: context.t('comun.continuar'),
+          cargando: _cargando,
+          onPressed: _continuar,
         ),
       ],
     );
